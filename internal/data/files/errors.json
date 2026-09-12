@@ -348,10 +348,10 @@
   "segments": {
     "AttachDisk": {
       "desc": "attaching a VHDX to the VM",
-      "note": "ERROR_ACCESS_DENIED here: VHD ownership after a move (DSK006 planned)",
       "probes": [
         "DSK002",
-        "DSK003"
+        "DSK003",
+        "DSK006"
       ]
     },
     "Bash": {
@@ -363,6 +363,7 @@
     "CallMsi": {
       "desc": "running the WSL MSI installer",
       "probes": [
+        "HST005",
         "WSL002"
       ]
     },
@@ -467,8 +468,8 @@
     },
     "Install": {
       "desc": "wsl --install",
-      "note": "since 2.6.1 WSL refuses to install distros while a reboot is pending (HST004 planned)",
       "probes": [
+        "HST004",
         "HST001",
         "HST002",
         "WSL002"
@@ -496,8 +497,8 @@
     },
     "MoveDistro": {
       "desc": "wsl --manage --move",
-      "note": "VHD ownership after cross-volume moves fixed in 2.7.11/2.7.12",
       "probes": [
+        "DSK006",
         "DSK002",
         "DSK005"
       ]
@@ -668,8 +669,8 @@
     "E_ACCESSDENIED": {
       "desc": "Access denied: file ACLs on the VHDX, or a policy.",
       "hresult": "0x80070005",
-      "note": "VHD ownership after moves (DSK006 planned)",
       "probes": [
+        "DSK006",
         "DSK002"
       ]
     },
@@ -746,8 +747,8 @@
     "REGDB_E_CLASSNOTREG": {
       "desc": "The WSL COM class is not registered; typical after a Windows update or a half-removed Store package.",
       "hresult": "0x80040154",
-      "note": "wsl --update or repair the WSL package",
       "probes": [
+        "HST005",
         "WSL002",
         "HST002"
       ]
@@ -799,6 +800,7 @@
     "WSL_E_INSTALL_COMPONENT_FAILED": {
       "desc": "enabling a Windows optional component failed; a pending reboot is the usual reason.",
       "probes": [
+        "HST004",
         "HST001"
       ]
     },
@@ -811,8 +813,8 @@
     },
     "WSL_E_OS_NOT_SUPPORTED": {
       "desc": "This Windows build is too old for the runtime or feature.",
-      "note": "HST004 (build gates) planned",
       "probes": [
+        "HST004",
         "HST001"
       ]
     },
