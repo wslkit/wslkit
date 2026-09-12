@@ -30,7 +30,9 @@ Phases are sequential gates; the milestone tags (M0–M3) from PLAN.md map onto 
 > [ADR 0007](docs/decisions/0007-spike-results.md). Headlines: WMI works unelevated but
 > service queries are slow (use SCM directly); Defender exclusions are admin-only to read;
 > VmSwitch/System/Application channels are readable unelevated, Hyper-V Compute and HNS
-> are not. S5 (bisect) still open.
+> are not. S5 answered from source and release notes the same day (cgroup v1 removal in
+> WSL 2.5.1 vs cgroup-v2-only Ubuntu 26.04); VM confirmation pending. Deeper feature
+> research from the WSL source is in `docs/research/2026-09-feature-research.md`.
 
 Nothing in Phase 1 should start until these five questions have a measured answer.
 Each spike is a small Go program in `spikes/` that prints what it found; they are deleted
@@ -149,9 +151,10 @@ Each item: evidence, technique, elevation, proposed ID and phase.
 you exactly which runtime introduced each capability. Proposed `data/compat.json` row:
 
 ```json
-{ "distro": "Ubuntu", "release": "26.04", "format": "modern",
-  "min_runtime": "TBD-by-S5", "symptom": "Wsl/Service/E_UNEXPECTED on every launch",
-  "cause": "TBD", "refs": ["https://github.com/microsoft/WSL/issues/13484"] }
+{ "flavor": "ubuntu", "os_version": "26.04", "format": "modern",
+  "min_runtime": "2.5.7", "symptom": "Wsl/Service/E_UNEXPECTED on every launch",
+  "cause": "cgroup v2-only distro on a runtime that still mounts cgroup v1 (removed in WSL 2.5.1)",
+  "refs": ["https://github.com/microsoft/WSL/releases/tag/2.5.1"] }
 ```
 
 Also record *host* requirements: mirrored networking and Hyper-V firewall need

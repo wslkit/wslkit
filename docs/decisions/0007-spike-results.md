@@ -82,9 +82,21 @@ correlation requires `--elevated`.
   next two. The collector retries once; probes treat "not returned" as UNKNOWN.
 - Hosted runners: `windows-latest` (Server 2025) ships WSL 2.7.13 with no distros and
   Defender real-time protection off; `windows-11-arm` ships no WSL. Both are fixtures now.
+- `Win32_QuickFixEngineering` is readable unelevated (0.96 s for 91 rows; 0.64 s
+  filtered). The Hyper-V firewall classes `MSFT_NetFirewallHyperVVMCreator` and
+  `MSFT_NetFirewallHyperVProfile` in `ROOT\standardcimv2` return `Invalid class` on
+  Windows 10 22H2 in ~40 ms, matching WSL's own "no Hyper-V firewall support" branch
+  (`spikes/qfe`).
 
-## Still open
+## S5 — answered from source and release notes (same day, VM confirmation pending)
 
-S5 (bisect the Ubuntu 26.04 minimum runtime) needs a scratch VM. Until then the compat
-matrix records `known_bad_max = 2.4.13` and `known_good_min = 2.7.13` and `WSL001`
-reports the range between them as `WARN` (untested), not `FAIL`.
+Ubuntu 26.04 removed cgroup v1 (legacy and hybrid) and ships systemd 259; WSL 2.5.1
+(2025-03-12) "Remove cgroupv1 support", first stable 2.5.7 (2025-04-24). A 2.4.x runtime
+mounts a hybrid v1 hierarchy that systemd 259 refuses, so the distro never boots and
+`wslservice` reports `Wsl/Service/E_UNEXPECTED`. `compat.json` now carries
+`min_runtime = 2.5.7` for ubuntu 26.04. Full write-up and the generalisation to any
+cgroup-v2-only distro: `docs/research/2026-09-feature-research.md` §1. The earlier
+citation of issue #13484 was wrong: that is a corrupted-VHD case with the same error string.
+
+Still worth doing on a scratch VM: install 2.4.13 and 2.5.7 MSIs with the Ubuntu 26.04
+`.wsl` and confirm fail/boot, then mark the row as verified.
