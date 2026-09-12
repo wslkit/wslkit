@@ -1,5 +1,5 @@
 // Package peexport reads the export name table of a PE file without loading
-// it, so wsldoctor can tell whether a plugin DLL exports the WSL entry point.
+// it, so wslkit can tell whether a plugin DLL exports the WSL entry point.
 // Pure Go; works on any OS against a file on disk.
 package peexport
 

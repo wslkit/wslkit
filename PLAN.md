@@ -1,7 +1,11 @@
 # wsldoctor — Plan
 
+> **2026-09-12: wsldoctor became the `doctor` subcommand of wslkit** (ADR 0008). This
+> document remains the specification of that feature; read `wsldoctor check` as
+> `wslkit doctor` and `wsldoctor fix` as `wslkit doctor fix`.
+
 > Status: **not started**. This document is the specification. It exists so a fresh
-> Claude Code session (or any contributor) can pick up development with full context.
+> contributor can pick up development with full context.
 > Development phases, spikes and feature research live in [ROADMAP.md](ROADMAP.md);
 > language, code layout, CI/CD and testing in [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -11,8 +15,8 @@ One native Windows CLI that answers **"why is my WSL broken or slow?"** and then
 what it finds.
 
 ```
-wsldoctor check              # read-only, no admin, ranked diagnosis
-wsldoctor fix <action>       # explicit, per-action remediation
+wslkit doctor check              # read-only, no admin, ranked diagnosis
+wslkit doctor fix <action>       # explicit, per-action remediation
 ```
 
 Not a monitoring tool, not a GUI, not a distro manager. A one-shot diagnostic that ends
@@ -193,12 +197,12 @@ Ordered by implementation priority. `M1` probes are the minimum viable release.
 
 | Fix ID | Command | Elevates | What it changes |
 |---|---|---|---|
-| `update` | `wsldoctor fix update` | no | Runs `wsl --update`. Resolves `WSL001`/`WSL003`. |
-| `defender` | `wsldoctor fix defender` | **yes** | Adds Defender exclusions for the vhdx paths and WSL processes. Must print the exact exclusion list and require confirmation. |
-| `zone` | `wsldoctor fix zone` | no | Deletes `Zone.Identifier` ADS. Needs `--path` scoping and a dry-run count first. |
-| `oobe` | `wsldoctor fix oobe` | no | Resets `RunOOBE` so first-run setup re-runs. **Reverted correctly during the founding investigation — the value must be restored if the fix does not help.** |
-| `shutdown` | `wsldoctor fix shutdown` | no | `wsl --shutdown`. Explicit because it kills running work. |
-| `wslconfig` | `wsldoctor fix wslconfig` | no | Comments out unknown/unsupported keys, with a backup. |
+| `update` | `wslkit doctor fix update` | no | Runs `wsl --update`. Resolves `WSL001`/`WSL003`. |
+| `defender` | `wslkit doctor fix defender` | **yes** | Adds Defender exclusions for the vhdx paths and WSL processes. Must print the exact exclusion list and require confirmation. |
+| `zone` | `wslkit doctor fix zone` | no | Deletes `Zone.Identifier` ADS. Needs `--path` scoping and a dry-run count first. |
+| `oobe` | `wslkit doctor fix oobe` | no | Resets `RunOOBE` so first-run setup re-runs. **Reverted correctly during the founding investigation — the value must be restored if the fix does not help.** |
+| `shutdown` | `wslkit doctor fix shutdown` | no | `wsl --shutdown`. Explicit because it kills running work. |
+| `wslconfig` | `wslkit doctor fix wslconfig` | no | Comments out unknown/unsupported keys, with a backup. |
 
 Every fix: dry-run by default, `--apply` to execute, always print a rollback instruction.
 
@@ -209,7 +213,7 @@ Every fix: dry-run by default, `--apply` to execute, always print a rollback ins
 1. Try the unelevated path first (WMI over DISM, `MpPreference` read over policy read).
 2. If genuinely unavailable, return `Status: Unknown` with
    `"requires --elevated to check"` — **never** fail the run, and never silently skip.
-3. `wsldoctor check --elevated` re-runs only those probes.
+3. `wslkit doctor check --elevated` re-runs only those probes.
 
 This was learned the hard way: `Get-WindowsOptionalFeature` returned
 `"The requested operation requires elevation"` while `Win32_OptionalFeature` returned the
@@ -226,11 +230,11 @@ FAIL  WSL001  Runtime is too old for this distro
       Ubuntu is 26.04 (modern/tar format); WSL runtime is 2.4.13.0 (2025-01).
       Modern-format distros of this vintage need runtime >= 2.5.x.
       This will present as: Wsl/Service/E_UNEXPECTED on every launch.
-      -> wsldoctor fix update
+      -> wslkit doctor fix update
 
 WARN  DEF001  Windows Defender is scanning your WSL disk
       No exclusion for <basepath>\ext4.vhdx  (1.4 GB, scanned on every write)
-      -> wsldoctor fix defender          (requires admin)
+      -> wslkit doctor fix defender          (requires admin)
 
 OK    HST001  VirtualMachinePlatform, WSL feature, Hyper-V all enabled
 OK    HST002  LxssManager, vmcompute, HvHost healthy

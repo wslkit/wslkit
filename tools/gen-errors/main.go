@@ -74,7 +74,7 @@ func run(wsl, out string) error {
 		doc[k] = b
 		return nil
 	}
-	if err := set("schema", "wsldoctor/errors/v1"); err != nil {
+	if err := set("schema", "wslkit/errors/v1"); err != nil {
 		return err
 	}
 	if err := set("updated", time.Now().UTC().Format("2006-01-02")); err != nil {

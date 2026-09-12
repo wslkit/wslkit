@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/wslkit/wsldoctor/internal/data"
-	"github.com/wslkit/wsldoctor/internal/env"
-	"github.com/wslkit/wsldoctor/internal/probe"
-	"github.com/wslkit/wsldoctor/internal/wslver"
+	"github.com/wslkit/wslkit/internal/data"
+	"github.com/wslkit/wslkit/internal/env"
+	"github.com/wslkit/wslkit/internal/probe"
+	"github.com/wslkit/wslkit/internal/wslver"
 )
 
 // All returns the probes in this package in execution order.
@@ -65,7 +65,7 @@ func (p Installed) Run(e *env.Env) probe.Result {
 			"legacy LxssManager service is registered. Modern WSL 2, systemd, mirrored networking and every fix\n"+
 			"in this tool need the Store runtime.", rt.InboxWslVersion.Value)
 		r.FixID = "update"
-		r.FixHint = "wsl --install --no-distribution     (or: wsldoctor fix update)"
+		r.FixHint = "wsl --install --no-distribution     (or: wslkit doctor fix update)"
 		r.Refs = []string{"https://learn.microsoft.com/en-us/windows/wsl/install"}
 		return r
 	case rt.InboxWslVersion.OK():
@@ -122,7 +122,7 @@ func (p Compat) Run(e *env.Env) probe.Result {
 		if d.Modern == 1 && rt.Less(modernMin) {
 			r := b.Res(probe.Fail, 0.95, fmt.Sprintf("Runtime %s cannot load modern-format distro %s at all (needs >= %s)", rt, name, modernMin))
 			r.Detail = fmt.Sprintf("%s is a modern/tar-format distro (Modern=1, %s %s). Modern-format support arrived in WSL %s.", name, d.Flavor, d.OsVersion, modernMin)
-			r.FixID, r.FixHint = "update", "wsldoctor fix update      (runs wsl --update)"
+			r.FixID, r.FixHint = "update", "wslkit doctor fix update      (runs wsl --update)"
 			r.Refs = []string{matrix.Refs["modern_format"]}
 			return r
 		}
@@ -176,7 +176,7 @@ func judge(b probe.Base, matrix *data.Compat, rt wslver.Version, d env.Distro, r
 			if row.Cause != "" {
 				r.Detail += "\nCause: " + row.Cause
 			}
-			r.FixID, r.FixHint = "update", "wsldoctor fix update      (runs wsl --update)"
+			r.FixID, r.FixHint = "update", "wslkit doctor fix update      (runs wsl --update)"
 			r.Refs = append(r.Refs, row.Refs...)
 			return r, 2
 		}
@@ -190,7 +190,7 @@ func judge(b probe.Base, matrix *data.Compat, rt wslver.Version, d env.Distro, r
 			if row.KnownGoodMin != "" {
 				r.Detail += fmt.Sprintf("\nRuntime %s and later are known to work.", row.KnownGoodMin)
 			}
-			r.FixID, r.FixHint, r.Refs = "update", "wsldoctor fix update      (runs wsl --update)", row.Refs
+			r.FixID, r.FixHint, r.Refs = "update", "wslkit doctor fix update      (runs wsl --update)", row.Refs
 			return r, 2
 		}
 	}
@@ -199,7 +199,7 @@ func judge(b probe.Base, matrix *data.Compat, rt wslver.Version, d env.Distro, r
 		if rt.Less(good) {
 			r := b.Res(probe.Warn, 0.5, fmt.Sprintf("Runtime %s is in an untested range for %s (%s %s)", rt, name, row.Flavor, row.OsVersion))
 			r.Detail = fmt.Sprintf("Known to fail up to %s, known to work from %s. If launches fail with \"%s\", updating is the first thing to try.", row.KnownBadMax, good, symptom)
-			r.FixID, r.FixHint, r.Refs = "update", "wsldoctor fix update      (runs wsl --update)", row.Refs
+			r.FixID, r.FixHint, r.Refs = "update", "wslkit doctor fix update      (runs wsl --update)", row.Refs
 			return r, 1
 		}
 	}
@@ -239,7 +239,7 @@ func (p UpdateAvailable) Run(e *env.Env) probe.Result {
 	case cur.Less(latest):
 		r := b.Res(probe.Warn, 0.3, fmt.Sprintf("WSL %s installed; %s is the latest stable (%s)", cur, latest, src))
 		r.Detail = "Not a root cause by itself, but most launch failures on old runtimes are fixed by updating."
-		r.FixID, r.FixHint = "update", "wsldoctor fix update      (runs wsl --update)"
+		r.FixID, r.FixHint = "update", "wslkit doctor fix update      (runs wsl --update)"
 		return r
 	case latest.Less(cur):
 		r := b.Res(probe.OK, 0.5, fmt.Sprintf("WSL %s is newer than the latest stable this tool knows (%s); pre-release channel or newer data needed", cur, latest))

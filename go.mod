@@ -1,4 +1,4 @@
-module github.com/wslkit/wsldoctor
+module github.com/wslkit/wslkit
 
 go 1.27.1
 

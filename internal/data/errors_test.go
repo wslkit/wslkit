@@ -3,7 +3,7 @@ package data
 import (
 	"testing"
 
-	"github.com/wslkit/wsldoctor/internal/wslerr"
+	"github.com/wslkit/wslkit/internal/wslerr"
 )
 
 func TestLoadErrors(t *testing.T) {
@@ -74,11 +74,11 @@ func TestExplain(t *testing.T) {
 }
 
 func TestValidateErrors(t *testing.T) {
-	e := &Errors{Schema: "wsldoctor/errors/v1", Contexts: []ContextInfo{{"A", 1}, {"B", 0}}}
+	e := &Errors{Schema: "wslkit/errors/v1", Contexts: []ContextInfo{{"A", 1}, {"B", 0}}}
 	if err := e.Validate(); err == nil {
 		t.Fatal("unsorted contexts must fail")
 	}
-	e = &Errors{Schema: "wsldoctor/errors/v1", Contexts: []ContextInfo{{"A", 0}}, Segments: map[string]Segment{"Z": {Desc: "x"}}}
+	e = &Errors{Schema: "wslkit/errors/v1", Contexts: []ContextInfo{{"A", 0}}, Segments: map[string]Segment{"Z": {Desc: "x"}}}
 	if err := e.Validate(); err == nil {
 		t.Fatal("segment for unknown context must fail")
 	}

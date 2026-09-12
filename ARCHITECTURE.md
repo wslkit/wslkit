@@ -1,5 +1,9 @@
 # wsldoctor — Language, code architecture, CI/CD and testing
 
+> **2026-09-12: the binary is `wslkit`; the doctor is its first subcommand** (ADR 0008).
+> `cmd/wsldoctor` below is now `cmd/wslkit`; everything under `internal/` is the kit's
+> shared platform layer.
+
 > Companion to [PLAN.md](PLAN.md) (what) and [ROADMAP.md](ROADMAP.md) (when). This is the
 > engineering design. Status: **ratified and implemented as the Phase 1 skeleton on
 > 2026-09-12**; see `docs/decisions/` (ADR 0001–0007). Deviations from this text in the
@@ -211,7 +215,7 @@ section, key, type, default, `min_windows_build`, `min_wsl`, `deprecated_in`,
 | Workflow | Trigger | Runner | Steps |
 |---|---|---|---|
 | `ci.yml` | push, PR | `ubuntu-latest` | `go vet`, `staticcheck`, `golangci-lint`, `govulncheck`, `GOOS=linux go test` on pure packages, `GOOS=windows GOARCH=amd64/arm64 go build` (cross-compile, no cgo), schema validation of `data/*.json`, snapshot corpus tests. Fast path: under 3 minutes. |
-| `ci-windows.yml` | push, PR | `windows-latest`, `windows-11-arm` | `go test ./...` with `-tags integration` for `internal/winapi` and `internal/env/collect`; live `wsldoctor check --json` smoke; validate output against `schema/result-v1.json`; upload the produced `env.json` as an artifact. |
+| `ci-windows.yml` | push, PR | `windows-latest`, `windows-11-arm` | `go test ./...` with `-tags integration` for `internal/winapi` and `internal/env/collect`; live `wslkit doctor check --json` smoke; validate output against `schema/result-v1.json`; upload the produced `env.json` as an artifact. |
 | `nightly.yml` | cron daily | `windows-latest`, `windows-11-arm` | Live `check` on the fresh runner image; diff `env.json` against the previous night; open an issue on unexpected change (runner image drift is a free early-warning for Windows changes). Also `go test -fuzz` for 10 minutes per fuzz target. |
 | `data-refresh.yml` | cron weekly | `ubuntu-latest` | Fetch GitHub releases API and `wsl-config.md`; regenerate `data/*.json`; open a PR if the diff is non-empty. Humans merge. |
 | `release.yml` | tag `v*` | `ubuntu-latest` build, `windows-latest` sign | goreleaser: zip + `.exe` for amd64/arm64, `checksums.txt`, SBOM (syft, SPDX), SLSA provenance via `actions/attest-build-provenance`; Authenticode signing; GitHub Release with generated notes; Scoop manifest PR to the wslkit bucket; winget PR via `winget-releaser`. |
@@ -259,7 +263,7 @@ snapshots.
 | Collector integration | each Windows collector against the live runner: succeeds, populates `Source`, never panics, honours deadline | Windows runners, `-tags integration` | one test per collector |
 | Fix planning | `Plan()` against snapshots; `RecordingExecutor` asserts exact steps and rollback; undo round-trip | Linux and Windows | one per fix, plus "refuses without --apply" |
 | Contract | `--json` validates against `schema/result-v1.json`; human output golden files at 80 and 120 columns | both | per renderer |
-| Live smoke | `wsldoctor check --json` exit code and schema on hosted runners | Windows runners | one |
+| Live smoke | `wslkit doctor check --json` exit code and schema on hosted runners | Windows runners | one |
 | Manual matrix | real WSL2 on real machines before each release | humans | §5.7 |
 
 ### 5.2 Snapshots are the product's test suite

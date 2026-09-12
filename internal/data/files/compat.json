@@ -1,5 +1,5 @@
 {
-  "schema": "wsldoctor/compat/v1",
+  "schema": "wslkit/compat/v1",
   "updated": "2026-09-12",
   "latest_stable": "2.7.14",
   "latest_prerelease": "2.9.11",
@@ -40,7 +40,7 @@
       "known_bad_max": "2.4.13",
       "known_good_min": "2.7.13",
       "symptom": "Catastrophic failure / Error code: Wsl/Service/E_UNEXPECTED on every launch",
-      "cause": "Ubuntu 26.04 is cgroup v2 only (systemd 259; cgroup v1 legacy and hybrid hierarchies removed). Derived from source and release notes; VM confirmation pending (wslkit/wsldoctor#1).",
+      "cause": "Ubuntu 26.04 is cgroup v2 only (systemd 259; cgroup v1 legacy and hybrid hierarchies removed). Derived from source and release notes; VM confirmation pending (wslkit/wslkit#1).",
       "refs": [
         "https://documentation.ubuntu.com/release-notes/26.04/summary-for-lts-users/"
       ]

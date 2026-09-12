@@ -4,9 +4,9 @@ package perf
 import (
 	"fmt"
 
-	"github.com/wslkit/wsldoctor/internal/env"
-	"github.com/wslkit/wsldoctor/internal/probe"
-	"github.com/wslkit/wsldoctor/internal/wslconfig"
+	"github.com/wslkit/wslkit/internal/env"
+	"github.com/wslkit/wslkit/internal/probe"
+	"github.com/wslkit/wslkit/internal/wslconfig"
 )
 
 func All() []probe.Probe { return []probe.Probe{Memory{}} }

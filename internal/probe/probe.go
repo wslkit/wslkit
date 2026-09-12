@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/wslkit/wsldoctor/internal/env"
+	"github.com/wslkit/wslkit/internal/env"
 )
 
 type Status string
@@ -77,7 +77,7 @@ func (b Base) Res(status Status, confidence float64, summary string) Result {
 // NeedsElevation builds the standard UNKNOWN result for admin-only data.
 func (b Base) NeedsElevation(what string) Result {
 	r := b.Res(Unknown, 0.1, fmt.Sprintf("%s cannot be read without elevation", what))
-	r.FixHint = "wsldoctor check --elevated   (from an elevated terminal)"
+	r.FixHint = "wslkit doctor check --elevated   (from an elevated terminal)"
 	r.Elevate = true
 	return r
 }

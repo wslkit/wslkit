@@ -8,7 +8,7 @@ Status: accepted, 2026-09-12.
    `internal/wslver`, `internal/wslerr` is pure and must compile and test with
    `GOOS=linux`. CI enforces this; `.golangci.yml` `depguard` forbids the Windows
    imports there.
-2. `wsldoctor check --json` output is the fixture format. `check --from-snapshot env.json`
+2. `wslkit doctor check --json` output is the fixture format. `check --from-snapshot env.json`
    re-runs every probe on a saved environment. Fixtures live in `testdata/snapshots/<case>/`
    with `env.json`, `expected.json` (top findings, lower-bound confidence) and `README.md`.
 3. Collectors are tested for behaviour (no panic, provenance filled, deadline honoured),

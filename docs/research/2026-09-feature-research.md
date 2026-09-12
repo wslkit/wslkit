@@ -67,7 +67,7 @@ So `Wsl/Service/CreateInstance/CreateVm/HCS/HCS_E_HYPERV_NOT_INSTALLED` means: c
 `wsl.exe` → `wslservice` → creating an instance → creating the VM → Host Compute Service
 call → that HRESULT. A parser is a split on `/`, a lookup per segment, and a final code.
 
-**implement** `wsldoctor explain <code>` (M2):
+**implement** `wslkit doctor explain <code>` (M2):
 
 | Segment(s) | Probes to run first | Notes |
 |---|---|---|

@@ -76,7 +76,7 @@ func run(wsl, out string) error {
 			return fmt.Errorf("existing %s: %w", out, err)
 		}
 	}
-	t.Schema = "wsldoctor/wslconfig-keys/v1"
+	t.Schema = "wslkit/wslconfig-keys/v1"
 	t.Updated = time.Now().UTC().Format("2006-01-02")
 	t.SourceCommit = gitHead(wsl)
 

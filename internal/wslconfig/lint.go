@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/wslkit/wsldoctor/internal/data"
-	"github.com/wslkit/wsldoctor/internal/wslver"
+	"github.com/wslkit/wslkit/internal/data"
+	"github.com/wslkit/wslkit/internal/wslver"
 )
 
 // Severity of a lint finding.
@@ -197,7 +197,7 @@ func humanBytes(b uint64) string {
 }
 
 // CommentOut returns the file's lines with every finding marked CommentOut
-// disabled: a "# wsldoctor: <message>" line is inserted before it and the line
+// disabled: a "# wslkit:<message>" line is inserted before it and the line
 // itself is prefixed with "# ". The caller joins with the file's newline style.
 func CommentOut(cfg *Config, findings []Finding) []string {
 	reasons := map[int]string{}
@@ -215,7 +215,7 @@ func CommentOut(cfg *Config, findings []Finding) []string {
 			out = append(out, l)
 			continue
 		}
-		out = append(out, "# wsldoctor: "+reason, "# "+l)
+		out = append(out, "# wslkit:"+reason, "# "+l)
 	}
 	return out
 }

@@ -25,20 +25,24 @@ jobs:
       - name: unit + integration tests
         run: go test -count=1 -tags integration ./...
       - name: build
-        run: go build -trimpath -o wsldoctor.exe ./cmd/wsldoctor
+        run: go build -trimpath -o wslkit.exe ./cmd/wslkit
       - name: live smoke (hosted runners have no WSL 2; expect HST/WSL findings, never a crash)
         shell: pwsh
         run: |
           # Exit 1 means "findings", which is expected on a runner without WSL 2.
           # Only 2 (usage) and 3 (collector failure) or a crash fail this step.
           function Check([string[]]$argv) {
-            & .\wsldoctor.exe @argv
-            if ($LASTEXITCODE -notin 0,1) { throw "wsldoctor $argv exited with $LASTEXITCODE" }
+            & .\wslkit.exe @argv
+            if ($LASTEXITCODE -notin 0,1) { throw "wslkit $argv exited with $LASTEXITCODE" }
           }
-          Check @('check')
-          Check @('check','--json') 6> $null | Out-File -Encoding utf8 env.json
-          Check @('check','--from-snapshot','env.json','--verbose')
-          Check @('check','--report')
+          Check @('doctor')
+          Check @('doctor','check','--json') 6> $null | Out-File -Encoding utf8 env.json
+          Check @('doctor','check','--from-snapshot','env.json','--verbose')
+          Check @('doctor','--report')
+          # Legacy alias: a copy named wsldoctor.exe must behave as `wslkit doctor`.
+          Copy-Item wslkit.exe wsldoctor.exe
+          & .\wsldoctor.exe --from-snapshot env.json | Select-Object -First 1
+          if ($LASTEXITCODE -notin 0,1) { throw "wsldoctor alias exited with $LASTEXITCODE" }
           $global:LASTEXITCODE = 0
       - uses: actions/upload-artifact@v4
         with:

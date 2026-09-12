@@ -1,6 +1,6 @@
 // Package env defines the environment snapshot that collectors fill and probes
 // read. It is pure data: no Windows imports, so it builds everywhere and
-// round-trips through JSON (schema wsldoctor/env/v1).
+// round-trips through JSON (schema wslkit/env/v1).
 package env
 
 import (
@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const Schema = "wsldoctor/env/v1"
+const Schema = "wslkit/env/v1"
 
 // ErrKind classifies why a Field has no value. Probes map these to UNKNOWN or
 // SKIPPED; they must never map them to OK or FAIL.
@@ -67,7 +67,7 @@ var ErrNeedsElevationSentinel = errors.New("requires elevation")
 // concurrently; nothing reads Env until collection is complete.
 type Env struct {
 	Schema      string    `json:"schema"`
-	Tool        string    `json:"tool"` // "wsldoctor 0.1.0"
+	Tool        string    `json:"tool"` // "wslkit 0.1.0"
 	CollectedAt time.Time `json:"collected_at"`
 	Elevated    bool      `json:"elevated"`
 	VMWakeOK    bool      `json:"vm_wake_allowed"`
@@ -152,7 +152,7 @@ type FirewallSupport struct {
 type Net struct {
 	Adapters       Field[[]Adapter]       `json:"adapters"`
 	HyperVFirewall Field[FirewallSupport] `json:"hyperv_firewall"`
-	// Hotfixes holds presence for the KBs wsldoctor cares about (only queried
+	// Hotfixes holds presence for the KBs wslkit cares about (only queried
 	// when the configuration makes them relevant). Key is "KB5068861".
 	Hotfixes Field[map[string]bool] `json:"hotfixes"`
 	// Policy holds values under HKLM\Software\Policies\WSL (src/windows/inc/wslpolicies.h:

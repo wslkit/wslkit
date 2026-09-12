@@ -1,9 +1,12 @@
-# Contributing to wsldoctor
+# Contributing to wslkit
+
+wslkit is one binary with one subcommand per tool. `doctor` is the first; see
+[ADR 0008](docs/decisions/0008-wslkit-product.md) for how new tools fit in.
 
 ## Build and test
 
 ```
-go build ./cmd/wsldoctor            # produces wsldoctor.exe on Windows
+go build ./cmd/wslkit               # produces wslkit.exe on Windows
 go test ./...                       # unit, snapshot and (on Windows) collector tests
 go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest run ./...
 ```
@@ -47,19 +50,19 @@ Rule enforced by CI: anything under `internal/probe`, `internal/render`, `intern
 
 ## Donating a snapshot
 
-A snapshot is a real machine's `wsldoctor check --json` output. Redaction is on by
+A snapshot is a real machine's `wslkit doctor check --json` output. Redaction is on by
 default: profile paths become `%USERPROFILE%` or `C:\Users\<user>`, SIDs and the hostname
 are scrubbed. Check the file before sharing; then attach it to an issue or open a PR that
 adds `testdata/snapshots/<short-name>/env.json`, `expected.json` and a one-paragraph
-`README.md` saying what the machine was and what wsldoctor must detect.
+`README.md` saying what the machine was and what the doctor must detect.
 
 ## Fixes
 
 Fixes emit a `Plan` (steps plus rollback) and never touch the machine while planning.
-`wsldoctor fix <id>` prints the plan; `--apply` writes an undo journal entry to
-`%LOCALAPPDATA%\wsldoctor\undo\` and then executes. `wsldoctor undo <id>` replays the
+`wslkit doctor fix <id>` prints the plan; `--apply` writes an undo journal entry to
+`%LOCALAPPDATA%\wsldoctor\undo\` and then executes. `wslkit doctor undo <id>` replays the
 rollback. Test fixes with `fix.Recording`, never with the real executor
-(`WSLDOCTOR_TEST=1` makes the real executor panic).
+(`WSLKIT_TEST=1` makes the real executor panic).
 
 ## Commits and releases
 

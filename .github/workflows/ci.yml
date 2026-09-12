@@ -36,9 +36,9 @@ jobs:
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
       - name: cross-compile windows/amd64 and windows/arm64
         run: |
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/wsldoctor_amd64.exe ./cmd/wsldoctor
-          GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o dist/wsldoctor_arm64.exe ./cmd/wsldoctor
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/wslkit_amd64.exe ./cmd/wslkit
+          GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o dist/wslkit_arm64.exe ./cmd/wslkit
       - uses: actions/upload-artifact@v4
         with:
-          name: wsldoctor-dev
+          name: wslkit-dev
           path: dist/*.exe

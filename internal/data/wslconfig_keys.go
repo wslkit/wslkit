@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/wslkit/wsldoctor/internal/wslver"
+	"github.com/wslkit/wslkit/internal/wslver"
 )
 
 // ConfigKey describes one accepted .wslconfig key.
@@ -68,7 +68,7 @@ func LoadConfigKeys() (*ConfigKeys, error) {
 }
 
 func (t *ConfigKeys) Validate() error {
-	if t.Schema != "wsldoctor/wslconfig-keys/v1" {
+	if t.Schema != "wslkit/wslconfig-keys/v1" {
 		return fmt.Errorf("wslconfig-keys.json: unexpected schema %q", t.Schema)
 	}
 	seen := map[string]bool{}
