@@ -292,6 +292,17 @@ func collectRuntime(ctx context.Context, e *env.Env, o Options) error {
 		k.Close()
 	}
 
+	// COM registration of the Store/MSI service class (CLSID_LxssUserSession).
+	const clsid = `CLSID\{a9b7a1b9-0671-405c-95f1-e0612cb4ce7e}`
+	if k, err := registry.OpenKey(registry.CLASSES_ROOT, clsid, registry.READ); err == nil {
+		k.Close()
+		e.Runtime.COMClassRegistered = env.Ok(true, `HKCR\`+clsid)
+	} else if errors.Is(err, registry.ErrNotExist) {
+		e.Runtime.COMClassRegistered = env.Ok(false, `HKCR\`+clsid)
+	} else {
+		e.Runtime.COMClassRegistered = env.Fail[bool](kindOf(err), `HKCR\`+clsid, err)
+	}
+
 	if c, err := data.LoadCompat(); err == nil {
 		e.Runtime.LatestStable = env.Ok(c.LatestStable, "embedded compat.json "+c.Updated)
 		e.Runtime.LatestStableSource = "embedded data " + c.Updated
@@ -368,6 +379,22 @@ func collectDistros(ctx context.Context, e *env.Env, o Options) error {
 	return nil
 }
 
+// classifyOwner compares a file owner SID with the current process user.
+func classifyOwner(sid string) string {
+	switch sid {
+	case "S-1-5-32-544":
+		return env.OwnerAdministrators
+	case "S-1-5-18":
+		return env.OwnerSystem
+	}
+	if tu, err := windows.GetCurrentProcessToken().GetTokenUser(); err == nil && tu.User.Sid != nil {
+		if strings.EqualFold(tu.User.Sid.String(), sid) {
+			return env.OwnerCurrentUser
+		}
+	}
+	return env.OwnerOther
+}
+
 func intValue(k registry.Key, name string) int {
 	v, _, err := k.GetIntegerValue(name)
 	if err != nil {
@@ -388,6 +415,7 @@ func inspectVhd(path string) env.Field[env.VhdInfo] {
 	}
 	if sid, err := fileinfo.OwnerSID(path); err == nil {
 		info.OwnerSID = sid
+		info.Owner = classifyOwner(sid)
 	}
 	h, err := fileinfo.OpenShared(path)
 	if err != nil {
