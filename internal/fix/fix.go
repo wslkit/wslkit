@@ -20,6 +20,9 @@ import (
 //   - "note": print Description only (manual step)
 //   - "file_copy": Args[0] source, Args[1] destination (overwrites)
 //   - "file_write": Args[0] path, Args[1] full new content
+//   - "wmi_method": Args[0] namespace, Args[1] class, Args[2] static method,
+//     Args[3] JSON object of input parameters (string arrays allowed); see
+//     WMIMethod / DecodeWMIMethod
 //   - "registry_set" (root, key, name, type, value) and "registry_delete"
 //     (root, key, name) are reserved for later fixes.
 type Step struct {
@@ -47,6 +50,46 @@ type Fix interface {
 	Title() string
 	Elevates() bool
 	Plan(e *env.Env, o Options) (Plan, error)
+}
+
+// WMICall is the decoded form of a "wmi_method" step.
+type WMICall struct {
+	Namespace string
+	Class     string
+	Method    string
+	Params    map[string]interface{}
+}
+
+// WMIMethod builds a "wmi_method" step. Params values should be strings,
+// numbers, bools or []string.
+func WMIMethod(description, namespace, class, method string, params map[string]interface{}) Step {
+	b, _ := json.Marshal(params)
+	return Step{Kind: "wmi_method", Args: []string{namespace, class, method, string(b)}, Description: description}
+}
+
+// DecodeWMIMethod parses a "wmi_method" step back into a call. JSON arrays of
+// strings are converted to []string so the WMI layer can build SAFEARRAYs.
+func DecodeWMIMethod(s Step) (WMICall, error) {
+	if s.Kind != "wmi_method" || len(s.Args) != 4 {
+		return WMICall{}, fmt.Errorf("not a wmi_method step: %q", s.Kind)
+	}
+	var raw map[string]interface{}
+	if err := json.Unmarshal([]byte(s.Args[3]), &raw); err != nil {
+		return WMICall{}, fmt.Errorf("wmi_method params: %w", err)
+	}
+	params := make(map[string]interface{}, len(raw))
+	for k, v := range raw {
+		if arr, ok := v.([]interface{}); ok {
+			strs := make([]string, 0, len(arr))
+			for _, x := range arr {
+				strs = append(strs, fmt.Sprint(x))
+			}
+			params[k] = strs
+			continue
+		}
+		params[k] = v
+	}
+	return WMICall{Namespace: s.Args[0], Class: s.Args[1], Method: s.Args[2], Params: params}, nil
 }
 
 // Executor performs steps. RealExecutor lives in package fix/exec so this
@@ -87,6 +130,18 @@ func Describe(p Plan) string {
 		switch s.Kind {
 		case "exec":
 			fmt.Fprintf(&sb, "     $ %s\n", strings.Join(s.Args, " "))
+		case "wmi_method":
+			if c, err := DecodeWMIMethod(s); err == nil {
+				fmt.Fprintf(&sb, "     wmi %s : %s.%s\n", c.Namespace, c.Class, c.Method)
+				keys := make([]string, 0, len(c.Params))
+				for k := range c.Params {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				for _, k := range keys {
+					fmt.Fprintf(&sb, "       %s = %v\n", k, c.Params[k])
+				}
+			}
 		case "file_write":
 			for _, l := range strings.Split(strings.TrimRight(s.Args[1], "\r\n"), "\n") {
 				fmt.Fprintf(&sb, "     | %s\n", strings.TrimRight(l, "\r"))
