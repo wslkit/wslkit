@@ -197,6 +197,10 @@ type VhdInfo struct {
 type Config struct {
 	WslConfigPath string        `json:"wslconfig_path"`
 	WslConfig     Field[string] `json:"wslconfig"` // raw text; Absent if the file does not exist
+	// PathsExist records, for every path-typed value in .wslconfig (kernel,
+	// kernelModules, swapFile, ...), whether the file exists. Keys are the
+	// unescaped path, lower-cased.
+	PathsExist map[string]bool `json:"paths_exist,omitempty"`
 }
 
 type Exclusions struct {

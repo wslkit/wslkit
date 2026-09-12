@@ -10,7 +10,7 @@ import (
 	"github.com/wslkit/wsldoctor/internal/fix"
 )
 
-func All() []fix.Fix { return []fix.Fix{Update{}, Shutdown{}} }
+func All() []fix.Fix { return []fix.Fix{Update{}, Shutdown{}, WslConfig{}} }
 
 func Lookup(id string) (fix.Fix, bool) {
 	for _, f := range All() {

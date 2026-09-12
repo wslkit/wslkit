@@ -25,7 +25,7 @@ There is no Makefile on purpose; the commands above are the whole build.
 | `internal/fix`, `internal/fix/actions` | fix planning (pure); `internal/fix/exec` runs plans | anywhere / Windows |
 | `internal/render`, `internal/redact` | human, JSON, report output | anywhere |
 | `internal/data/files/*.json` | compat matrix, error dictionary; CI refreshes `latest_stable` weekly | anywhere |
-| `tools/gen-errors` | regenerates the source-derived parts of `errors.json` from a microsoft/WSL checkout: `go run ./tools/gen-errors -wsl <dir>` | anywhere |
+| `tools/gen-errors`, `tools/gen-wslconfig-keys` | regenerate the source-derived parts of `errors.json` and `wslconfig-keys.json` from a microsoft/WSL checkout: `go run ./tools/gen-errors -wsl <dir>` | anywhere |
 | `testdata/snapshots/<case>/` | one real environment per bug class, plus `expected.json` | anywhere |
 | `docs/decisions/` | ADRs, including the Phase 0 spike results | |
 
