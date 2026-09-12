@@ -31,6 +31,15 @@ func (p Installed) Needs() []string   { return nil }
 func (p Installed) Run(e *env.Env) probe.Result {
 	b := p.base()
 	rt := e.Runtime
+	if e.Net.Policy.OK() {
+		if v, ok := e.Net.Policy.Value["AllowWSL"]; ok && v == "0" {
+			r := b.Res(probe.Fail, 0.95, "WSL is disabled by group policy (AllowWSL=0)")
+			r.Detail = "HKLM\\Software\\Policies\\WSL\\AllowWSL is 0. wsl.exe refuses to run regardless of what is installed. This is set by your organisation (Intune / GPO), not by a bug."
+			r.FixHint = "ask your IT administrator to allow WSL (policy AllowWSL); nothing on this machine can override it"
+			r.Refs = []string{"https://learn.microsoft.com/en-us/windows/wsl/enterprise"}
+			return r
+		}
+	}
 	switch {
 	case rt.Version.OK():
 		r := b.Res(probe.OK, 1, fmt.Sprintf("WSL %s installed", trimVer(rt.Version.Value)))

@@ -7,6 +7,7 @@ import (
 	"github.com/wslkit/wsldoctor/internal/probe/disk"
 	"github.com/wslkit/wsldoctor/internal/probe/evt"
 	"github.com/wslkit/wsldoctor/internal/probe/host"
+	"github.com/wslkit/wsldoctor/internal/probe/net"
 	"github.com/wslkit/wsldoctor/internal/probe/perf"
 	"github.com/wslkit/wsldoctor/internal/probe/wsl"
 )
@@ -17,6 +18,7 @@ func Probes() []probe.Probe {
 	out = append(out, wsl.All()...)  // WSL002, WSL001, WSL003, WSL004, WSL005
 	out = append(out, host.COMClass{})
 	out = append(out, disk.All()...) // DSK002, DSK001, DSK003, DSK005, DSK006
+	out = append(out, net.All()...)  // NET004, NET002
 	out = append(out, perf.All()...) // MEM001
 	out = append(out, evt.All()...)  // EVT001
 	return out
