@@ -8,6 +8,7 @@ import (
 
 	"github.com/wslkit/wsldoctor/internal/env"
 	"github.com/wslkit/wsldoctor/internal/probe"
+	"github.com/wslkit/wsldoctor/internal/wslver"
 )
 
 func All() []probe.Probe {
@@ -286,22 +287,78 @@ func (p Plugins) Run(e *env.Env) probe.Result {
 	if len(plugins) == 0 {
 		return b.Res(probe.OK, 0.5, "No WSL host plugins registered")
 	}
-	var lines, broken []string
+	var lines, fatal, warns []string
 	for _, pl := range plugins {
+		problem := pluginProblem(pl)
 		state := "ok"
-		if !pl.Exists {
-			state = "FILE MISSING"
-			broken = append(broken, pl.Name)
+		if problem != "" {
+			state = problem
 		}
-		lines = append(lines, fmt.Sprintf("%s  %s  %s  %s", pl.Name, pl.Version, pl.Path, state))
+		lines = append(lines, fmt.Sprintf("%-28s %-10s %s  %s", pl.Name, pl.Version, pl.Path, state))
+		switch {
+		case problem == "":
+		case pl.ValueType != "" && pl.ValueType != "REG_SZ" && pl.ValueType != "REG_EXPAND_SZ", pl.Duplicate:
+			// WSL logs and skips these; the plugin simply does not load.
+			warns = append(warns, fmt.Sprintf("%s: %s (WSL skips it; the owning product will not work)", pl.Name, problem))
+		default:
+			fatal = append(fatal, fmt.Sprintf("%s: %s", pl.Name, problem))
+		}
+		if knownBad := knownBadPlugin(e, pl); knownBad != "" {
+			warns = append(warns, knownBad)
+		}
 	}
-	if len(broken) > 0 {
-		r := b.Res(probe.Fail, 0.8, fmt.Sprintf("WSL plugin %s points to a missing DLL; wslservice fails to start when a plugin fails to load", broken[0]))
-		r.Detail = strings.Join(lines, "\n") + "\nA plugin failure is reported by WSL as a generic startup error. Reinstall or remove the owning product (Docker Desktop, Defender for Endpoint, ...)."
-		r.FixHint = "reinstall the product that registered the plugin, or remove its value under HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Lxss\\Plugins (admin)"
+	if len(fatal) > 0 {
+		r := b.Res(probe.Fail, 0.85, fatal[0])
+		r.Detail = strings.Join(lines, "\n") + "\n\n" + strings.Join(append(fatal, warns...), "\n") +
+			"\nWSL reports a failed plugin as: \"A fatal error was returned by plugin '<name>'\" (or, for an outdated API, \"The plugin '<name>' requires a newer version of WSL. Please run: wsl.exe --update\"). wslservice does not start until the plugin loads."
+		r.FixHint = "reinstall or update the product that registered the plugin (Docker Desktop, Defender for Endpoint, ...), or remove its value under HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Lxss\\Plugins (admin)"
+		r.Refs = []string{"https://github.com/microsoft/WSL/blob/master/src/windows/service/exe/PluginManager.cpp"}
 		return r
 	}
-	r := b.Res(probe.OK, 0.5, fmt.Sprintf("%d WSL host plugin(s) registered, all files present", len(plugins)))
+	if len(warns) > 0 {
+		r := b.Res(probe.Warn, 0.5, warns[0])
+		r.Detail = strings.Join(lines, "\n") + "\n\n" + strings.Join(warns, "\n")
+		r.FixHint = "reinstall the owning product, or clean the value under HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Lxss\\Plugins (admin)"
+		return r
+	}
+	r := b.Res(probe.OK, 0.5, fmt.Sprintf("%d WSL host plugin(s) registered, all present, signed and exporting the entry point", len(plugins)))
 	r.Detail = strings.Join(lines, "\n")
 	return r
+}
+
+// pluginProblem applies PluginManager::LoadPlugins' checks in its order.
+func pluginProblem(pl env.Plugin) string {
+	switch {
+	case pl.ValueType != "" && pl.ValueType != "REG_SZ" && pl.ValueType != "REG_EXPAND_SZ":
+		return "registry value is " + pl.ValueType + ", not REG_SZ"
+	case pl.Duplicate:
+		return "same DLL as an earlier plugin value; duplicate skipped"
+	case !pl.Exists:
+		return "DLL missing: " + pl.Path
+	case pl.Signature == "unsigned":
+		return "DLL is not Authenticode-signed; official WSL builds refuse to load it (TRUST_E_NOSIGNATURE)"
+	case pl.Signature == "bad_digest":
+		return "DLL signature does not match the file (TRUST_E_BAD_DIGEST); the file was modified or corrupted"
+	case pl.Signature == "untrusted_root", pl.Signature == "distrusted":
+		return "DLL signature chains to an untrusted root (" + pl.Signature + ")"
+	case pl.ExportsErr != "":
+		return "cannot read the DLL's export table: " + pl.ExportsErr
+	case pl.Exists && pl.Signature != "" && !pl.EntryPoint:
+		return "DLL does not export WSLPluginAPI_EntryPointV1; it is not a WSL plugin"
+	}
+	return ""
+}
+
+// knownBadPlugin flags plugin/runtime pairs with a known startup failure.
+func knownBadPlugin(e *env.Env, pl env.Plugin) string {
+	if !e.Runtime.Version.OK() {
+		return ""
+	}
+	lower := strings.ToLower(pl.Name + " " + pl.Path)
+	if strings.Contains(lower, "mde") || strings.Contains(lower, "defender") || strings.Contains(lower, "sense") {
+		if rt, err := wslver.Parse(e.Runtime.Version.Value); err == nil && rt.Less(wslver.MustParse("2.7.13")) {
+			return fmt.Sprintf("%s looks like the Defender for Endpoint plugin; WSL %s had a startup failure with it that 2.7.13 fixed (wsl --update)", pl.Name, rt)
+		}
+	}
+	return ""
 }
