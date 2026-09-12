@@ -32,7 +32,7 @@ func (Defender) Elevates() bool { return true }
 func (d Defender) Plan(e *env.Env, o fix.Options) (fix.Plan, error) {
 	p := fix.Plan{FixID: d.ID(), Title: d.Title(), CreatedAt: time.Now(), Elevates: true}
 	if e.Defender.Present.OK() && !e.Defender.Present.Value || e.Defender.Present.Absent() {
-		return p, fmt.Errorf("Microsoft Defender is not the active antivirus on this machine; nothing to exclude")
+		return p, fmt.Errorf("defender is not the active antivirus on this machine; nothing to exclude")
 	}
 	var paths []string
 	for _, dist := range e.DistroList() {
