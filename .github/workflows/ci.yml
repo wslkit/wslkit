@@ -26,8 +26,10 @@ jobs:
         run: GOOS=linux go test -count=1 ./internal/probe/... ./internal/render/... ./internal/redact/... ./internal/vhdx/... ./internal/wslconfig/... ./internal/wslver/... ./internal/data/... ./internal/fix/... ./internal/env/
       - name: snapshot corpus
         run: GOOS=linux go test -count=1 ./internal/snapshottest/...
-      - name: golangci-lint
+      - name: golangci-lint (windows view, so collectors and winapi are linted too)
         uses: golangci/golangci-lint-action@v7
+        env:
+          GOOS: windows
         with:
           version: latest
       - name: govulncheck
