@@ -121,12 +121,28 @@ type Host struct {
 	IPv6Disabled      Field[uint32]             `json:"ipv6_disabled_components"` // Tcpip6 DisabledComponents, 0 if unset
 }
 
-// Feature install states as reported by Win32_OptionalFeature.
+// Feature install states as reported by Win32_OptionalFeature. FeatureUnknown
+// means the query did not return that feature at all.
 const (
+	FeatureUnknown  = 0
 	FeatureEnabled  = 1
 	FeatureDisabled = 2
 	FeatureAbsent   = 3
 )
+
+// Feature returns the install state of an optional feature (case-insensitive),
+// or FeatureUnknown when features were not collected or the name is missing.
+func (h Host) Feature(name string) int {
+	if !h.Features.OK() {
+		return FeatureUnknown
+	}
+	for k, v := range h.Features.Value {
+		if equalFold(k, name) {
+			return v
+		}
+	}
+	return FeatureUnknown
+}
 
 type Runtime struct {
 	// Version of the Store/MSI runtime from wslservice.exe, e.g. "2.7.13.0". Absent if only inbox WSL exists.

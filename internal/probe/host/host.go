@@ -35,17 +35,9 @@ func (p Features) Run(e *env.Env) probe.Result {
 		}
 		return b.Res(probe.Unknown, 0.1, "could not read optional features via WMI: "+f.Err)
 	}
-	state := func(name string) int {
-		for k, v := range f.Value {
-			if strings.EqualFold(k, name) {
-				return v
-			}
-		}
-		return 0
-	}
-	vmp := state("VirtualMachinePlatform")
-	wslf := state("Microsoft-Windows-Subsystem-Linux")
-	hv := state("Microsoft-Hyper-V-All")
+	vmp := e.Host.Feature("VirtualMachinePlatform")
+	wslf := e.Host.Feature("Microsoft-Windows-Subsystem-Linux")
+	hv := e.Host.Feature("Microsoft-Hyper-V-All")
 
 	describe := func(n int) string {
 		switch n {
@@ -56,11 +48,18 @@ func (p Features) Run(e *env.Env) probe.Result {
 		case env.FeatureAbsent:
 			return "absent"
 		default:
-			return "unknown"
+			return "not returned by WMI"
 		}
 	}
 	detail := fmt.Sprintf("VirtualMachinePlatform: %s\nMicrosoft-Windows-Subsystem-Linux: %s\nMicrosoft-Hyper-V-All: %s (optional)", describe(vmp), describe(wslf), describe(hv))
 
+	if vmp == env.FeatureUnknown {
+		// Seen on cold runners: Win32_OptionalFeature answers with a partial list.
+		r := b.Res(probe.Unknown, 0.2, "WMI did not report the VirtualMachinePlatform feature; state unknown")
+		r.Detail = detail
+		r.FixHint = "re-run wsldoctor check; or: dism.exe /online /get-featureinfo /featurename:VirtualMachinePlatform   (admin)"
+		return r
+	}
 	if vmp != env.FeatureEnabled {
 		r := b.Res(probe.Fail, 0.9, "VirtualMachinePlatform is not enabled; WSL 2 cannot start a VM")
 		r.Detail = detail + "\nThis presents as: Wsl/Service/CreateInstance/CreateVm/HCS/HCS_E_HYPERV_NOT_INSTALLED or error 0x80370102."
@@ -100,9 +99,13 @@ func (p Services) Run(e *env.Env) probe.Result {
 		name, why string
 		required  bool
 	}
+	// LxssManager only matters for the legacy in-box WSL: no Store runtime and the
+	// optional feature enabled. A machine with neither has no WSL at all, which
+	// WSL002 reports; HST002 must not pile a second FAIL on top.
+	inboxWSL := !e.Runtime.Version.OK() && e.Host.Feature("Microsoft-Windows-Subsystem-Linux") == env.FeatureEnabled
 	reqs := []req{
 		{"WSLService", "Store/MSI WSL runtime service", e.Runtime.Version.OK()},
-		{"LxssManager", "inbox WSL service (legacy; needed only without the Store runtime)", !e.Runtime.Version.OK()},
+		{"LxssManager", "in-box WSL service (legacy; needed only without the Store runtime)", inboxWSL},
 		{"vmcompute", "Hyper-V Host Compute Service; creates the WSL VM", true},
 		{"HvHost", "Hyper-V host service", true},
 	}
