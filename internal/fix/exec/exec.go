@@ -51,6 +51,9 @@ func (r Real) Run(s fix.Step) error {
 		}
 		fmt.Fprintf(out, "write %s (%d bytes)\n", s.Args[0], len(s.Args[1]))
 		return os.WriteFile(s.Args[0], []byte(s.Args[1]), 0o600)
+	case "wmi_method":
+		fmt.Fprintf(out, "wmi %s\n", s.Description)
+		return runWMIMethod(s)
 	default:
 		return fmt.Errorf("unsupported step kind %q", s.Kind)
 	}

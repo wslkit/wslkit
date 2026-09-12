@@ -235,7 +235,7 @@ func (p Defender) Run(e *env.Env) probe.Result {
 		r.Detail += "\nProcess exclusions not set for: " + strings.Join(missingProc, ", ")
 	}
 	r.FixID = "defender"
-	r.FixHint = "wsldoctor fix defender     (requires admin)"
+	r.FixHint = "wsldoctor fix defender --apply     (from an elevated terminal; dry run without --apply)"
 	r.Refs = []string{"https://github.com/microsoft/WSL/issues/8995"}
 	return r
 }
