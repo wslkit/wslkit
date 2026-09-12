@@ -272,7 +272,12 @@ rather than diagnosing it afterwards. Phase 3; small.
 - **GUI**: WSL Settings and the third-party managers cover it.
 - **Telemetry**: none. Snapshot donation is opt-in and manual.
 
-## 4. Open research questions (track as issues once the repo is public)
+## 4. Open research questions
+
+> Tracked as GitHub issues since 2026-09-12: #1 (S5 VM confirmation), #10 (Defender
+> elevated path), #16 (event channels and the passive "running" signal), #17 (COM
+> CLSIDs). The remaining feature work from `docs/research/2026-09-feature-research.md`
+> is issues #2–#9, #11–#15, #18; release plumbing is #19–#20.
 
 1. S3 — is there *any* unelevated read of Defender exclusions on Windows 11 24H2+?
 2. S4 — can a non-admin start a TraceLogging session for `Microsoft.Windows.Subsystem.Lxss`

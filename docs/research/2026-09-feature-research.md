@@ -223,15 +223,20 @@ explanation before `wsl --install --from-file` ever runs.
 
 ## 10. Order of implementation suggested by this research
 
-1. compat.json S5 row and fixture correction (this commit).
-2. `errors.json` generator + `explain` (M2), because it reuses the compat and probe data.
-3. `wslconfig-keys.json` from `WslCoreConfig.h` + WSL005 lint.
-4. NET004 (IPv6 0xFF, Hyper-V firewall WMI classes, KB5068861 presence) and the VPN
-   adapter fact; then NET002.
-5. PLG001 v2 (type, signature, export, duplicates).
-6. `fix defender` via WMI `Add`/`Remove`.
-7. `preflight` for gzip `.wsl`; xz behind an ADR.
-8. ZON001 and `fix zone` over UNC.
+Each item is a GitHub issue in wslkit/wsldoctor.
+
+1. compat.json S5 row and fixture correction (done in this commit); VM confirmation #1;
+   capability model for the matrix #2.
+2. `errors.json` generator + `explain` #3 (M2), because it reuses the compat and probe data.
+3. `wslconfig-keys.json` from `WslCoreConfig.h` + WSL005 lint #4; wsl.conf lint #5.
+4. NET004 #6 (IPv6 0xFF, Hyper-V firewall WMI classes, KB5068861 presence) and the VPN
+   adapter fact + NET002 #7.
+5. PLG001 v2 #8 (type, signature, export, duplicates).
+6. `fix defender` via WMI `Add`/`Remove` #9; DEF001 elevated verification #10.
+7. `preflight` for gzip `.wsl` #11; xz behind an ADR.
+8. ZON001 and `fix zone` over UNC #12.
+9. Smaller: HST004 #13, DSK004 #14, DSK006 #15, EVT001 elevated + running signal #16,
+   HST005 CLSIDs #17, `--online` #18. Release: signing #19, Scoop/winget #20.
 
 ## Sources
 
