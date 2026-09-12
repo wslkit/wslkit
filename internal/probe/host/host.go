@@ -99,13 +99,11 @@ func (p Services) Run(e *env.Env) probe.Result {
 		name, why string
 		required  bool
 	}
-	// LxssManager only matters for the legacy in-box WSL: no Store runtime and the
-	// optional feature enabled. A machine with neither has no WSL at all, which
-	// WSL002 reports; HST002 must not pile a second FAIL on top.
-	inboxWSL := !e.Runtime.Version.OK() && e.Host.Feature("Microsoft-Windows-Subsystem-Linux") == env.FeatureEnabled
+	// LxssManager is informational: it exists only with the legacy in-box WSL,
+	// and its absence is WSL002's finding ("not installed"), never a second FAIL here.
 	reqs := []req{
 		{"WSLService", "Store/MSI WSL runtime service", e.Runtime.Version.OK()},
-		{"LxssManager", "in-box WSL service (legacy; needed only without the Store runtime)", inboxWSL},
+		{"LxssManager", "in-box WSL service (legacy)", false},
 		{"vmcompute", "Hyper-V Host Compute Service; creates the WSL VM", true},
 		{"HvHost", "Hyper-V host service", true},
 	}

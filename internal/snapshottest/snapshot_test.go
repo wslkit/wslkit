@@ -23,6 +23,9 @@ type expectation struct {
 	Require []finding `json:"require,omitempty"`
 	// NoFail asserts that no result has status FAIL.
 	NoFail bool `json:"no_fail,omitempty"`
+	// MaxFail, when set, caps the number of FAIL results (a broken machine
+	// should get one root cause, not a pile-up).
+	MaxFail *int `json:"max_fail,omitempty"`
 }
 
 type finding struct {
@@ -97,12 +100,17 @@ func TestSnapshots(t *testing.T) {
 					t.Errorf("required finding %s not present", want.ID)
 				}
 			}
-			if exp.NoFail {
-				for _, r := range results {
-					if r.Status == probe.Fail {
+			fails := 0
+			for _, r := range results {
+				if r.Status == probe.Fail {
+					fails++
+					if exp.NoFail {
 						t.Errorf("unexpected FAIL: %s %q", r.ID, r.Summary)
 					}
 				}
+			}
+			if exp.MaxFail != nil && fails > *exp.MaxFail {
+				t.Errorf("%d FAIL results, at most %d allowed\n%s", fails, *exp.MaxFail, dump(results))
 			}
 			// Contract: every non-OK finding ends in an action.
 			for _, r := range results {
