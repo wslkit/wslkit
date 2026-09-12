@@ -5,18 +5,43 @@
   "latest_prerelease": "2.9.11",
   "modern_format_min": "2.4.4",
   "modern_format_recommended": "2.4.8",
+  "capabilities": {
+    "modern_format": {
+      "since": "2.4.4",
+      "title": "modern (tar-based .wsl) distribution format",
+      "refs": ["https://learn.microsoft.com/en-us/windows/wsl/build-custom-distro"]
+    },
+    "cgroup_v2": {
+      "since": "2.5.7",
+      "title": "cgroup v2 only (no cgroup v1 hierarchy mounted for the distro)",
+      "description": "Runtimes before 2.5.1 mount a hybrid cgroup v1 hierarchy. A distro whose systemd is cgroup v2 only (systemd 258+) cannot start as PID 1 on them and never boots. 2.5.1 (pre-release) removed cgroup v1; 2.5.7 is the first stable runtime with that change. 2.6.2 added the wsl.conf opt-in automount.cgroups=v1.",
+      "refs": [
+        "https://github.com/microsoft/WSL/releases/tag/2.5.1",
+        "https://github.com/microsoft/WSL/releases/tag/2.6.2"
+      ]
+    },
+    "automount_cgroups": {
+      "since": "2.6.2",
+      "title": "wsl.conf automount.cgroups key",
+      "refs": ["https://github.com/microsoft/WSL/releases/tag/2.6.2"]
+    },
+    "crlf_wsl_conf": {
+      "since": "2.5.1",
+      "title": "CRLF line endings accepted in /etc/wsl.conf",
+      "refs": ["https://github.com/microsoft/WSL/releases/tag/2.5.1"]
+    }
+  },
   "distros": [
     {
       "flavor": "ubuntu",
       "os_version": "26.04",
       "format": "modern",
-      "min_runtime": "2.5.7",
+      "requires": ["cgroup_v2"],
       "known_bad_max": "2.4.13",
       "known_good_min": "2.7.13",
       "symptom": "Catastrophic failure / Error code: Wsl/Service/E_UNEXPECTED on every launch",
-      "cause": "Ubuntu 26.04 is cgroup v2 only (systemd 259). WSL runtimes before 2.5.1 mount a hybrid cgroup v1 hierarchy, so systemd cannot start and the distro never boots; 2.5.7 is the first stable runtime without cgroup v1. Derived from source and release notes; VM confirmation pending.",
+      "cause": "Ubuntu 26.04 is cgroup v2 only (systemd 259; cgroup v1 legacy and hybrid hierarchies removed). Derived from source and release notes; VM confirmation pending (wslkit/wsldoctor#1).",
       "refs": [
-        "https://github.com/microsoft/WSL/releases/tag/2.5.1",
         "https://documentation.ubuntu.com/release-notes/26.04/summary-for-lts-users/"
       ]
     }

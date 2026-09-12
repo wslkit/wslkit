@@ -122,7 +122,7 @@ func (p Compat) Run(e *env.Env) probe.Result {
 			okNames = append(okNames, fmt.Sprintf("%s (%s %s, no matrix row)", name, d.Flavor, d.OsVersion))
 			continue
 		}
-		r, sev := judge(b, rt, d, row)
+		r, sev := judge(b, matrix, rt, d, row)
 		if sev > severity(worst) {
 			worst = r
 		}
@@ -148,21 +148,27 @@ func severity(r probe.Result) int {
 	return 0
 }
 
-func judge(b probe.Base, rt wslver.Version, d env.Distro, row *data.DistroCompat) (probe.Result, int) {
+func judge(b probe.Base, matrix *data.Compat, rt wslver.Version, d env.Distro, row *data.DistroCompat) (probe.Result, int) {
 	name := d.Name
 	symptom := row.Symptom
 	if symptom == "" {
 		symptom = "launch failures"
 	}
-	if row.MinRuntime != "" {
-		min := wslver.MustParse(row.MinRuntime)
+	if min, reqs := matrix.MinimumRuntime(row); !min.IsZero() {
 		if rt.Less(min) {
 			r := b.Res(probe.Fail, 0.9, fmt.Sprintf("Runtime %s is too old for %s (%s %s needs >= %s)", rt, name, row.Flavor, row.OsVersion, min))
 			r.Detail = fmt.Sprintf("This will present as: %s", symptom)
+			for _, req := range reqs {
+				if rt.Less(req.Min) {
+					r.Detail += fmt.Sprintf("\nNeeds: %s (runtime >= %s)", req.Title, req.Min)
+					r.Refs = append(r.Refs, req.Refs...)
+				}
+			}
 			if row.Cause != "" {
 				r.Detail += "\nCause: " + row.Cause
 			}
-			r.FixID, r.FixHint, r.Refs = "update", "wsldoctor fix update      (runs wsl --update)", row.Refs
+			r.FixID, r.FixHint = "update", "wsldoctor fix update      (runs wsl --update)"
+			r.Refs = append(r.Refs, row.Refs...)
 			return r, 2
 		}
 		return b.Res(probe.OK, 0.8, ""), 0
