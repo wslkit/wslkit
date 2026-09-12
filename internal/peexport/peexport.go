@@ -28,7 +28,7 @@ func NamesFrom(r io.ReaderAt) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("not a PE file: %w", err)
 	}
-	defer pf.Close()
+	defer func() { _ = pf.Close() }()
 	var dir pe.DataDirectory
 	switch oh := pf.OptionalHeader.(type) {
 	case *pe.OptionalHeader64:

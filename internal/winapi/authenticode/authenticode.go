@@ -20,11 +20,13 @@ var (
 // WINTRUST_ACTION_GENERIC_VERIFY_V2 {00AAC56B-CD44-11d0-8CC2-00C04FC295EE}
 var actionGenericVerifyV2 = windows.GUID{Data1: 0x00AAC56B, Data2: 0xCD44, Data3: 0x11d0, Data4: [8]byte{0x8C, 0xC2, 0x00, 0xC0, 0x4F, 0xC2, 0x95, 0xEE}}
 
+// wintrustFileInfo mirrors WINTRUST_FILE_INFO; the blank fields keep the ABI
+// layout (hFile, pgKnownSubject) without being read from Go.
 type wintrustFileInfo struct {
-	cbStruct       uint32
-	pcwszFilePath  *uint16
-	hFile          windows.Handle
-	pgKnownSubject *windows.GUID
+	cbStruct      uint32
+	pcwszFilePath *uint16
+	_             windows.Handle
+	_             *windows.GUID
 }
 
 type wintrustData struct {
