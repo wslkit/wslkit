@@ -1,0 +1,490 @@
+{
+  "schema": "wsldoctor/wslconfig-keys/v1",
+  "updated": "2026-09-12",
+  "source_commit": "eaa69e7",
+  "keys": [
+    {
+      "section": "wsl2",
+      "key": "autoProxy",
+      "type": "bool",
+      "default": "true",
+      "documented": true,
+      "in_source": true,
+      "min_windows_build": 22000,
+      "min_wsl": "2.0.0"
+    },
+    {
+      "section": "wsl2",
+      "key": "crashDumpFolder",
+      "type": "path",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "debugConsole",
+      "type": "bool",
+      "default": "false",
+      "documented": true,
+      "in_source": true,
+      "min_windows_build": 22000
+    },
+    {
+      "section": "wsl2",
+      "key": "debugConsoleLogFile",
+      "type": "path",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "defaultVhdSize",
+      "type": "size",
+      "default": "1TB",
+      "documented": true,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "dhcp",
+      "type": "bool",
+      "documented": false,
+      "in_source": true,
+      "note": "NAT/bridged only"
+    },
+    {
+      "section": "wsl2",
+      "key": "dhcpTimeout",
+      "type": "int",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "distributionStartTimeout",
+      "type": "int",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "dnsProxy",
+      "type": "bool",
+      "default": "true",
+      "documented": true,
+      "in_source": true,
+      "note": "NAT only"
+    },
+    {
+      "section": "wsl2",
+      "key": "dnsTunneling",
+      "type": "bool",
+      "default": "true",
+      "documented": true,
+      "in_source": true,
+      "min_windows_build": 22621,
+      "min_wsl": "2.0.0"
+    },
+    {
+      "section": "wsl2",
+      "key": "earlyBootLogging",
+      "type": "bool",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "firewall",
+      "type": "bool",
+      "default": "true",
+      "documented": true,
+      "in_source": true,
+      "min_windows_build": 22621,
+      "min_wsl": "2.0.0"
+    },
+    {
+      "section": "wsl2",
+      "key": "gpuSupport",
+      "type": "bool",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "guiApplications",
+      "type": "bool",
+      "default": "true",
+      "documented": true,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "hardwarePerformanceCounters",
+      "type": "bool",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "hostFileSystemAccess",
+      "type": "bool",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "ipv6",
+      "documented": false,
+      "in_source": true,
+      "note": "new in source; undocumented"
+    },
+    {
+      "section": "wsl2",
+      "key": "isolateDistroCgroup",
+      "type": "bool",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "kernel",
+      "type": "path",
+      "default": "inbox kernel",
+      "documented": true,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "kernelBootTimeout",
+      "type": "int",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "kernelCommandLine",
+      "type": "string",
+      "documented": true,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "kernelDebugPort",
+      "type": "int",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "kernelModules",
+      "type": "path",
+      "documented": true,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "loadDefaultKernelModules",
+      "type": "bool",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "loadKernelModules",
+      "type": "string",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "localhostForwarding",
+      "type": "bool",
+      "default": "true",
+      "documented": true,
+      "in_source": true,
+      "note": "ignored with networkingMode=mirrored"
+    },
+    {
+      "section": "wsl2",
+      "key": "macAddress",
+      "type": "string",
+      "documented": false,
+      "in_source": true,
+      "note": "bridged only"
+    },
+    {
+      "section": "wsl2",
+      "key": "maxCrashDumpCount",
+      "type": "int",
+      "default": "10",
+      "documented": true,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "memory",
+      "type": "size",
+      "default": "50% of host RAM",
+      "documented": true,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "mountDeviceTimeout",
+      "type": "int",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "nestedVirtualization",
+      "type": "bool",
+      "default": "true",
+      "documented": true,
+      "in_source": true,
+      "min_windows_build": 22000
+    },
+    {
+      "section": "wsl2",
+      "key": "networkingMode",
+      "type": "enum:none,nat,bridged,mirrored,virtioproxy",
+      "default": "nat",
+      "documented": true,
+      "in_source": true,
+      "min_windows_build": 22000,
+      "note": "mirrored needs Windows 11 22H2 (22621); bridged deprecated since 2.4.5"
+    },
+    {
+      "section": "wsl2",
+      "key": "processors",
+      "type": "int",
+      "default": "all logical processors",
+      "documented": true,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "safeMode",
+      "type": "bool",
+      "default": "false",
+      "documented": true,
+      "in_source": true,
+      "min_windows_build": 22000,
+      "min_wsl": "0.66.2"
+    },
+    {
+      "section": "wsl2",
+      "key": "swap",
+      "type": "size",
+      "default": "25% of host RAM",
+      "documented": true,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "swapFile",
+      "type": "path",
+      "default": "%TEMP%\\swap.vhdx",
+      "documented": true,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "systemDistro",
+      "type": "path",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "telemetry",
+      "type": "bool",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "virtio",
+      "type": "bool",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "virtio9p",
+      "documented": false,
+      "in_source": true,
+      "note": "new in source; undocumented"
+    },
+    {
+      "section": "wsl2",
+      "key": "virtiofs",
+      "type": "bool",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "wsl2",
+      "key": "vmIdleTimeout",
+      "type": "int",
+      "default": "60000",
+      "documented": true,
+      "in_source": true,
+      "min_windows_build": 22000
+    },
+    {
+      "section": "wsl2",
+      "key": "vmSwitch",
+      "type": "string",
+      "documented": false,
+      "in_source": true,
+      "note": "bridged only"
+    },
+    {
+      "section": "experimental",
+      "key": "autoMemoryReclaim",
+      "type": "enum:disabled,gradual,dropCache",
+      "default": "dropCache",
+      "documented": true,
+      "in_source": true,
+      "min_wsl": "2.0.0"
+    },
+    {
+      "section": "experimental",
+      "key": "autoProxy",
+      "type": "bool",
+      "documented": false,
+      "in_source": true,
+      "alias_of": "wsl2.autoProxy"
+    },
+    {
+      "section": "experimental",
+      "key": "bestEffortDnsParsing",
+      "type": "bool",
+      "default": "false",
+      "documented": true,
+      "in_source": true,
+      "min_windows_build": 22621
+    },
+    {
+      "section": "experimental",
+      "key": "dnsTunneling",
+      "type": "bool",
+      "documented": false,
+      "in_source": true,
+      "alias_of": "wsl2.dnsTunneling"
+    },
+    {
+      "section": "experimental",
+      "key": "dnsTunnelingIpAddress",
+      "type": "string",
+      "default": "10.255.255.254",
+      "documented": true,
+      "in_source": true,
+      "min_windows_build": 22621
+    },
+    {
+      "section": "experimental",
+      "key": "firewall",
+      "type": "bool",
+      "documented": false,
+      "in_source": true,
+      "alias_of": "wsl2.firewall"
+    },
+    {
+      "section": "experimental",
+      "key": "hostAddressLoopback",
+      "type": "bool",
+      "default": "false",
+      "documented": true,
+      "in_source": true,
+      "min_windows_build": 22621,
+      "note": "mirrored only"
+    },
+    {
+      "section": "experimental",
+      "key": "ignoredPorts",
+      "type": "string",
+      "documented": true,
+      "in_source": true,
+      "min_windows_build": 22621,
+      "note": "mirrored only"
+    },
+    {
+      "section": "experimental",
+      "key": "initialAutoProxyTimeout",
+      "type": "int",
+      "default": "1000",
+      "documented": true,
+      "in_source": true,
+      "min_windows_build": 22000
+    },
+    {
+      "section": "experimental",
+      "key": "networkingMode",
+      "type": "enum:none,nat,bridged,mirrored,virtioproxy",
+      "documented": false,
+      "in_source": true,
+      "alias_of": "wsl2.networkingMode"
+    },
+    {
+      "section": "experimental",
+      "key": "portRelay",
+      "type": "bool",
+      "documented": false,
+      "in_source": false
+    },
+    {
+      "section": "experimental",
+      "key": "setVersionDebug",
+      "type": "bool",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "experimental",
+      "key": "sparseVhd",
+      "type": "bool",
+      "default": "false",
+      "documented": true,
+      "in_source": true,
+      "min_wsl": "2.0.0"
+    },
+    {
+      "section": "experimental",
+      "key": "swiotlb",
+      "type": "bool",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "experimental",
+      "key": "virtioFsAggregateShares",
+      "type": "bool",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "general",
+      "key": "distributionInstallPath",
+      "type": "path",
+      "documented": false,
+      "in_source": true
+    },
+    {
+      "section": "general",
+      "key": "guiApplications",
+      "type": "bool",
+      "documented": false,
+      "in_source": false,
+      "alias_of": "wsl2.guiApplications"
+    },
+    {
+      "section": "general",
+      "key": "instanceIdleTimeout",
+      "type": "int",
+      "documented": false,
+      "in_source": true
+    }
+  ]
+}
