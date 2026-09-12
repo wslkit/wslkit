@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/wslkit/wsldoctor/internal/data"
 	"github.com/wslkit/wsldoctor/internal/env"
 	"github.com/wslkit/wsldoctor/internal/env/collect"
 	"github.com/wslkit/wsldoctor/internal/fix"
@@ -19,6 +20,7 @@ import (
 	"github.com/wslkit/wsldoctor/internal/probe"
 	"github.com/wslkit/wsldoctor/internal/probe/all"
 	"github.com/wslkit/wsldoctor/internal/render"
+	"github.com/wslkit/wsldoctor/internal/wslerr"
 )
 
 const (
@@ -42,6 +44,8 @@ func (a *App) Run(args []string) int {
 	switch args[0] {
 	case "check":
 		return a.check(args[1:])
+	case "explain":
+		return a.explain(args[1:])
 	case "fix":
 		return a.fix(args[1:])
 	case "undo":
@@ -62,21 +66,25 @@ func (a *App) Run(args []string) int {
 func (a *App) usage() {
 	fmt.Fprint(a.Stderr, `wsldoctor: diagnose why WSL 2 is broken or slow, then fix it.
 
-  wsldoctor check [flags]         read-only, no admin, ranked diagnosis
-  wsldoctor fix <id> [--apply]    plan (default) or apply one remediation
-  wsldoctor undo [<journal-id>]   list journal entries, or replay one rollback
+  wsldoctor check [flags]              read-only, no admin, ranked diagnosis
+  wsldoctor explain [flags] <error>    decode a WSL error code and run the probes that explain it
+  wsldoctor fix <id> [--apply]         plan (default) or apply one remediation
+  wsldoctor undo [<journal-id>]        list journal entries, or replay one rollback
   wsldoctor version
 
-check flags:
+check / explain flags:
   --json                  machine-readable output (schema wsldoctor/result/v1)
   --report                redacted markdown block for bug reports
   --verbose               show details for OK and SKIPPED findings too
-  --only M1[,M2]          run only probes tagged with these milestones
+  --only M1[,M2]          run only probes tagged with these milestones (check)
   --from-snapshot FILE    run probes on a saved --json output instead of this machine
   --elevated              require an elevated terminal (re-checks admin-only data)
   --allow-vm-wake         permit probes that would start the WSL VM (none yet)
   --timeout DURATION      per-collector deadline (default 5s)
   --no-redact             do not scrub user paths from human/json output
+
+explain accepts anything wsl.exe printed: "Error code: Wsl/Service/E_UNEXPECTED",
+a bare 0x80370102, an error name, or the exit code 4294967295.
 
 fixes: `+fixIDs()+`
 `)
@@ -90,69 +98,67 @@ func fixIDs() string {
 	return strings.Join(ids, ", ")
 }
 
-func (a *App) check(args []string) int {
-	fs := flag.NewFlagSet("check", flag.ContinueOnError)
-	fs.SetOutput(a.Stderr)
-	var (
-		jsonOut  = fs.Bool("json", false, "")
-		report   = fs.Bool("report", false, "")
-		verbose  = fs.Bool("verbose", false, "")
-		only     = fs.String("only", "", "")
-		snapshot = fs.String("from-snapshot", "", "")
-		elevated = fs.Bool("elevated", false, "")
-		vmWake   = fs.Bool("allow-vm-wake", false, "")
-		timeout  = fs.Duration("timeout", 5*time.Second, "")
-		noRedact = fs.Bool("no-redact", false, "")
-	)
-	if err := fs.Parse(args); err != nil {
-		return ExitUsage
-	}
+// runFlags are shared by check and explain.
+type runFlags struct {
+	jsonOut, report, verbose, elevated, vmWake, noRedact bool
+	only, snapshot                                       string
+	timeout                                              time.Duration
+}
 
-	var e *env.Env
-	if *snapshot != "" {
-		b, err := os.ReadFile(*snapshot)
+func (a *App) bind(fs *flag.FlagSet) *runFlags {
+	rf := &runFlags{}
+	fs.BoolVar(&rf.jsonOut, "json", false, "")
+	fs.BoolVar(&rf.report, "report", false, "")
+	fs.BoolVar(&rf.verbose, "verbose", false, "")
+	fs.StringVar(&rf.only, "only", "", "")
+	fs.StringVar(&rf.snapshot, "from-snapshot", "", "")
+	fs.BoolVar(&rf.elevated, "elevated", false, "")
+	fs.BoolVar(&rf.vmWake, "allow-vm-wake", false, "")
+	fs.DurationVar(&rf.timeout, "timeout", 5*time.Second, "")
+	fs.BoolVar(&rf.noRedact, "no-redact", false, "")
+	return rf
+}
+
+// environment loads a snapshot or collects live. Returns an exit code on failure.
+func (a *App) environment(rf *runFlags) (*env.Env, int) {
+	if rf.snapshot != "" {
+		b, err := os.ReadFile(rf.snapshot)
 		if err != nil {
 			fmt.Fprintf(a.Stderr, "cannot read snapshot: %v\n", err)
-			return ExitUsage
+			return nil, ExitUsage
 		}
-		e, err = render.LoadSnapshot(b)
+		e, err := render.LoadSnapshot(b)
 		if err != nil {
 			fmt.Fprintf(a.Stderr, "bad snapshot: %v\n", err)
-			return ExitUsage
+			return nil, ExitUsage
 		}
-	} else {
-		ctx, cancel := context.WithTimeout(context.Background(), *timeout*4)
-		defer cancel()
-		var err error
-		e, err = collect.Run(ctx, collect.Options{Tool: "wsldoctor " + a.Version, AllowVMWake: *vmWake, Timeout: *timeout})
-		if err != nil {
-			fmt.Fprintf(a.Stderr, "%v\n", err)
-			return ExitCollector
-		}
-		if *elevated && !e.Elevated {
-			fmt.Fprintln(a.Stderr, "--elevated was given but this terminal is not elevated. Open an Administrator terminal and re-run.")
-			return ExitUsage
-		}
+		return e, ExitOK
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), rf.timeout*4)
+	defer cancel()
+	e, err := collect.Run(ctx, collect.Options{Tool: "wsldoctor " + a.Version, AllowVMWake: rf.vmWake, Timeout: rf.timeout})
+	if err != nil {
+		fmt.Fprintf(a.Stderr, "%v\n", err)
+		return nil, ExitCollector
+	}
+	if rf.elevated && !e.Elevated {
+		fmt.Fprintln(a.Stderr, "--elevated was given but this terminal is not elevated. Open an Administrator terminal and re-run.")
+		return nil, ExitUsage
+	}
+	return e, ExitOK
+}
 
-	probes := all.Probes()
-	if *only != "" {
-		set := map[string]bool{}
-		for _, m := range strings.Split(*only, ",") {
-			set[strings.ToUpper(strings.TrimSpace(m))] = true
-		}
-		probes = probe.Filter(probes, set)
-	}
+// runAndRender runs probes on e and writes the chosen format. Returns the exit code.
+func (a *App) runAndRender(e *env.Env, probes []probe.Probe, rf *runFlags) int {
 	results := probe.RunAll(probes, e)
-
-	opts := render.Options{Version: a.Version, Redact: !*noRedact, Verbose: *verbose}
+	opts := render.Options{Version: a.Version, Redact: !rf.noRedact, Verbose: rf.verbose}
 	switch {
-	case *jsonOut:
+	case rf.jsonOut:
 		if err := render.JSON(a.Stdout, e, results, opts); err != nil {
 			fmt.Fprintf(a.Stderr, "render: %v\n", err)
 			return ExitCollector
 		}
-	case *report:
+	case rf.report:
 		render.Report(a.Stdout, e, results, opts)
 	default:
 		render.Human(a.Stdout, e, results, opts)
@@ -162,6 +168,119 @@ func (a *App) check(args []string) int {
 		return ExitCollector
 	}
 	return probe.ExitCode(results)
+}
+
+func (a *App) check(args []string) int {
+	fs := flag.NewFlagSet("check", flag.ContinueOnError)
+	fs.SetOutput(a.Stderr)
+	rf := a.bind(fs)
+	if err := fs.Parse(args); err != nil {
+		return ExitUsage
+	}
+	e, code := a.environment(rf)
+	if e == nil {
+		return code
+	}
+	probes := all.Probes()
+	if rf.only != "" {
+		set := map[string]bool{}
+		for _, m := range strings.Split(rf.only, ",") {
+			set[strings.ToUpper(strings.TrimSpace(m))] = true
+		}
+		probes = probe.Filter(probes, set)
+	}
+	return a.runAndRender(e, probes, rf)
+}
+
+func (a *App) explain(args []string) int {
+	fs := flag.NewFlagSet("explain", flag.ContinueOnError)
+	fs.SetOutput(a.Stderr)
+	rf := a.bind(fs)
+	if err := fs.Parse(args); err != nil {
+		return ExitUsage
+	}
+	text := strings.TrimSpace(strings.Join(fs.Args(), " "))
+	if text == "" {
+		fmt.Fprintln(a.Stderr, "usage: wsldoctor explain [flags] <error text>   e.g. explain Wsl/Service/E_UNEXPECTED")
+		return ExitUsage
+	}
+	parsed, err := wslerr.Parse(text)
+	if err != nil {
+		fmt.Fprintf(a.Stderr, "%v\nPaste the line that starts with \"Error code:\", a 0x... HRESULT, or the exit code.\n", err)
+		return ExitUsage
+	}
+	dict, err := data.LoadErrors()
+	if err != nil {
+		fmt.Fprintf(a.Stderr, "error dictionary: %v\n", err)
+		return ExitCollector
+	}
+	ex := dict.Explain(parsed)
+	if !rf.jsonOut {
+		a.printExplanation(ex)
+	}
+	if len(ex.Probes) == 0 && !rf.jsonOut {
+		fmt.Fprintln(a.Stdout, "No probes are mapped to this error yet; running the full check instead.")
+	}
+	e, code := a.environment(rf)
+	if e == nil {
+		return code
+	}
+	probes := all.Probes()
+	if len(ex.Probes) > 0 {
+		probes = all.ByID(ex.Probes)
+		if !rf.jsonOut {
+			fmt.Fprintf(a.Stdout, "Running %d related probe(s):\n\n", len(probes))
+		}
+	}
+	return a.runAndRender(e, probes, rf)
+}
+
+func (a *App) printExplanation(ex data.Explanation) {
+	w := a.Stdout
+	fmt.Fprintf(w, "Error: %s\n", ex.Parsed.Raw)
+	for _, st := range ex.Steps {
+		desc := st.Desc
+		if desc == "" {
+			if st.Known {
+				desc = "(no description yet)"
+			} else {
+				desc = "(not a known WSL context; newer runtime or a typo)"
+			}
+		}
+		fmt.Fprintf(w, "  %-26s %s\n", st.Name, desc)
+		if st.Note != "" {
+			fmt.Fprintf(w, "  %-26s note: %s\n", "", st.Note)
+		}
+	}
+	code := ex.CodeName
+	if ex.Code != nil && ex.Code.HRESULT != "" && !strings.HasPrefix(code, "0x") {
+		code += "  " + ex.Code.HRESULT
+	}
+	switch {
+	case ex.Code != nil:
+		fmt.Fprintf(w, "  %-26s %s\n", code, ex.Code.Desc)
+		if ex.Code.Note != "" {
+			fmt.Fprintf(w, "  %-26s note: %s\n", "", ex.Code.Note)
+		}
+		if len(ex.Code.Causes) > 0 {
+			fmt.Fprintln(w, "Known causes:")
+			for i, c := range ex.Code.Causes {
+				fmt.Fprintf(w, "  %d. %s", i+1, c.Summary)
+				if len(c.Probes) > 0 {
+					fmt.Fprintf(w, "   -> %s", strings.Join(c.Probes, ", "))
+				}
+				fmt.Fprintln(w)
+			}
+		}
+		for _, r := range ex.Code.Refs {
+			fmt.Fprintf(w, "  ref: %s\n", r)
+		}
+	case ex.KnownToWSL:
+		fmt.Fprintf(w, "  %-26s (WSL knows this code by name; wsldoctor has no note for it yet)\n", code)
+	default:
+		fmt.Fprintf(w, "  %-26s (unknown to wsldoctor)\n", code)
+	}
+	fmt.Fprintln(w)
 }
 
 // severeCollectorFailure is true when neither the runtime nor the OS could be read.
