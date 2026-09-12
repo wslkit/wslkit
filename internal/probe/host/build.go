@@ -31,7 +31,7 @@ const (
 
 func (p Build) Run(e *env.Env) probe.Result {
 	b := p.base()
-	if !e.Host.OS.OK() {
+	if !e.Host.OS.Collected() || !e.Host.OS.OK() || e.Host.OS.Value.Build == 0 {
 		return b.Res(probe.Unknown, 0.1, "could not read the Windows version: "+e.Host.OS.Err)
 	}
 	os := e.Host.OS.Value
