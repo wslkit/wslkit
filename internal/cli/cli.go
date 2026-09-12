@@ -1,5 +1,11 @@
-// Package cli implements the subcommands. It is thin: parse flags, call
+// Package cli implements the wslkit command tree. It is thin: parse flags, call
 // collect / probe / render / fix, map to exit codes.
+//
+//	wslkit doctor [check] [flags]     ranked diagnosis (default subcommand)
+//	wslkit doctor explain <error>     decode a WSL error, run the probes that explain it
+//	wslkit doctor fix <id> [--apply]  plan or apply one remediation
+//	wslkit doctor undo [<id>]         list or replay rollbacks
+//	wslkit version
 package cli
 
 import (
@@ -11,16 +17,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wslkit/wsldoctor/internal/data"
-	"github.com/wslkit/wsldoctor/internal/env"
-	"github.com/wslkit/wsldoctor/internal/env/collect"
-	"github.com/wslkit/wsldoctor/internal/fix"
-	"github.com/wslkit/wsldoctor/internal/fix/actions"
-	fixexec "github.com/wslkit/wsldoctor/internal/fix/exec"
-	"github.com/wslkit/wsldoctor/internal/probe"
-	"github.com/wslkit/wsldoctor/internal/probe/all"
-	"github.com/wslkit/wsldoctor/internal/render"
-	"github.com/wslkit/wsldoctor/internal/wslerr"
+	"github.com/wslkit/wslkit/internal/data"
+	"github.com/wslkit/wslkit/internal/env"
+	"github.com/wslkit/wslkit/internal/env/collect"
+	"github.com/wslkit/wslkit/internal/fix"
+	"github.com/wslkit/wslkit/internal/fix/actions"
+	fixexec "github.com/wslkit/wslkit/internal/fix/exec"
+	"github.com/wslkit/wslkit/internal/probe"
+	"github.com/wslkit/wslkit/internal/probe/all"
+	"github.com/wslkit/wslkit/internal/render"
+	"github.com/wslkit/wslkit/internal/wslerr"
 )
 
 const (
@@ -30,28 +36,26 @@ const (
 	ExitCollector = 3
 )
 
+// Product is the binary and package name.
+const Product = "wslkit"
+
 type App struct {
 	Version string
 	Stdout  io.Writer
 	Stderr  io.Writer
 }
 
+// Run dispatches the top-level command tree.
 func (a *App) Run(args []string) int {
 	if len(args) == 0 {
 		a.usage()
 		return ExitUsage
 	}
 	switch args[0] {
-	case "check":
-		return a.check(args[1:])
-	case "explain":
-		return a.explain(args[1:])
-	case "fix":
-		return a.fix(args[1:])
-	case "undo":
-		return a.undo(args[1:])
+	case "doctor":
+		return a.doctor(args[1:])
 	case "version", "--version", "-v":
-		fmt.Fprintf(a.Stdout, "wsldoctor %s\n", a.Version)
+		fmt.Fprintf(a.Stdout, "%s %s\n", Product, a.Version)
 		return ExitOK
 	case "help", "--help", "-h":
 		a.usage()
@@ -63,17 +67,42 @@ func (a *App) Run(args []string) int {
 	}
 }
 
-func (a *App) usage() {
-	fmt.Fprint(a.Stderr, `wsldoctor: diagnose why WSL 2 is broken or slow, then fix it.
+// doctor dispatches the diagnosis subcommands. With no subcommand (or only
+// flags) it runs check, like `brew doctor`.
+func (a *App) doctor(args []string) int {
+	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
+		return a.check(args)
+	}
+	switch args[0] {
+	case "check":
+		return a.check(args[1:])
+	case "explain":
+		return a.explain(args[1:])
+	case "fix":
+		return a.fix(args[1:])
+	case "undo":
+		return a.undo(args[1:])
+	case "help", "--help", "-h":
+		a.usage()
+		return ExitOK
+	default:
+		fmt.Fprintf(a.Stderr, "unknown doctor subcommand %q\n\n", args[0])
+		a.usage()
+		return ExitUsage
+	}
+}
 
-  wsldoctor check [flags]              read-only, no admin, ranked diagnosis
-  wsldoctor explain [flags] <error>    decode a WSL error code and run the probes that explain it
-  wsldoctor fix <id> [--apply]         plan (default) or apply one remediation
-  wsldoctor undo [<journal-id>]        list journal entries, or replay one rollback
-  wsldoctor version
+func (a *App) usage() {
+	fmt.Fprint(a.Stderr, `wslkit: tools for WSL 2. The doctor diagnoses why WSL is broken or slow, then fixes it.
+
+  wslkit doctor [check] [flags]        read-only, no admin, ranked diagnosis
+  wslkit doctor explain [flags] <err>  decode a WSL error code and run the probes that explain it
+  wslkit doctor fix <id> [--apply]     plan (default) or apply one remediation
+  wslkit doctor undo [<journal-id>]    list journal entries, or replay one rollback
+  wslkit version
 
 check / explain flags:
-  --json                  machine-readable output (schema wsldoctor/result/v1)
+  --json                  machine-readable output (schema wslkit/result/v1)
   --report                redacted markdown block for bug reports
   --verbose               show details for OK and SKIPPED findings too
   --only M1[,M2]          run only probes tagged with these milestones (check)
@@ -119,6 +148,8 @@ func (a *App) bind(fs *flag.FlagSet) *runFlags {
 	return rf
 }
 
+func (a *App) toolName() string { return Product + " " + a.Version }
+
 // environment loads a snapshot or collects live. Returns an exit code on failure.
 func (a *App) environment(rf *runFlags) (*env.Env, int) {
 	if rf.snapshot != "" {
@@ -136,7 +167,7 @@ func (a *App) environment(rf *runFlags) (*env.Env, int) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), rf.timeout*4)
 	defer cancel()
-	e, err := collect.Run(ctx, collect.Options{Tool: "wsldoctor " + a.Version, AllowVMWake: rf.vmWake, Timeout: rf.timeout})
+	e, err := collect.Run(ctx, collect.Options{Tool: a.toolName(), AllowVMWake: rf.vmWake, Timeout: rf.timeout})
 	if err != nil {
 		fmt.Fprintf(a.Stderr, "%v\n", err)
 		return nil, ExitCollector
@@ -171,7 +202,7 @@ func (a *App) runAndRender(e *env.Env, probes []probe.Probe, rf *runFlags) int {
 }
 
 func (a *App) check(args []string) int {
-	fs := flag.NewFlagSet("check", flag.ContinueOnError)
+	fs := flag.NewFlagSet("doctor check", flag.ContinueOnError)
 	fs.SetOutput(a.Stderr)
 	rf := a.bind(fs)
 	if err := fs.Parse(args); err != nil {
@@ -193,7 +224,7 @@ func (a *App) check(args []string) int {
 }
 
 func (a *App) explain(args []string) int {
-	fs := flag.NewFlagSet("explain", flag.ContinueOnError)
+	fs := flag.NewFlagSet("doctor explain", flag.ContinueOnError)
 	fs.SetOutput(a.Stderr)
 	rf := a.bind(fs)
 	if err := fs.Parse(args); err != nil {
@@ -201,7 +232,7 @@ func (a *App) explain(args []string) int {
 	}
 	text := strings.TrimSpace(strings.Join(fs.Args(), " "))
 	if text == "" {
-		fmt.Fprintln(a.Stderr, "usage: wsldoctor explain [flags] <error text>   e.g. explain Wsl/Service/E_UNEXPECTED")
+		fmt.Fprintln(a.Stderr, "usage: wslkit doctor explain [flags] <error text>   e.g. explain Wsl/Service/E_UNEXPECTED")
 		return ExitUsage
 	}
 	parsed, err := wslerr.Parse(text)
@@ -276,9 +307,9 @@ func (a *App) printExplanation(ex data.Explanation) {
 			fmt.Fprintf(w, "  ref: %s\n", r)
 		}
 	case ex.KnownToWSL:
-		fmt.Fprintf(w, "  %-26s (WSL knows this code by name; wsldoctor has no note for it yet)\n", code)
+		fmt.Fprintf(w, "  %-26s (WSL knows this code by name; wslkit has no note for it yet)\n", code)
 	default:
-		fmt.Fprintf(w, "  %-26s (unknown to wsldoctor)\n", code)
+		fmt.Fprintf(w, "  %-26s (unknown to wslkit)\n", code)
 	}
 	fmt.Fprintln(w)
 }
@@ -290,7 +321,7 @@ func severeCollectorFailure(e *env.Env) bool {
 
 func (a *App) fix(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintf(a.Stderr, "usage: wsldoctor fix <id> [--apply] [fix args]\nfixes: %s\n", fixIDs())
+		fmt.Fprintf(a.Stderr, "usage: wslkit doctor fix <id> [--apply] [fix args]\nfixes: %s\n", fixIDs())
 		return ExitUsage
 	}
 	id := args[0]
@@ -310,7 +341,7 @@ func (a *App) fix(args []string) int {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	e, err := collect.Run(ctx, collect.Options{Tool: "wsldoctor " + a.Version})
+	e, err := collect.Run(ctx, collect.Options{Tool: a.toolName()})
 	if err != nil {
 		fmt.Fprintf(a.Stderr, "%v\n", err)
 		return ExitCollector
@@ -337,10 +368,10 @@ func (a *App) fix(args []string) int {
 	}
 	fmt.Fprintf(a.Stdout, "\nApplying (undo id: %s)\n", jid)
 	if err := fix.Apply(plan, fixexec.Real{Out: a.Stdout}); err != nil {
-		fmt.Fprintf(a.Stderr, "\n%v\nRollback steps are saved; run: wsldoctor undo %s\n", err, jid)
+		fmt.Fprintf(a.Stderr, "\n%v\nRollback steps are saved; run: wslkit doctor undo %s\n", err, jid)
 		return ExitFindings
 	}
-	fmt.Fprintf(a.Stdout, "\nDone. To roll back: wsldoctor undo %s\n", jid)
+	fmt.Fprintf(a.Stdout, "\nDone. To roll back: wslkit doctor undo %s\n", jid)
 	return ExitOK
 }
 

@@ -4,7 +4,7 @@ Status: accepted, 2026-09-12.
 
 `check` never elevates. Collectors detect whether the process is already elevated and
 read what they can; fields that need admin record `err_kind: needs_elevation` and the
-matching probes report `UNKNOWN` with the hint `wsldoctor check --elevated`.
+matching probes report `UNKNOWN` with the hint `wslkit doctor check --elevated`.
 
 `check --elevated` and any `fix` with `Elevates() == true` require an already elevated
 console and exit with code 2 otherwise. No `ShellExecute("runas")` relaunch.

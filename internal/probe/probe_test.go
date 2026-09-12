@@ -3,7 +3,7 @@ package probe
 import (
 	"testing"
 
-	"github.com/wslkit/wsldoctor/internal/env"
+	"github.com/wslkit/wslkit/internal/env"
 )
 
 type fake struct {

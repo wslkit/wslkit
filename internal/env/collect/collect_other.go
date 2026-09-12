@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/wslkit/wsldoctor/internal/env"
+	"github.com/wslkit/wslkit/internal/env"
 )
 
 var ErrUnsupported = errors.New("live collection is only available on Windows; use --from-snapshot")

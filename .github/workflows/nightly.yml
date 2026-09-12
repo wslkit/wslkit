@@ -35,7 +35,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run ./cmd/wsldoctor check --json > env.json
+      - run: go run ./cmd/wslkit doctor check --json > env.json
         shell: pwsh
         continue-on-error: true
       - uses: actions/upload-artifact@v4

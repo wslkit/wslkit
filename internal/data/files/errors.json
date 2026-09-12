@@ -1,5 +1,5 @@
 {
-  "schema": "wsldoctor/errors/v1",
+  "schema": "wslkit/errors/v1",
   "updated": "2026-09-12",
   "source_commit": "eaa69e7",
   "contexts": [

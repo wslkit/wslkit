@@ -7,7 +7,7 @@ import (
 	"os"
 	osexec "os/exec"
 
-	"github.com/wslkit/wsldoctor/internal/fix"
+	"github.com/wslkit/wslkit/internal/fix"
 )
 
 // Real runs exec steps as child processes with inherited stdio, and prints notes.
@@ -16,8 +16,8 @@ type Real struct {
 }
 
 func (r Real) Run(s fix.Step) error {
-	if os.Getenv("WSLDOCTOR_TEST") == "1" {
-		panic("fix/exec.Real used under WSLDOCTOR_TEST=1")
+	if os.Getenv("WSLKIT_TEST") == "1" {
+		panic("fix/exec.Real used under WSLKIT_TEST=1")
 	}
 	out := r.Out
 	if out == nil {

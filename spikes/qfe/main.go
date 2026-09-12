@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/wslkit/wsldoctor/internal/winapi/wmi"
+	"github.com/wslkit/wslkit/internal/winapi/wmi"
 )
 
 func main() {

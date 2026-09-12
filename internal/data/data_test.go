@@ -3,7 +3,7 @@ package data
 import (
 	"testing"
 
-	"github.com/wslkit/wsldoctor/internal/wslver"
+	"github.com/wslkit/wslkit/internal/wslver"
 )
 
 func TestLoadCompat(t *testing.T) {
@@ -63,7 +63,7 @@ func TestMinimumRuntimeCombinesExplicitAndCapabilities(t *testing.T) {
 
 func TestValidateRejectsUnknownCapability(t *testing.T) {
 	c := &Compat{
-		Schema: "wsldoctor/compat/v1", LatestStable: "2.7.14", LatestPrerelease: "2.9.11",
+		Schema: "wslkit/compat/v1", LatestStable: "2.7.14", LatestPrerelease: "2.9.11",
 		ModernFormatMin: "2.4.4", ModernFormatRecommended: "2.4.8",
 		Distros: []DistroCompat{{Flavor: "x", OsVersion: "1", Requires: []string{"nope"}}},
 	}

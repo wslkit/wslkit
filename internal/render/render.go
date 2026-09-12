@@ -8,13 +8,13 @@ import (
 	"io"
 	"strings"
 
-	"github.com/wslkit/wsldoctor/internal/env"
-	"github.com/wslkit/wsldoctor/internal/probe"
-	"github.com/wslkit/wsldoctor/internal/redact"
-	"github.com/wslkit/wsldoctor/internal/wslver"
+	"github.com/wslkit/wslkit/internal/env"
+	"github.com/wslkit/wslkit/internal/probe"
+	"github.com/wslkit/wslkit/internal/redact"
+	"github.com/wslkit/wslkit/internal/wslver"
 )
 
-const ResultSchema = "wsldoctor/result/v1"
+const ResultSchema = "wslkit/result/v1"
 
 type Tool struct {
 	Name    string `json:"name"`
@@ -42,7 +42,7 @@ func rules(e *env.Env) redact.Rules {
 
 // JSON writes the envelope. Redaction, if requested, is applied to the encoded bytes.
 func JSON(w io.Writer, e *env.Env, results []probe.Result, o Options) error {
-	out := Output{Schema: ResultSchema, Tool: Tool{"wsldoctor", o.Version}, Env: e, Results: results}
+	out := Output{Schema: ResultSchema, Tool: Tool{"wslkit", o.Version}, Env: e, Results: results}
 	b, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		return err
@@ -64,7 +64,7 @@ func LoadSnapshot(data []byte) (*env.Env, error) {
 		return nil, fmt.Errorf("snapshot is not JSON: %w", err)
 	}
 	switch {
-	case strings.HasPrefix(probeKind.Schema, "wsldoctor/result/"):
+	case strings.HasPrefix(probeKind.Schema, "wslkit/result/"), strings.HasPrefix(probeKind.Schema, "wsldoctor/result/"):
 		var out Output
 		if err := json.Unmarshal(data, &out); err != nil {
 			return nil, err
@@ -73,7 +73,7 @@ func LoadSnapshot(data []byte) (*env.Env, error) {
 			return nil, fmt.Errorf("snapshot envelope has no env")
 		}
 		return out.Env, nil
-	case strings.HasPrefix(probeKind.Schema, "wsldoctor/env/"):
+	case strings.HasPrefix(probeKind.Schema, "wslkit/env/"), strings.HasPrefix(probeKind.Schema, "wsldoctor/env/"):
 		var e env.Env
 		if err := json.Unmarshal(data, &e); err != nil {
 			return nil, err
@@ -120,7 +120,7 @@ func Human(w io.Writer, e *env.Env, results []probe.Result, o Options) {
 // Report writes a redacted markdown block for bug reports.
 func Report(w io.Writer, e *env.Env, results []probe.Result, o Options) {
 	var sb strings.Builder
-	sb.WriteString("<details><summary>wsldoctor report</summary>\n\n```\n")
+	sb.WriteString("<details><summary>wslkit doctor report</summary>\n\n```\n")
 	sb.WriteString(header(e, o.Version))
 	sb.WriteString("\n\n")
 	for _, r := range results {
@@ -137,18 +137,18 @@ func Report(w io.Writer, e *env.Env, results []probe.Result, o Options) {
 	sb.WriteString("```\n\n")
 	sb.WriteString("Collected " + e.CollectedAt.UTC().Format("2006-01-02 15:04 UTC"))
 	if !e.Elevated {
-		sb.WriteString(", not elevated (UNKNOWN items may resolve with `wsldoctor check --elevated`)")
+		sb.WriteString(", not elevated (UNKNOWN items may resolve with `wslkit doctor check --elevated`)")
 	}
 	sb.WriteString(".\n")
 	sb.WriteString("Deeper traces: https://github.com/microsoft/WSL/blob/master/diagnostics/collect-wsl-logs.ps1\n")
-	sb.WriteString("To turn this machine into a regression test, attach `wsldoctor check --json > wsldoctor-env.json` to a wslkit/wsldoctor issue.\n")
+	sb.WriteString("To turn this machine into a regression test, attach `wslkit doctor check --json > wslkit-env.json` to a wslkit/wslkit issue.\n")
 	sb.WriteString("</details>\n")
 	io.WriteString(w, redact.String(sb.String(), rules(e)))
 }
 
 func header(e *env.Env, version string) string {
 	var parts []string
-	parts = append(parts, "wsldoctor "+version)
+	parts = append(parts, "wslkit "+version)
 	if e.Runtime.Version.OK() {
 		v := e.Runtime.Version.Value
 		if p, err := wslver.Parse(v); err == nil {

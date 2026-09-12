@@ -1,10 +1,10 @@
 version: 2
-project_name: wsldoctor
+project_name: wslkit
 
 builds:
-  - id: wsldoctor
-    main: ./cmd/wsldoctor
-    binary: wsldoctor
+  - id: wslkit
+    main: ./cmd/wslkit
+    binary: wslkit
     env: [CGO_ENABLED=0]
     goos: [windows]
     goarch: [amd64, arm64]
@@ -29,7 +29,7 @@ sboms:
 changelog:
   use: github
   groups:
-    - title: Probes
+    - title: Doctor probes
       regexp: '^.*?(probe|WSL\d|HST\d|DSK\d|NET\d|MEM\d|DEF\d|PLG\d|EVT\d).*$'
       order: 0
     - title: Fixes
@@ -42,9 +42,11 @@ release:
   prerelease: auto
   draft: false
 
-# Scoop and winget publishing are enabled once the wslkit buckets exist:
+# Scoop and winget publishing are enabled once the wslkit bucket exists. The
+# Scoop manifest should add shims for both `wslkit` and the legacy `wsldoctor`
+# name (the binary is multi-call: invoked as wsldoctor it runs `wslkit doctor`).
 # scoops:
-#   - repository: {owner: wslkit, name: scoop-wsldoctor}
-#     homepage: https://github.com/wslkit/wsldoctor
-#     description: Diagnose why WSL 2 is broken or slow, then fix it.
+#   - repository: {owner: wslkit, name: scoop-wslkit}
+#     homepage: https://github.com/wslkit/wslkit
+#     description: Tools for WSL 2 - diagnose, fix and manage.
 #     license: TBD

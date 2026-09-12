@@ -3,13 +3,13 @@
 package all
 
 import (
-	"github.com/wslkit/wsldoctor/internal/probe"
-	"github.com/wslkit/wsldoctor/internal/probe/disk"
-	"github.com/wslkit/wsldoctor/internal/probe/evt"
-	"github.com/wslkit/wsldoctor/internal/probe/host"
-	"github.com/wslkit/wsldoctor/internal/probe/net"
-	"github.com/wslkit/wsldoctor/internal/probe/perf"
-	"github.com/wslkit/wsldoctor/internal/probe/wsl"
+	"github.com/wslkit/wslkit/internal/probe"
+	"github.com/wslkit/wslkit/internal/probe/disk"
+	"github.com/wslkit/wslkit/internal/probe/evt"
+	"github.com/wslkit/wslkit/internal/probe/host"
+	"github.com/wslkit/wslkit/internal/probe/net"
+	"github.com/wslkit/wslkit/internal/probe/perf"
+	"github.com/wslkit/wslkit/internal/probe/wsl"
 )
 
 func Probes() []probe.Probe {

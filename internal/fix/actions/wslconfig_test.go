@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wslkit/wsldoctor/internal/env"
-	"github.com/wslkit/wsldoctor/internal/fix"
+	"github.com/wslkit/wslkit/internal/env"
+	"github.com/wslkit/wslkit/internal/fix"
 )
 
 func TestWslConfigPlan(t *testing.T) {
@@ -23,7 +23,7 @@ func TestWslConfigPlan(t *testing.T) {
 		t.Fatalf("steps = %+v", p.Steps)
 	}
 	content := p.Steps[1].Args[1]
-	if !strings.Contains(content, "# wsldoctor: unknown key") || !strings.Contains(content, "\r\n# memroy=4GB") || !strings.Contains(content, "processors=2") {
+	if !strings.Contains(content, "# wslkit:unknown key") || !strings.Contains(content, "\r\n# memroy=4GB") || !strings.Contains(content, "processors=2") {
 		t.Fatalf("content = %q", content)
 	}
 	if !strings.HasSuffix(content, "\r\n") {

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wslkit/wsldoctor/internal/env"
-	"github.com/wslkit/wsldoctor/internal/fix"
+	"github.com/wslkit/wslkit/internal/env"
+	"github.com/wslkit/wslkit/internal/fix"
 )
 
 func All() []fix.Fix { return []fix.Fix{Update{}, Shutdown{}, WslConfig{}, Defender{}} }

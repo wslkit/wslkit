@@ -1,6 +1,6 @@
 // Package net holds networking probes (NET***). The rules copy what the WSL
 // runtime itself checks in WslCoreVm::ValidateNetworkingMode and
-// WslCoreFirewallSupport.cpp, so wsldoctor can explain a fallback before the
+// WslCoreFirewallSupport.cpp, so wslkit can explain a fallback before the
 // user sees "falling back to NAT networking".
 package net
 
@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/wslkit/wsldoctor/internal/env"
-	"github.com/wslkit/wsldoctor/internal/probe"
-	"github.com/wslkit/wsldoctor/internal/wslconfig"
+	"github.com/wslkit/wslkit/internal/env"
+	"github.com/wslkit/wslkit/internal/probe"
+	"github.com/wslkit/wslkit/internal/wslconfig"
 )
 
 func All() []probe.Probe { return []probe.Probe{Mirrored{}, DNS{}} }
@@ -134,7 +134,7 @@ func (p Mirrored) Run(e *env.Env) probe.Result {
 	case len(warns) > 0:
 		r := b.Res(probe.Warn, 0.5, warns[0])
 		r.Detail = detail + "\n" + strings.Join(warns, "\n")
-		r.FixHint = "review [wsl2] networkingMode / firewall in .wslconfig; wsldoctor fix wslconfig comments out ignored keys"
+		r.FixHint = "review [wsl2] networkingMode / firewall in .wslconfig; wslkit doctor fix wslconfig comments out ignored keys"
 		if strings.Contains(warns[0], "KB5068861") {
 			r.Refs = []string{"https://github.com/microsoft/WSL/issues/13724"}
 		}
