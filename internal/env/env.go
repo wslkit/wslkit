@@ -57,6 +57,10 @@ func (f Field[T]) OK() bool             { return f.ErrKind == ErrNone }
 func (f Field[T]) Absent() bool         { return f.ErrKind == ErrNotPresent }
 func (f Field[T]) NeedsElevation() bool { return f.ErrKind == ErrNeedsElevation }
 
+// Collected is false for a zero Field: a collector never wrote it, typically
+// because the snapshot predates the field. Probes should SKIP, not judge.
+func (f Field[T]) Collected() bool { return f.Source != "" || f.ErrKind != ErrNone }
+
 var ErrNeedsElevationSentinel = errors.New("requires elevation")
 
 // Env is everything a probe may look at. Collectors fill disjoint sub-structs
@@ -153,6 +157,9 @@ type Runtime struct {
 	InboxWslVersion Field[string] `json:"inbox_wsl_version"` // C:\Windows\System32\wsl.exe file version
 	KernelVersion   Field[string] `json:"kernel_version_hklm"`
 	NatNetwork      Field[string] `json:"nat_network"`
+	// COMClassRegistered: HKCR\CLSID\{a9b7a1b9-0671-405c-95f1-e0612cb4ce7e} (CLSID_LxssUserSession,
+	// the Store/MSI wslservice class) exists. Missing => REGDB_E_CLASSNOTREG (0x80040154).
+	COMClassRegistered Field[bool] `json:"com_class_registered"`
 	// LatestStable known to the tool (embedded data, or fetched with --online).
 	LatestStable       Field[string] `json:"latest_stable"`
 	LatestStableSource string        `json:"latest_stable_source,omitempty"`
@@ -191,8 +198,19 @@ type VhdInfo struct {
 	Compressed     bool   `json:"compressed"`
 	Encrypted      bool   `json:"encrypted"`
 	OwnerSID       string `json:"owner_sid,omitempty"`
-	ParseErr       string `json:"parse_err,omitempty"`
+	// Owner classifies OwnerSID relative to the collecting user:
+	// "current_user", "administrators", "system", "other", or "" when unknown.
+	Owner    string `json:"owner,omitempty"`
+	ParseErr string `json:"parse_err,omitempty"`
 }
+
+// Well-known owner classifications for VhdInfo.Owner.
+const (
+	OwnerCurrentUser    = "current_user"
+	OwnerAdministrators = "administrators"
+	OwnerSystem         = "system"
+	OwnerOther          = "other"
+)
 
 type Config struct {
 	WslConfigPath string        `json:"wslconfig_path"`
