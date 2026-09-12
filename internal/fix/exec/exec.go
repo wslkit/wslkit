@@ -35,6 +35,22 @@ func (r Real) Run(s fix.Step) error {
 	case "note":
 		fmt.Fprintln(out, s.Description)
 		return nil
+	case "file_copy":
+		if len(s.Args) != 2 {
+			return fmt.Errorf("file_copy needs source and destination")
+		}
+		b, err := os.ReadFile(s.Args[0])
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "copy %s -> %s\n", s.Args[0], s.Args[1])
+		return os.WriteFile(s.Args[1], b, 0o600)
+	case "file_write":
+		if len(s.Args) != 2 {
+			return fmt.Errorf("file_write needs path and content")
+		}
+		fmt.Fprintf(out, "write %s (%d bytes)\n", s.Args[0], len(s.Args[1]))
+		return os.WriteFile(s.Args[0], []byte(s.Args[1]), 0o600)
 	default:
 		return fmt.Errorf("unsupported step kind %q", s.Kind)
 	}

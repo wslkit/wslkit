@@ -24,6 +24,7 @@ import (
 	"github.com/wslkit/wsldoctor/internal/winapi/procs"
 	"github.com/wslkit/wsldoctor/internal/winapi/services"
 	"github.com/wslkit/wsldoctor/internal/winapi/wmi"
+	"github.com/wslkit/wsldoctor/internal/wslconfig"
 )
 
 const (
@@ -426,6 +427,22 @@ func collectConfig(ctx context.Context, e *env.Env, o Options) error {
 	switch {
 	case err == nil:
 		e.Config.WslConfig = env.Ok(string(b), p)
+		// Resolve every path-typed value so the (pure) linter can report missing files.
+		if table, terr := data.LoadConfigKeys(); terr == nil {
+			cfg := wslconfig.Parse(string(b))
+			for _, ent := range cfg.Entries {
+				k, ok := table.Lookup(ent.Section, ent.Key)
+				if !ok || k.Type != "path" || ent.Value == "" {
+					continue
+				}
+				real := strings.ReplaceAll(ent.Value, `\\`, `\`)
+				if e.Config.PathsExist == nil {
+					e.Config.PathsExist = map[string]bool{}
+				}
+				_, serr := os.Stat(real)
+				e.Config.PathsExist[strings.ToLower(real)] = serr == nil
+			}
+		}
 	case errors.Is(err, os.ErrNotExist):
 		e.Config.WslConfig = env.Absent[string](p)
 	default:

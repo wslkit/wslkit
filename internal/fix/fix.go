@@ -15,9 +15,13 @@ import (
 	"github.com/wslkit/wsldoctor/internal/env"
 )
 
-// Step is one operation. Kind "exec" runs Args as a process; "note" prints
-// Description only (for manual steps); "registry_set" writes a value
-// (Args: root, key, name, type, value); "registry_delete" (root, key, name).
+// Step is one operation. Kinds:
+//   - "exec": run Args as a process
+//   - "note": print Description only (manual step)
+//   - "file_copy": Args[0] source, Args[1] destination (overwrites)
+//   - "file_write": Args[0] path, Args[1] full new content
+//   - "registry_set" (root, key, name, type, value) and "registry_delete"
+//     (root, key, name) are reserved for later fixes.
 type Step struct {
 	Kind        string   `json:"kind"`
 	Args        []string `json:"args,omitempty"`
@@ -80,8 +84,13 @@ func Describe(p Plan) string {
 	sb.WriteString("\nSteps:\n")
 	for i, s := range p.Steps {
 		fmt.Fprintf(&sb, "  %d. %s\n", i+1, s.Description)
-		if s.Kind == "exec" {
+		switch s.Kind {
+		case "exec":
 			fmt.Fprintf(&sb, "     $ %s\n", strings.Join(s.Args, " "))
+		case "file_write":
+			for _, l := range strings.Split(strings.TrimRight(s.Args[1], "\r\n"), "\n") {
+				fmt.Fprintf(&sb, "     | %s\n", strings.TrimRight(l, "\r"))
+			}
 		}
 	}
 	sb.WriteString("\nRollback:\n")

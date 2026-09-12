@@ -346,13 +346,13 @@
     "WSAEOPNOTSUPP"
   ],
   "segments": {
-    "Wsl": {
-      "desc": "wsl.exe client",
-      "probes": []
-    },
-    "Wslg": {
-      "desc": "WSLg (GUI apps)",
-      "probes": []
+    "AttachDisk": {
+      "desc": "attaching a VHDX to the VM",
+      "note": "ERROR_ACCESS_DENIED here: VHD ownership after a move (DSK006 planned)",
+      "probes": [
+        "DSK002",
+        "DSK003"
+      ]
     },
     "Bash": {
       "desc": "bash.exe legacy launcher",
@@ -360,39 +360,29 @@
         "WSL002"
       ]
     },
-    "WslConfig": {
-      "desc": "wslconfig.exe / configuration handling",
+    "CallMsi": {
+      "desc": "running the WSL MSI installer",
       "probes": [
-        "MEM001"
-      ],
-      "note": "WSL005 (.wslconfig lint) will own this"
-    },
-    "InstallDistro": {
-      "desc": "installing a distribution",
-      "probes": [
-        "WSL002",
-        "WSL003",
-        "HST001"
+        "WSL002"
       ]
     },
-    "EnumerateDistros": {
-      "desc": "listing registered distributions",
+    "ConfigureDistro": {
+      "desc": "applying distro configuration at start",
       "probes": [
+        "WSL001",
         "WSL004"
       ]
     },
-    "Service": {
-      "desc": "wslservice.exe (the WSL service)",
-      "probes": [
-        "HST002"
-      ]
+    "ConfigureGpu": {
+      "desc": "GPU paravirtualization setup",
+      "probes": []
     },
-    "RegisterDistro": {
-      "desc": "registering a distribution (import, install)",
+    "ConfigureNetworking": {
+      "desc": "setting up NAT / mirrored / virtioproxy networking",
+      "note": "NET004 (mirrored preconditions) planned; 0x8007054f with mirrored mode falls back to networkingMode None (microsoft/WSL#13454)",
       "probes": [
-        "WSL002",
-        "DSK002",
-        "DSK005"
+        "HST003",
+        "HST002"
       ]
     },
     "CreateInstance": {
@@ -402,17 +392,10 @@
         "WSL004"
       ]
     },
-    "AttachDisk": {
-      "desc": "attaching a VHDX to the VM",
+    "CreateLxProcess": {
+      "desc": "creating the Linux process (init handshake)",
       "probes": [
-        "DSK002",
-        "DSK003"
-      ],
-      "note": "ERROR_ACCESS_DENIED here: VHD ownership after a move (DSK006 planned)"
-    },
-    "DetachDisk": {
-      "desc": "detaching a VHDX",
-      "probes": [
+        "WSL001",
         "DSK002"
       ]
     },
@@ -425,50 +408,20 @@
         "MEM001"
       ]
     },
-    "ParseConfig": {
-      "desc": "parsing .wslconfig or wsl.conf",
-      "probes": [
-        "MEM001"
-      ],
-      "note": "WSL005 lint planned"
-    },
-    "ConfigureNetworking": {
-      "desc": "setting up NAT / mirrored / virtioproxy networking",
-      "probes": [
-        "HST003",
-        "HST002"
-      ],
-      "note": "NET004 (mirrored preconditions) planned; 0x8007054f with mirrored mode falls back to networkingMode None (microsoft/WSL#13454)"
-    },
-    "ConfigureGpu": {
-      "desc": "GPU paravirtualization setup",
+    "DebugShell": {
+      "desc": "wsl --debug-shell",
       "probes": []
     },
-    "LaunchProcess": {
-      "desc": "launching a Windows-side helper process",
+    "DetachDisk": {
+      "desc": "detaching a VHDX",
       "probes": [
-        "WSL002"
-      ]
-    },
-    "UpdatePackage": {
-      "desc": "wsl --update",
-      "probes": [
-        "WSL003",
-        "WSL002"
-      ]
-    },
-    "ConfigureDistro": {
-      "desc": "applying distro configuration at start",
-      "probes": [
-        "WSL001",
-        "WSL004"
-      ]
-    },
-    "CreateLxProcess": {
-      "desc": "creating the Linux process (init handshake)",
-      "probes": [
-        "WSL001",
         "DSK002"
+      ]
+    },
+    "EnumerateDistros": {
+      "desc": "listing registered distributions",
+      "probes": [
+        "WSL004"
       ]
     },
     "ExportDistro": {
@@ -496,6 +449,104 @@
         "WSL004"
       ]
     },
+    "HCS": {
+      "desc": "Host Compute Service call (vmcompute)",
+      "probes": [
+        "HST001",
+        "HST003",
+        "HST002"
+      ]
+    },
+    "HNS": {
+      "desc": "Host Network Service call",
+      "note": "NET006 (HNS state, phantom adapters) planned",
+      "probes": [
+        "HST002",
+        "HST003"
+      ]
+    },
+    "Install": {
+      "desc": "wsl --install",
+      "note": "since 2.6.1 WSL refuses to install distros while a reboot is pending (HST004 planned)",
+      "probes": [
+        "HST001",
+        "HST002",
+        "WSL002"
+      ]
+    },
+    "InstallDistro": {
+      "desc": "installing a distribution",
+      "probes": [
+        "WSL002",
+        "WSL003",
+        "HST001"
+      ]
+    },
+    "LaunchProcess": {
+      "desc": "launching a Windows-side helper process",
+      "probes": [
+        "WSL002"
+      ]
+    },
+    "MountDisk": {
+      "desc": "wsl --mount",
+      "probes": [
+        "DSK002"
+      ]
+    },
+    "MoveDistro": {
+      "desc": "wsl --manage --move",
+      "note": "VHD ownership after cross-volume moves fixed in 2.7.11/2.7.12",
+      "probes": [
+        "DSK002",
+        "DSK005"
+      ]
+    },
+    "ParseConfig": {
+      "desc": "parsing .wslconfig or wsl.conf",
+      "probes": [
+        "WSL005",
+        "MEM001"
+      ]
+    },
+    "Plugin": {
+      "desc": "a host plugin (Docker Desktop, Defender for Endpoint, ...)",
+      "probes": [
+        "PLG001"
+      ]
+    },
+    "QueryLatestGitHubRelease": {
+      "desc": "checking GitHub for the latest WSL release",
+      "note": "network / proxy problem, not a WSL fault",
+      "probes": [
+        "WSL003"
+      ]
+    },
+    "ReadDistroConfig": {
+      "desc": "reading /etc/wsl-distribution.conf from a .wsl file",
+      "note": "preflight command planned",
+      "probes": []
+    },
+    "RegisterDistro": {
+      "desc": "registering a distribution (import, install)",
+      "probes": [
+        "WSL002",
+        "DSK002",
+        "DSK005"
+      ]
+    },
+    "RegisterLxBus": {
+      "desc": "LxBus registration (WSL 1)",
+      "probes": [
+        "WSL004"
+      ]
+    },
+    "Service": {
+      "desc": "wslservice.exe (the WSL service)",
+      "probes": [
+        "HST002"
+      ]
+    },
     "SetDefaultDistro": {
       "desc": "wsl --set-default",
       "probes": [
@@ -503,7 +554,7 @@
       ]
     },
     "SetVersion": {
-      "desc": "wsl --set-version (WSL 1 <-> 2 conversion)",
+      "desc": "wsl --set-version (WSL 1 \u003c-\u003e 2 conversion)",
       "probes": [
         "WSL004",
         "HST001",
@@ -520,128 +571,163 @@
         "WSL004"
       ]
     },
-    "RegisterLxBus": {
-      "desc": "LxBus registration (WSL 1)",
+    "UpdatePackage": {
+      "desc": "wsl --update",
       "probes": [
-        "WSL004"
-      ]
-    },
-    "MountDisk": {
-      "desc": "wsl --mount",
-      "probes": [
-        "DSK002"
-      ]
-    },
-    "QueryLatestGitHubRelease": {
-      "desc": "checking GitHub for the latest WSL release",
-      "probes": [
-        "WSL003"
-      ],
-      "note": "network / proxy problem, not a WSL fault"
-    },
-    "DebugShell": {
-      "desc": "wsl --debug-shell",
-      "probes": []
-    },
-    "Plugin": {
-      "desc": "a host plugin (Docker Desktop, Defender for Endpoint, ...)",
-      "probes": [
-        "PLG001"
-      ]
-    },
-    "CallMsi": {
-      "desc": "running the WSL MSI installer",
-      "probes": [
+        "WSL003",
         "WSL002"
       ]
-    },
-    "Install": {
-      "desc": "wsl --install",
-      "probes": [
-        "HST001",
-        "HST002",
-        "WSL002"
-      ],
-      "note": "since 2.6.1 WSL refuses to install distros while a reboot is pending (HST004 planned)"
-    },
-    "HCS": {
-      "desc": "Host Compute Service call (vmcompute)",
-      "probes": [
-        "HST001",
-        "HST003",
-        "HST002"
-      ]
-    },
-    "HNS": {
-      "desc": "Host Network Service call",
-      "probes": [
-        "HST002",
-        "HST003"
-      ],
-      "note": "NET006 (HNS state, phantom adapters) planned"
-    },
-    "ReadDistroConfig": {
-      "desc": "reading /etc/wsl-distribution.conf from a .wsl file",
-      "probes": [],
-      "note": "preflight command planned"
-    },
-    "MoveDistro": {
-      "desc": "wsl --manage --move",
-      "probes": [
-        "DSK002",
-        "DSK005"
-      ],
-      "note": "VHD ownership after cross-volume moves fixed in 2.7.11/2.7.12"
     },
     "VerifyChecksum": {
       "desc": "verifying a downloaded distribution's checksum",
-      "probes": [],
-      "note": "re-download; proxy or AV interference"
+      "note": "re-download; proxy or AV interference",
+      "probes": []
+    },
+    "Wsl": {
+      "desc": "wsl.exe client",
+      "probes": []
     },
     "WslC": {
       "desc": "WSL containers (wslc, 2.9 pre-release)",
       "probes": []
+    },
+    "WslConfig": {
+      "desc": "wslconfig.exe / configuration handling",
+      "probes": [
+        "WSL005",
+        "MEM001"
+      ]
+    },
+    "Wslg": {
+      "desc": "WSLg (GUI apps)",
+      "probes": []
     }
   },
   "codes": {
-    "E_UNEXPECTED": {
-      "hresult": "0x8000FFFF",
-      "desc": "Catastrophic failure. A generic bucket: the service hit something it did not expect, most often the distro failing to boot.",
+    "ERROR_ACCESS_DISABLED_BY_POLICY": {
+      "desc": "Group policy blocks WSL or the installer.",
+      "hresult": "0x800704EC",
+      "probes": []
+    },
+    "ERROR_FILE_NOT_FOUND": {
+      "desc": "A file WSL expected is missing (VHDX, kernel, installer).",
+      "hresult": "0x80070002",
+      "probes": [
+        "DSK002",
+        "WSL004"
+      ]
+    },
+    "ERROR_INTERNAL_ERROR": {
+      "desc": "Internal error; with mirrored networking this is the 'Failed to configure network, falling back to networkingMode None' case.",
+      "hresult": "0x8007054F",
+      "probes": [
+        "HST003",
+        "HST002"
+      ],
+      "refs": [
+        "https://github.com/microsoft/WSL/issues/13454"
+      ]
+    },
+    "ERROR_NOT_FOUND": {
+      "desc": "Element not found; often a stale registration.",
+      "hresult": "0x80070490",
+      "probes": [
+        "WSL004"
+      ]
+    },
+    "ERROR_PATH_NOT_FOUND": {
+      "desc": "A directory WSL expected is missing (BasePath moved or deleted).",
+      "hresult": "0x80070003",
+      "probes": [
+        "DSK002",
+        "WSL004"
+      ]
+    },
+    "ERROR_SERVICE_DOES_NOT_EXIST": {
+      "desc": "A required service is not installed.",
+      "hresult": "0x80070424",
+      "probes": [
+        "HST002"
+      ]
+    },
+    "ERROR_SERVICE_NOT_ACTIVE": {
+      "desc": "A required service is stopped.",
+      "hresult": "0x80070426",
+      "probes": [
+        "HST002"
+      ]
+    },
+    "ERROR_SHARING_VIOLATION": {
+      "desc": "The VHDX is open elsewhere: another WSL instance, Docker Desktop, backup or antivirus.",
+      "hresult": "0x80070020",
+      "probes": [
+        "DSK002",
+        "DEF001"
+      ]
+    },
+    "E_ACCESSDENIED": {
+      "desc": "Access denied: file ACLs on the VHDX, or a policy.",
+      "hresult": "0x80070005",
+      "note": "VHD ownership after moves (DSK006 planned)",
+      "probes": [
+        "DSK002"
+      ]
+    },
+    "E_FAIL": {
+      "desc": "Unspecified failure.",
+      "hresult": "0x80004005",
       "probes": [
         "WSL001",
         "DSK002",
-        "PLG001"
-      ],
+        "HST003"
+      ]
+    },
+    "E_UNEXPECTED": {
       "causes": [
         {
-          "summary": "runtime too old for a cgroup-v2-only distro (e.g. Ubuntu 26.04 on WSL < 2.5.7)",
           "probes": [
             "WSL001"
           ],
           "refs": [
             "https://github.com/microsoft/WSL/releases/tag/2.5.1"
-          ]
+          ],
+          "summary": "runtime too old for a cgroup-v2-only distro (e.g. Ubuntu 26.04 on WSL \u003c 2.5.7)"
         },
         {
-          "summary": "corrupted root filesystem: dmesg shows EXT4-fs checksum errors and /sbin/init cannot load libc",
           "probes": [
             "DSK002"
           ],
           "refs": [
             "https://github.com/microsoft/WSL/issues/13484"
-          ]
+          ],
+          "summary": "corrupted root filesystem: dmesg shows EXT4-fs checksum errors and /sbin/init cannot load libc"
         },
         {
-          "summary": "a host plugin failed to load",
           "probes": [
             "PLG001"
-          ]
+          ],
+          "summary": "a host plugin failed to load"
         }
+      ],
+      "desc": "Catastrophic failure. A generic bucket: the service hit something it did not expect, most often the distro failing to boot.",
+      "hresult": "0x8000FFFF",
+      "probes": [
+        "WSL001",
+        "DSK002",
+        "PLG001"
+      ]
+    },
+    "HCS_E_CONNECTION_TIMEOUT": {
+      "desc": "The VM did not answer in time; usually a wedged VM after sleep or a very slow disk.",
+      "probes": [
+        "EVT001",
+        "DSK005",
+        "MEM001"
       ]
     },
     "HCS_E_HYPERV_NOT_INSTALLED": {
-      "hresult": "0x80370102",
       "desc": "The virtual machine could not be started because a required feature is not installed: no hypervisor, or VirtualMachinePlatform is off.",
+      "hresult": "0x80370102",
       "probes": [
         "HST001",
         "HST003"
@@ -657,34 +743,35 @@
         "HST001"
       ]
     },
-    "HCS_E_CONNECTION_TIMEOUT": {
-      "desc": "The VM did not answer in time; usually a wedged VM after sleep or a very slow disk.",
+    "REGDB_E_CLASSNOTREG": {
+      "desc": "The WSL COM class is not registered; typical after a Windows update or a half-removed Store package.",
+      "hresult": "0x80040154",
+      "note": "wsl --update or repair the WSL package",
       "probes": [
-        "EVT001",
-        "DSK005",
-        "MEM001"
+        "WSL002",
+        "HST002"
       ]
     },
-    "WSL_E_VIRTUAL_MACHINE_PLATFORM_REQUIRED": {
-      "desc": "VirtualMachinePlatform optional feature is not enabled.",
+    "TRUST_E_BAD_DIGEST": {
+      "desc": "A plugin or installer signature does not match the file.",
       "probes": [
-        "HST001"
+        "PLG001"
       ]
     },
-    "WSL_E_WSL_OPTIONAL_COMPONENT_REQUIRED": {
-      "desc": "A required Windows optional component is missing.",
+    "TRUST_E_NOSIGNATURE": {
+      "desc": "A plugin or installer is not signed.",
       "probes": [
-        "HST001"
+        "PLG001"
+      ]
+    },
+    "WSL_E_CUSTOM_KERNEL_NOT_FOUND": {
+      "desc": ".wslconfig kernel= points at a file that does not exist.",
+      "probes": [
+        "WSL005"
       ]
     },
     "WSL_E_DEFAULT_DISTRO_NOT_FOUND": {
       "desc": "No default distribution is registered for this user.",
-      "probes": [
-        "WSL004"
-      ]
-    },
-    "WSL_E_DISTRO_NOT_FOUND": {
-      "desc": "The named distribution is not registered (check the user account and spelling).",
       "probes": [
         "WSL004"
       ]
@@ -699,47 +786,21 @@
         "https://github.com/microsoft/WSL/issues/13484"
       ]
     },
-    "WSL_E_VM_CRASHED": {
-      "desc": "The utility VM crashed; crash dumps land in %TEMP%\\wsl-crashes.",
+    "WSL_E_DISTRO_NOT_FOUND": {
+      "desc": "The named distribution is not registered (check the user account and spelling).",
       "probes": [
-        "EVT001",
-        "MEM001"
+        "WSL004"
       ]
     },
-    "WSL_E_PLUGIN_REQUIRES_UPDATE": {
-      "hresult": "0x8004032A",
-      "desc": "A host plugin needs a newer WSL: run wsl.exe --update.",
-      "probes": [
-        "PLG001",
-        "WSL003"
-      ]
+    "WSL_E_DISTRO_NOT_STOPPED": {
+      "desc": "The distribution must be stopped first (wsl --terminate \u003cname\u003e).",
+      "probes": []
     },
-    "WSL_E_OS_NOT_SUPPORTED": {
-      "desc": "This Windows build is too old for the runtime or feature.",
+    "WSL_E_INSTALL_COMPONENT_FAILED": {
+      "desc": "enabling a Windows optional component failed; a pending reboot is the usual reason.",
       "probes": [
         "HST001"
-      ],
-      "note": "HST004 (build gates) planned"
-    },
-    "WSL_E_WSL2_NEEDED": {
-      "desc": "The operation needs a WSL 2 distribution.",
-      "probes": [
-        "WSL004"
       ]
-    },
-    "WSL_E_WSL1_NOT_SUPPORTED": {
-      "desc": "WSL 1 is not supported for this operation or on this host.",
-      "probes": [
-        "WSL004"
-      ]
-    },
-    "WSL_E_VMSWITCH_NOT_FOUND": {
-      "desc": "networkingMode=bridged names a vmSwitch that does not exist (bridged is deprecated since 2.4.5).",
-      "probes": []
-    },
-    "WSL_E_VMSWITCH_NOT_SET": {
-      "desc": "networkingMode=bridged without a vmSwitch (bridged is deprecated since 2.4.5).",
-      "probes": []
     },
     "WSL_E_INSTALL_PROCESS_FAILED": {
       "desc": "wsl --install failed to run an installer step.",
@@ -748,117 +809,62 @@
         "HST002"
       ]
     },
-    "WSL_E_INSTALL_COMPONENT_FAILED": {
-      "desc": "enabling a Windows optional component failed; a pending reboot is the usual reason.",
+    "WSL_E_OS_NOT_SUPPORTED": {
+      "desc": "This Windows build is too old for the runtime or feature.",
+      "note": "HST004 (build gates) planned",
       "probes": [
         "HST001"
       ]
     },
-    "WSL_E_CUSTOM_KERNEL_NOT_FOUND": {
-      "desc": ".wslconfig kernel= points at a file that does not exist.",
-      "probes": []
-    },
-    "WSL_E_DISTRO_NOT_STOPPED": {
-      "desc": "The distribution must be stopped first (wsl --terminate <name>).",
-      "probes": []
-    },
-    "REGDB_E_CLASSNOTREG": {
-      "hresult": "0x80040154",
-      "desc": "The WSL COM class is not registered; typical after a Windows update or a half-removed Store package.",
+    "WSL_E_PLUGIN_REQUIRES_UPDATE": {
+      "desc": "A host plugin needs a newer WSL: run wsl.exe --update.",
+      "hresult": "0x8004032A",
       "probes": [
-        "WSL002",
-        "HST002"
-      ],
-      "note": "wsl --update or repair the WSL package"
-    },
-    "E_ACCESSDENIED": {
-      "hresult": "0x80070005",
-      "desc": "Access denied: file ACLs on the VHDX, or a policy.",
-      "probes": [
-        "DSK002"
-      ],
-      "note": "VHD ownership after moves (DSK006 planned)"
-    },
-    "ERROR_FILE_NOT_FOUND": {
-      "hresult": "0x80070002",
-      "desc": "A file WSL expected is missing (VHDX, kernel, installer).",
-      "probes": [
-        "DSK002",
-        "WSL004"
+        "PLG001",
+        "WSL003"
       ]
     },
-    "ERROR_PATH_NOT_FOUND": {
-      "hresult": "0x80070003",
-      "desc": "A directory WSL expected is missing (BasePath moved or deleted).",
+    "WSL_E_VIRTUAL_MACHINE_PLATFORM_REQUIRED": {
+      "desc": "VirtualMachinePlatform optional feature is not enabled.",
       "probes": [
-        "DSK002",
-        "WSL004"
+        "HST001"
       ]
     },
-    "ERROR_SHARING_VIOLATION": {
-      "hresult": "0x80070020",
-      "desc": "The VHDX is open elsewhere: another WSL instance, Docker Desktop, backup or antivirus.",
+    "WSL_E_VMSWITCH_NOT_FOUND": {
+      "desc": "networkingMode=bridged names a vmSwitch that does not exist (bridged is deprecated since 2.4.5).",
       "probes": [
-        "DSK002",
-        "DEF001"
+        "WSL005"
       ]
     },
-    "ERROR_SERVICE_DOES_NOT_EXIST": {
-      "hresult": "0x80070424",
-      "desc": "A required service is not installed.",
+    "WSL_E_VMSWITCH_NOT_SET": {
+      "desc": "networkingMode=bridged without a vmSwitch (bridged is deprecated since 2.4.5).",
       "probes": [
-        "HST002"
+        "WSL005"
       ]
     },
-    "ERROR_SERVICE_NOT_ACTIVE": {
-      "hresult": "0x80070426",
-      "desc": "A required service is stopped.",
+    "WSL_E_VM_CRASHED": {
+      "desc": "The utility VM crashed; crash dumps land in %TEMP%\\wsl-crashes.",
       "probes": [
-        "HST002"
+        "EVT001",
+        "MEM001"
       ]
     },
-    "ERROR_ACCESS_DISABLED_BY_POLICY": {
-      "hresult": "0x800704EC",
-      "desc": "Group policy blocks WSL or the installer.",
-      "probes": []
-    },
-    "ERROR_INTERNAL_ERROR": {
-      "hresult": "0x8007054F",
-      "desc": "Internal error; with mirrored networking this is the 'Failed to configure network, falling back to networkingMode None' case.",
-      "probes": [
-        "HST003",
-        "HST002"
-      ],
-      "refs": [
-        "https://github.com/microsoft/WSL/issues/13454"
-      ]
-    },
-    "ERROR_NOT_FOUND": {
-      "hresult": "0x80070490",
-      "desc": "Element not found; often a stale registration.",
+    "WSL_E_WSL1_NOT_SUPPORTED": {
+      "desc": "WSL 1 is not supported for this operation or on this host.",
       "probes": [
         "WSL004"
       ]
     },
-    "TRUST_E_NOSIGNATURE": {
-      "desc": "A plugin or installer is not signed.",
+    "WSL_E_WSL2_NEEDED": {
+      "desc": "The operation needs a WSL 2 distribution.",
       "probes": [
-        "PLG001"
+        "WSL004"
       ]
     },
-    "TRUST_E_BAD_DIGEST": {
-      "desc": "A plugin or installer signature does not match the file.",
+    "WSL_E_WSL_OPTIONAL_COMPONENT_REQUIRED": {
+      "desc": "A required Windows optional component is missing.",
       "probes": [
-        "PLG001"
-      ]
-    },
-    "E_FAIL": {
-      "hresult": "0x80004005",
-      "desc": "Unspecified failure.",
-      "probes": [
-        "WSL001",
-        "DSK002",
-        "HST003"
+        "HST001"
       ]
     }
   },
