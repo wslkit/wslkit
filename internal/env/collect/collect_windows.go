@@ -18,7 +18,9 @@ import (
 
 	"github.com/wslkit/wsldoctor/internal/data"
 	"github.com/wslkit/wsldoctor/internal/env"
+	"github.com/wslkit/wsldoctor/internal/peexport"
 	"github.com/wslkit/wsldoctor/internal/vhdx"
+	"github.com/wslkit/wsldoctor/internal/winapi/authenticode"
 	"github.com/wslkit/wsldoctor/internal/winapi/evtlog"
 	"github.com/wslkit/wsldoctor/internal/winapi/fileinfo"
 	"github.com/wslkit/wsldoctor/internal/winapi/netinfo"
@@ -639,20 +641,65 @@ func collectPlugins(ctx context.Context, e *env.Env, o Options) error {
 		return err
 	}
 	out := []env.Plugin{}
+	seenPath := map[string]bool{}
 	for _, n := range names {
+		pl := env.Plugin{Name: n}
+		_, valType, err := k.GetValue(n, nil)
+		if err != nil {
+			continue
+		}
+		pl.ValueType = regTypeName(valType)
+		if valType != registry.SZ && valType != registry.EXPAND_SZ {
+			out = append(out, pl) // WSL skips it: "Plugin value has incorrect type"
+			continue
+		}
 		p, _, err := k.GetStringValue(n)
 		if err != nil {
 			continue
 		}
-		pl := env.Plugin{Name: n, Path: p}
+		if valType == registry.EXPAND_SZ {
+			if ex, err := registry.ExpandString(p); err == nil {
+				p = ex
+			}
+		}
+		pl.Path = p
+		key := strings.ToLower(p)
+		if seenPath[key] {
+			pl.Duplicate = true
+		}
+		seenPath[key] = true
 		if _, err := os.Stat(p); err == nil {
 			pl.Exists = true
 			pl.Version, _ = fileinfo.Version(p)
+			pl.Signature, _ = authenticode.Verify(p)
+			has, perr := peexport.Has(p, "WSLPluginAPI_EntryPointV1")
+			pl.EntryPoint = has
+			if perr != nil {
+				pl.ExportsErr = perr.Error()
+			}
 		}
 		out = append(out, pl)
 	}
 	e.Plugins = env.Ok(out, src)
 	return nil
+}
+
+func regTypeName(t uint32) string {
+	switch t {
+	case registry.SZ:
+		return "REG_SZ"
+	case registry.EXPAND_SZ:
+		return "REG_EXPAND_SZ"
+	case registry.MULTI_SZ:
+		return "REG_MULTI_SZ"
+	case registry.DWORD:
+		return "REG_DWORD"
+	case registry.QWORD:
+		return "REG_QWORD"
+	case registry.BINARY:
+		return "REG_BINARY"
+	}
+	return fmt.Sprintf("type %d", t)
 }
 
 // ---------------------------------------------------------------- network registry facts
