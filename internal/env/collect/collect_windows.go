@@ -21,6 +21,7 @@ import (
 	"github.com/wslkit/wsldoctor/internal/vhdx"
 	"github.com/wslkit/wsldoctor/internal/winapi/evtlog"
 	"github.com/wslkit/wsldoctor/internal/winapi/fileinfo"
+	"github.com/wslkit/wsldoctor/internal/winapi/netinfo"
 	"github.com/wslkit/wsldoctor/internal/winapi/procs"
 	"github.com/wslkit/wsldoctor/internal/winapi/services"
 	"github.com/wslkit/wsldoctor/internal/winapi/wmi"
@@ -56,6 +57,10 @@ func Run(ctx context.Context, o Options) (*env.Env, error) {
 		{"procs", collectProcs},
 		{"plugins", collectPlugins},
 		{"network_reg", collectNetworkReg},
+		{"adapters", collectAdapters},
+		{"firewall", collectFirewall},
+		{"hotfixes", collectHotfixes},
+		{"policy", collectPolicy},
 	})
 	return e, nil
 }
@@ -666,6 +671,122 @@ func collectNetworkReg(ctx context.Context, e *env.Env, o Options) error {
 		return nil
 	}
 	e.Host.IPv6Disabled = env.Ok(uint32(v), src)
+	return nil
+}
+
+// ---------------------------------------------------------------- network adapters
+
+func collectAdapters(ctx context.Context, e *env.Env, o Options) error {
+	const src = "GetAdaptersAddresses"
+	as, err := netinfo.Adapters()
+	if err != nil {
+		e.Net.Adapters = env.Fail[[]env.Adapter](kindOf(err), src, err)
+		return err
+	}
+	out := make([]env.Adapter, 0, len(as))
+	for _, a := range as {
+		out = append(out, env.Adapter{
+			Name: a.Name, Description: a.Description, IfType: a.IfType, Up: a.Up, VPN: a.VPN,
+			Loopback: a.Loopback, Tunnel: a.Tunnel, DNSServers: a.DNSServers, DNSSuffix: a.DNSSuffix,
+			HasIPv4: a.HasIPv4, HasIPv6: a.HasIPv6,
+		})
+	}
+	e.Net.Adapters = env.Ok(out, src)
+	return nil
+}
+
+// ---------------------------------------------------------------- Hyper-V firewall support
+
+// collectFirewall mirrors GetHyperVFirewallSupportVersion in WslCoreFirewallSupport.cpp.
+func collectFirewall(ctx context.Context, e *env.Env, o Options) error {
+	const src = `MpsSvc\Parameters\HyperVFirewallDisable + ROOT\standardcimv2 MSFT_NetFirewallHyperV*`
+	var fw env.FirewallSupport
+	if k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Services\MpsSvc\Parameters`, registry.READ); err == nil {
+		if v, _, err := k.GetIntegerValue("HyperVFirewallDisable"); err == nil && v == 1 {
+			fw.DisabledByRegistry = true
+		}
+		k.Close()
+	}
+	// "Invalid class" is the expected answer on hosts without Hyper-V firewall (Windows 10).
+	if rows, err := wmi.Query(ctx, `ROOT\standardcimv2`, "SELECT VMCreatorId FROM MSFT_NetFirewallHyperVVMCreator", "VMCreatorId"); err == nil {
+		fw.V1 = true
+		_ = rows
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		e.Net.HyperVFirewall = env.Fail[env.FirewallSupport](env.ErrTimeout, src, err)
+		return err
+	}
+	if fw.V1 {
+		if rows, err := wmi.Query(ctx, `ROOT\standardcimv2`, "SELECT Name FROM MSFT_NetFirewallHyperVProfile", "Name"); err == nil && len(rows) > 0 {
+			fw.V2 = true
+		}
+	}
+	e.Net.HyperVFirewall = env.Ok(fw, src)
+	return nil
+}
+
+// ---------------------------------------------------------------- hotfixes
+
+// trackedHotfixes are the updates with known WSL regressions.
+var trackedHotfixes = []string{"KB5068861"} // mirrored networking + VPN, microsoft/WSL#13724
+
+// collectHotfixes queries Win32_QuickFixEngineering only when mirrored mode is
+// configured, because the query costs about a second.
+func collectHotfixes(ctx context.Context, e *env.Env, o Options) error {
+	const src = "Win32_QuickFixEngineering"
+	home, _ := os.UserHomeDir()
+	b, err := os.ReadFile(filepath.Join(home, ".wslconfig"))
+	if err != nil || !strings.Contains(strings.ToLower(string(b)), "mirrored") {
+		e.Net.Hotfixes = env.Absent[map[string]bool](src + " (not queried: mirrored mode not configured)")
+		return nil
+	}
+	var clauses []string
+	for _, kb := range trackedHotfixes {
+		clauses = append(clauses, "HotFixID='"+kb+"'")
+	}
+	rows, err := wmi.Query(ctx, `root\cimv2`, "SELECT HotFixID FROM Win32_QuickFixEngineering WHERE "+strings.Join(clauses, " OR "), "HotFixID")
+	if err != nil {
+		e.Net.Hotfixes = env.Fail[map[string]bool](kindOf(err), src, err)
+		return err
+	}
+	m := map[string]bool{}
+	for _, kb := range trackedHotfixes {
+		m[kb] = false
+	}
+	for _, r := range rows {
+		m[strings.ToUpper(fmt.Sprint(r["HotFixID"]))] = true
+	}
+	e.Net.Hotfixes = env.Ok(m, src)
+	return nil
+}
+
+// ---------------------------------------------------------------- WSL policies
+
+func collectPolicy(ctx context.Context, e *env.Env, o Options) error {
+	const src = `HKLM\Software\Policies\WSL`
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `Software\Policies\WSL`, registry.READ)
+	if err != nil {
+		if errors.Is(err, registry.ErrNotExist) {
+			e.Net.Policy = env.Absent[map[string]string](src)
+			return nil
+		}
+		e.Net.Policy = env.Fail[map[string]string](kindOf(err), src, err)
+		return err
+	}
+	defer k.Close()
+	names, err := k.ReadValueNames(0)
+	if err != nil {
+		e.Net.Policy = env.Fail[map[string]string](kindOf(err), src, err)
+		return err
+	}
+	m := map[string]string{}
+	for _, n := range names {
+		if s, _, err := k.GetStringValue(n); err == nil {
+			m[n] = s
+		} else if v, _, err := k.GetIntegerValue(n); err == nil {
+			m[n] = strconv.FormatUint(v, 10)
+		}
+	}
+	e.Net.Policy = env.Ok(m, src)
 	return nil
 }
 

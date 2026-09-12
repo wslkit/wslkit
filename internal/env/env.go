@@ -75,6 +75,7 @@ type Env struct {
 	Hostname    string    `json:"hostname,omitempty"`
 
 	Host     Host            `json:"host"`
+	Net      Net             `json:"net"`
 	Runtime  Runtime         `json:"runtime"`
 	Distros  Field[[]Distro] `json:"distros"`
 	Config   Config          `json:"config"`
@@ -123,6 +124,56 @@ type Host struct {
 	Services          Field[map[string]Service] `json:"services"`
 	PendingReboot     Field[bool]               `json:"pending_reboot"`
 	IPv6Disabled      Field[uint32]             `json:"ipv6_disabled_components"` // Tcpip6 DisabledComponents, 0 if unset
+}
+
+// Adapter is one network interface as seen by GetAdaptersAddresses.
+type Adapter struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	IfType      uint32 `json:"if_type"`
+	Up          bool   `json:"up"`
+	// VPN mirrors WSL's own rule: IF_TYPE_PPP (23) or IF_TYPE_PROP_VIRTUAL (53).
+	VPN        bool     `json:"vpn"`
+	Loopback   bool     `json:"loopback,omitempty"`
+	Tunnel     bool     `json:"tunnel,omitempty"`
+	DNSServers []string `json:"dns_servers,omitempty"`
+	DNSSuffix  string   `json:"dns_suffix,omitempty"`
+	HasIPv4    bool     `json:"has_ipv4"`
+	HasIPv6    bool     `json:"has_ipv6"`
+}
+
+// FirewallSupport mirrors WSL's GetHyperVFirewallSupportVersion probe.
+type FirewallSupport struct {
+	DisabledByRegistry bool `json:"disabled_by_registry"` // MpsSvc\Parameters\HyperVFirewallDisable = 1
+	V1                 bool `json:"v1"`                   // MSFT_NetFirewallHyperVVMCreator class present (mirrored mode)
+	V2                 bool `json:"v2"`                   // MSFT_NetFirewallHyperVProfile instances (NAT too)
+}
+
+type Net struct {
+	Adapters       Field[[]Adapter]       `json:"adapters"`
+	HyperVFirewall Field[FirewallSupport] `json:"hyperv_firewall"`
+	// Hotfixes holds presence for the KBs wsldoctor cares about (only queried
+	// when the configuration makes them relevant). Key is "KB5068861".
+	Hotfixes Field[map[string]bool] `json:"hotfixes"`
+	// Policy holds values under HKLM\Software\Policies\WSL (src/windows/inc/wslpolicies.h:
+	// AllowWSL, AllowWSL1, AllowInboxWSL, DefaultNetworkingMode, AllowNetworkingModeUserSetting,
+	// AllowFirewallUserSetting, AllowNestedVirtualization, AllowDiskMount, ...). Absent when
+	// the key does not exist. Values are rendered as strings.
+	Policy Field[map[string]string] `json:"policy"`
+}
+
+// VPNAdapters returns the up VPN adapters, if collected.
+func (n Net) VPNAdapters() []Adapter {
+	if !n.Adapters.OK() {
+		return nil
+	}
+	var out []Adapter
+	for _, a := range n.Adapters.Value {
+		if a.Up && a.VPN {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 // Feature install states as reported by Win32_OptionalFeature. FeatureUnknown
