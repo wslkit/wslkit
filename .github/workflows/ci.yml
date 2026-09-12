@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  pure:
+    name: lint, pure tests, cross-compile (linux runner)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: gofmt
+        run: test -z "$(gofmt -l ./cmd ./internal)"
+      - name: vet (linux view enforces probe purity)
+        run: GOOS=linux go vet ./internal/probe/... ./internal/render/... ./internal/redact/... ./internal/vhdx/... ./internal/wslconfig/... ./internal/wslver/... ./internal/data/... ./internal/fix/ ./internal/fix/actions/...
+      - name: pure tests on linux
+        run: GOOS=linux go test -count=1 ./internal/probe/... ./internal/render/... ./internal/redact/... ./internal/vhdx/... ./internal/wslconfig/... ./internal/wslver/... ./internal/data/... ./internal/fix/... ./internal/env/
+      - name: snapshot corpus
+        run: GOOS=linux go test -count=1 ./internal/snapshottest/...
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      - name: cross-compile windows/amd64 and windows/arm64
+        run: |
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/wsldoctor_amd64.exe ./cmd/wsldoctor
+          GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o dist/wsldoctor_arm64.exe ./cmd/wsldoctor
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wsldoctor-dev
+          path: dist/*.exe

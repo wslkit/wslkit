@@ -1,0 +1,64 @@
+version: "2"
+linters:
+  default: standard
+  enable:
+    - depguard
+    - govet
+    - staticcheck
+    - errcheck
+    - unused
+    - misspell
+  settings:
+    errcheck:
+      # Writes to stdout/stderr and best-effort handle releases: ignoring the
+      # error is the intended behaviour, not an oversight.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - io.WriteString
+        - (*os.File).Close
+        - (golang.org/x/sys/windows/registry.Key).Close
+        - golang.org/x/sys/windows.CloseHandle
+        - golang.org/x/sys/windows.FreeSid
+        - (*golang.org/x/sys/windows.LazyProc).Call
+        - (*golang.org/x/sys/windows/svc/mgr.Mgr).Disconnect
+        - (*golang.org/x/sys/windows/svc/mgr.Service).Close
+        - (*github.com/go-ole/go-ole.VARIANT).Clear
+        - (*github.com/go-ole/go-ole.IUnknown).Release
+        - (*github.com/go-ole/go-ole.IDispatch).Release
+    depguard:
+      rules:
+        # ADR 0004: probes, renderers, redaction, fix planning and the pure parsers
+        # must stay free of Windows and process APIs so they compile and test on Linux.
+        pure:
+          files:
+            - "**/internal/probe/**"
+            - "**/internal/render/**"
+            - "**/internal/redact/**"
+            - "**/internal/vhdx/**"
+            - "**/internal/wslconfig/**"
+            - "**/internal/wslver/**"
+            - "**/internal/wslerr/**"
+            - "**/internal/data/**"
+            - "**/internal/env/*.go"
+            - "**/internal/fix/*.go"
+            - "**/internal/fix/actions/**"
+          deny:
+            - pkg: golang.org/x/sys/windows
+              desc: pure packages must not touch Windows APIs (ADR 0004)
+            - pkg: github.com/go-ole/go-ole
+              desc: pure packages must not touch COM (ADR 0004)
+            - pkg: os/exec
+              desc: pure packages must not run processes (ADR 0004)
+            - pkg: github.com/wslkit/wsldoctor/internal/winapi
+              desc: pure packages must not import winapi (ADR 0004)
+            - pkg: github.com/wslkit/wsldoctor/internal/env/collect
+              desc: probes read env, they never collect (ADR 0004)
+  exclusions:
+    paths:
+      - spikes
+formatters:
+  enable:
+    - gofmt
+    - goimports
