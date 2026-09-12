@@ -8,7 +8,11 @@ Catastrophic failure
 Error code: Wsl/Service/E_UNEXPECTED
 ```
 
-`wsl --update` to 2.7.13 fixed it. Public issue: https://github.com/microsoft/WSL/issues/13484
+`wsl --update` to 2.7.13 fixed it. Root cause, derived from source and release notes:
+Ubuntu 26.04 is cgroup v2 only and WSL runtimes before 2.5.1 mount a hybrid cgroup v1
+hierarchy, so systemd cannot start (see `docs/research/2026-09-feature-research.md`, §1).
+Note: `microsoft/WSL#13484` shows the same error string from a *different* cause
+(corrupted VHD); it is not this bug.
 
 Provenance: captured on the original machine after the fix with `wsldoctor check --json`,
 then the runtime version strings were rewritten from 2.7.13.0 back to 2.4.13.0 (the
