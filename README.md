@@ -3,8 +3,9 @@
 Diagnose why WSL2 is broken or slow, then fix it — one native Windows CLI.
 
 ```
-wsldoctor check              # read-only, no admin rights, ranked diagnosis
-wsldoctor fix <action>       # explicit, per-action remediation
+wsldoctor check                          # read-only, no admin rights, ranked diagnosis
+wsldoctor explain "Wsl/Service/E_UNEXPECTED"   # decode an error code, run the probes that explain it
+wsldoctor fix <action>                   # explicit, per-action remediation
 ```
 
 > **Status: M1 in progress, unreleased.** `check` runs end to end in about a second with
