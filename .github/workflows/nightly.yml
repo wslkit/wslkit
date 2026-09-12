@@ -17,6 +17,7 @@ jobs:
           - { pkg: ./internal/vhdx, fn: FuzzParse }
           - { pkg: ./internal/wslconfig, fn: FuzzParse }
           - { pkg: ./internal/wslver, fn: FuzzParse }
+          - { pkg: ./internal/wslerr, fn: FuzzParse }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

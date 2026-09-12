@@ -20,3 +20,38 @@ func Probes() []probe.Probe {
 	out = append(out, evt.All()...)  // EVT001
 	return out
 }
+
+// ByID returns the probes with the given IDs plus everything they Need
+// (transitively), preserving registration order so cascades still work.
+func ByID(ids []string) []probe.Probe {
+	all := Probes()
+	byID := map[string]probe.Probe{}
+	for _, p := range all {
+		byID[p.ID()] = p
+	}
+	want := map[string]bool{}
+	var visit func(id string)
+	visit = func(id string) {
+		if want[id] {
+			return
+		}
+		p, ok := byID[id]
+		if !ok {
+			return
+		}
+		want[id] = true
+		for _, dep := range p.Needs() {
+			visit(dep)
+		}
+	}
+	for _, id := range ids {
+		visit(id)
+	}
+	var out []probe.Probe
+	for _, p := range all {
+		if want[p.ID()] {
+			out = append(out, p)
+		}
+	}
+	return out
+}
