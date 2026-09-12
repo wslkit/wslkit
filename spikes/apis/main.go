@@ -1,3 +1,5 @@
+//go:build windows
+
 // Spike S1–S4: can the data wsldoctor needs be read unelevated, without
 // PowerShell, without waking the WSL VM? Prints findings and timings.
 // Throwaway code; results are recorded in docs/decisions/.
