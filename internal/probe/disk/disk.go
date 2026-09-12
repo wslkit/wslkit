@@ -145,11 +145,13 @@ func (p Attributes) Needs() []string   { return p.base().Needs() }
 func (p Attributes) Run(e *env.Env) probe.Result {
 	b := p.base()
 	var bad, notes []string
+	seen := 0
 	for _, d := range e.DistroList() {
 		v := d.Vhd
 		if !v.OK() {
 			continue
 		}
+		seen++
 		if v.Value.Compressed {
 			bad = append(bad, fmt.Sprintf("%s: VHDX has the NTFS compressed attribute", d.Name))
 		}
@@ -159,6 +161,9 @@ func (p Attributes) Run(e *env.Env) probe.Result {
 		if v.Value.Sparse {
 			notes = append(notes, fmt.Sprintf("%s: VHDX is sparse (fine if set by WSL via sparseVhd / --set-sparse)", d.Name))
 		}
+	}
+	if seen == 0 {
+		return b.Res(probe.Skipped, 0, "skipped: no readable WSL 2 VHDX")
 	}
 	if len(bad) > 0 {
 		r := b.Res(probe.Fail, 0.8, bad[0])

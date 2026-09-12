@@ -47,12 +47,19 @@ func (p Installed) Run(e *env.Env) probe.Result {
 		return r
 	case rt.Version.NeedsElevation():
 		return b.NeedsElevation("WSL runtime version")
-	case rt.InboxWslVersion.OK():
-		r := b.Res(probe.Fail, 0.85, "Only the inbox (legacy) WSL is present; the Store/MSI runtime is not installed")
-		r.Detail = fmt.Sprintf("C:\\Windows\\System32\\wsl.exe is version %s (an OS build number, not a WSL release).\n"+
-			"Modern WSL 2 features, systemd, mirrored networking and every fix in this tool need the Store runtime.", rt.InboxWslVersion.Value)
+	case rt.InboxWslVersion.OK() && e.Host.Feature("Microsoft-Windows-Subsystem-Linux") == env.FeatureEnabled:
+		r := b.Res(probe.Fail, 0.85, "Only the in-box (legacy) WSL is present; the Store/MSI runtime is not installed")
+		r.Detail = fmt.Sprintf("C:\\Windows\\System32\\wsl.exe is version %s (an OS build number, not a WSL release) and the\n"+
+			"Microsoft-Windows-Subsystem-Linux feature is enabled. Modern WSL 2, systemd, mirrored networking and every fix\n"+
+			"in this tool need the Store runtime.", rt.InboxWslVersion.Value)
 		r.FixID = "update"
 		r.FixHint = "wsl --install --no-distribution     (or: wsldoctor fix update)"
+		r.Refs = []string{"https://learn.microsoft.com/en-us/windows/wsl/install"}
+		return r
+	case rt.InboxWslVersion.OK():
+		r := b.Res(probe.Fail, 0.9, "WSL is not installed; only the in-box installer stub wsl.exe is present")
+		r.Detail = fmt.Sprintf("C:\\Windows\\System32\\wsl.exe %s is the stub Windows ships to bootstrap WSL from the Store. No runtime is installed.", rt.InboxWslVersion.Value)
+		r.FixHint = "wsl --install --no-distribution     then     wsl --install -d Ubuntu"
 		r.Refs = []string{"https://learn.microsoft.com/en-us/windows/wsl/install"}
 		return r
 	default:

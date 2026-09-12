@@ -179,18 +179,31 @@ func collectWMISystem(ctx context.Context, e *env.Env, o Options) error {
 
 func collectFeatures(ctx context.Context, e *env.Env, o Options) error {
 	const src = "Win32_OptionalFeature"
-	rows, err := wmi.Query(ctx, `root\cimv2`,
-		"SELECT Name, InstallState FROM Win32_OptionalFeature WHERE Name='Microsoft-Windows-Subsystem-Linux' OR Name='VirtualMachinePlatform' OR Name='Microsoft-Hyper-V-All' OR Name='Microsoft-Hyper-V' OR Name='HypervisorPlatform'",
-		"Name", "InstallState")
+	const wql = "SELECT Name, InstallState FROM Win32_OptionalFeature WHERE Name='Microsoft-Windows-Subsystem-Linux' OR Name='VirtualMachinePlatform' OR Name='Microsoft-Hyper-V-All' OR Name='Microsoft-Hyper-V' OR Name='HypervisorPlatform'"
+	var m map[string]int
+	var err error
+	// A cold WMI repository has been observed to answer with a partial list on
+	// the first query (CI runners, ADR 0007 follow-up). Retry once when the key
+	// feature is missing.
+	for attempt := 0; attempt < 2; attempt++ {
+		var rows []wmi.Row
+		rows, err = wmi.Query(ctx, `root\cimv2`, wql, "Name", "InstallState")
+		if err != nil {
+			break
+		}
+		m = map[string]int{}
+		for _, r := range rows {
+			name := fmt.Sprint(r["Name"])
+			st, _ := strconv.Atoi(fmt.Sprint(r["InstallState"]))
+			m[name] = st
+		}
+		if _, ok := m["VirtualMachinePlatform"]; ok {
+			break
+		}
+	}
 	if err != nil {
 		e.Host.Features = env.Fail[map[string]int](kindOf(err), src, err)
 		return err
-	}
-	m := map[string]int{}
-	for _, r := range rows {
-		name := fmt.Sprint(r["Name"])
-		st, _ := strconv.Atoi(fmt.Sprint(r["InstallState"]))
-		m[name] = st
 	}
 	e.Host.Features = env.Ok(m, src)
 	return nil
