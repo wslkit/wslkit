@@ -108,6 +108,126 @@ func variantValue(v *ole.VARIANT) interface{} {
 	return v.Value()
 }
 
+// ExecMethod invokes a static WMI method (e.g. MSFT_MpPreference.Add) with the
+// given input parameters. []string values become SAFEARRAYs of BSTR. It returns
+// the method's ReturnValue (0 = success) and any other output properties.
+func ExecMethod(ctx context.Context, namespace, class, method string, params map[string]interface{}) (int64, map[string]interface{}, error) {
+	type res struct {
+		rv  int64
+		out map[string]interface{}
+		err error
+	}
+	ch := make(chan res, 1)
+	go func() {
+		rv, out, err := execMethod(namespace, class, method, params)
+		ch <- res{rv, out, err}
+	}()
+	select {
+	case r := <-ch:
+		return r.rv, r.out, r.err
+	case <-ctx.Done():
+		return -1, nil, ctx.Err()
+	}
+}
+
+func execMethod(namespace, class, method string, params map[string]interface{}) (int64, map[string]interface{}, error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	if err := ole.CoInitializeEx(0, ole.COINIT_MULTITHREADED); err != nil {
+		if oleErr, ok := err.(*ole.OleError); !ok || (oleErr.Code() != 0x00000001 && oleErr.Code() != 0x80010106) {
+			return -1, nil, fmt.Errorf("CoInitializeEx: %w", err)
+		}
+	} else {
+		defer ole.CoUninitialize()
+	}
+	unk, err := oleutil.CreateObject("WbemScripting.SWbemLocator")
+	if err != nil {
+		return -1, nil, fmt.Errorf("SWbemLocator: %w", err)
+	}
+	defer unk.Release()
+	loc, err := unk.QueryInterface(ole.IID_IDispatch)
+	if err != nil {
+		return -1, nil, err
+	}
+	defer loc.Release()
+	svcRaw, err := oleutil.CallMethod(loc, "ConnectServer", ".", namespace)
+	if err != nil {
+		return -1, nil, fmt.Errorf("ConnectServer(%s): %w", namespace, err)
+	}
+	svc := svcRaw.ToIDispatch()
+	defer svc.Release()
+
+	classRaw, err := oleutil.CallMethod(svc, "Get", class)
+	if err != nil {
+		return -1, nil, fmt.Errorf("Get(%s): %w", class, err)
+	}
+	classObj := classRaw.ToIDispatch()
+	defer classObj.Release()
+	methodsRaw, err := oleutil.GetProperty(classObj, "Methods_")
+	if err != nil {
+		return -1, nil, err
+	}
+	methods := methodsRaw.ToIDispatch()
+	defer methods.Release()
+	mRaw, err := oleutil.CallMethod(methods, "Item", method)
+	if err != nil {
+		return -1, nil, fmt.Errorf("method %s: %w", method, err)
+	}
+	m := mRaw.ToIDispatch()
+	defer m.Release()
+	inDefRaw, err := oleutil.GetProperty(m, "InParameters")
+	if err != nil {
+		return -1, nil, err
+	}
+	inDef := inDefRaw.ToIDispatch()
+	defer inDef.Release()
+	inRaw, err := oleutil.CallMethod(inDef, "SpawnInstance_")
+	if err != nil {
+		return -1, nil, err
+	}
+	in := inRaw.ToIDispatch()
+	defer in.Release()
+	propsRaw, err := oleutil.GetProperty(in, "Properties_")
+	if err != nil {
+		return -1, nil, err
+	}
+	props := propsRaw.ToIDispatch()
+	defer props.Release()
+	for name, val := range params {
+		itemRaw, err := oleutil.CallMethod(props, "Item", name)
+		if err != nil {
+			return -1, nil, fmt.Errorf("parameter %s: %w", name, err)
+		}
+		item := itemRaw.ToIDispatch()
+		if _, err := oleutil.PutProperty(item, "Value", val); err != nil {
+			item.Release()
+			return -1, nil, fmt.Errorf("set %s: %w", name, err)
+		}
+		item.Release()
+	}
+	outRaw, err := oleutil.CallMethod(svc, "ExecMethod", class, method, in)
+	if err != nil {
+		return -1, nil, fmt.Errorf("ExecMethod %s.%s: %w", class, method, err)
+	}
+	out := outRaw.ToIDispatch()
+	defer out.Release()
+	result := map[string]interface{}{}
+	rv := int64(0)
+	if v, err := oleutil.GetProperty(out, "ReturnValue"); err == nil {
+		switch t := v.Value().(type) {
+		case int32:
+			rv = int64(t)
+		case int64:
+			rv = t
+		case uint32:
+			rv = int64(t)
+		}
+		result["ReturnValue"] = v.Value()
+		v.Clear()
+	}
+	return rv, result, nil
+}
+
 // Strings converts an array property to []string; scalars become a one-element slice.
 func Strings(v interface{}) []string {
 	switch t := v.(type) {
