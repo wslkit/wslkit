@@ -70,6 +70,19 @@ correlation requires `--elevated`.
   access-denied unelevated.
 - `.wslconfig` absent on this machine, so lint fixtures must be synthetic.
 
+## Follow-up from the first CI runs (same day)
+
+- **`Microsoft-Windows-Subsystem-Linux` is not a signal for legacy WSL.** A Windows 11
+  25H2 arm64 runner with no WSL at all reports the feature as enabled, has the installer
+  stub `wsl.exe` (OS build version) and no `LxssManager` service. Legacy in-box WSL is
+  detected by the `LxssManager` service existing; "not installed" is stub present, no
+  runtime, no service.
+- **`Win32_OptionalFeature` can answer partially on a cold WMI repository.** A Server
+  2025 runner omitted `VirtualMachinePlatform` on the first query and returned it on the
+  next two. The collector retries once; probes treat "not returned" as UNKNOWN.
+- Hosted runners: `windows-latest` (Server 2025) ships WSL 2.7.13 with no distros and
+  Defender real-time protection off; `windows-11-arm` ships no WSL. Both are fixtures now.
+
 ## Still open
 
 S5 (bisect the Ubuntu 26.04 minimum runtime) needs a scratch VM. Until then the compat
