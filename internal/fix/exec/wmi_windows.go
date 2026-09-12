@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/wslkit/wsldoctor/internal/fix"
-	"github.com/wslkit/wsldoctor/internal/winapi/wmi"
+	"github.com/wslkit/wslkit/internal/fix"
+	"github.com/wslkit/wslkit/internal/winapi/wmi"
 )
 
 func runWMIMethod(s fix.Step) error {

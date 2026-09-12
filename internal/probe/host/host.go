@@ -6,9 +6,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/wslkit/wsldoctor/internal/env"
-	"github.com/wslkit/wsldoctor/internal/probe"
-	"github.com/wslkit/wsldoctor/internal/wslver"
+	"github.com/wslkit/wslkit/internal/env"
+	"github.com/wslkit/wslkit/internal/probe"
+	"github.com/wslkit/wslkit/internal/wslver"
 )
 
 func All() []probe.Probe {
@@ -58,7 +58,7 @@ func (p Features) Run(e *env.Env) probe.Result {
 		// Seen on cold runners: Win32_OptionalFeature answers with a partial list.
 		r := b.Res(probe.Unknown, 0.2, "WMI did not report the VirtualMachinePlatform feature; state unknown")
 		r.Detail = detail
-		r.FixHint = "re-run wsldoctor check; or: dism.exe /online /get-featureinfo /featurename:VirtualMachinePlatform   (admin)"
+		r.FixHint = "re-run wslkit doctor check; or: dism.exe /online /get-featureinfo /featurename:VirtualMachinePlatform   (admin)"
 		return r
 	}
 	if vmp != env.FeatureEnabled {
@@ -235,7 +235,7 @@ func (p Defender) Run(e *env.Env) probe.Result {
 		r.Detail += "\nProcess exclusions not set for: " + strings.Join(missingProc, ", ")
 	}
 	r.FixID = "defender"
-	r.FixHint = "wsldoctor fix defender --apply     (from an elevated terminal; dry run without --apply)"
+	r.FixHint = "wslkit doctor fix defender --apply     (from an elevated terminal; dry run without --apply)"
 	r.Refs = []string{"https://github.com/microsoft/WSL/issues/8995"}
 	return r
 }

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/wslkit/wsldoctor/internal/wslerr"
+	"github.com/wslkit/wslkit/internal/wslerr"
 )
 
 // ContextInfo is one member of WSL's Context enum, in bit order.
@@ -81,7 +81,7 @@ func LoadErrors() (*Errors, error) {
 // Validate checks structure: contexts sorted by unique bit, segments only for
 // known contexts, code entries with a description.
 func (e *Errors) Validate() error {
-	if e.Schema != "wsldoctor/errors/v1" {
+	if e.Schema != "wslkit/errors/v1" {
 		return fmt.Errorf("errors.json: unexpected schema %q", e.Schema)
 	}
 	seen := map[int]bool{}
@@ -154,7 +154,7 @@ type Step struct {
 	Known bool // appears in the Context enum
 }
 
-// Explanation is what `wsldoctor explain` renders.
+// Explanation is what `wslkit doctor explain` renders.
 type Explanation struct {
 	Parsed     wslerr.Parsed
 	Steps      []Step

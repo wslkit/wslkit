@@ -3,7 +3,7 @@ package all
 import (
 	"testing"
 
-	"github.com/wslkit/wsldoctor/internal/data"
+	"github.com/wslkit/wslkit/internal/data"
 )
 
 // Dependencies must be declared before their dependents and IDs must be unique.

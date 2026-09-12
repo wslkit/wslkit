@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wslkit/wsldoctor/internal/env"
-	"github.com/wslkit/wsldoctor/internal/fix"
+	"github.com/wslkit/wslkit/internal/env"
+	"github.com/wslkit/wslkit/internal/fix"
 )
 
 const (
@@ -79,7 +79,7 @@ func (d Defender) Plan(e *env.Env, o fix.Options) (fix.Plan, error) {
 	desc := fmt.Sprintf("Add %d path exclusion(s) and %d process exclusion(s) via %s.Add", len(addPaths), len(addProcs), defenderClass)
 	p.Steps = []fix.Step{
 		fix.WMIMethod(desc, defenderNamespace, defenderClass, "Add", params),
-		{Kind: "note", Description: "Verify with: wsldoctor check --elevated   (DEF001 should report OK). On devices managed by Defender for Endpoint, tamper protection or policy can silently revert local exclusions; DEF001 will show that."},
+		{Kind: "note", Description: "Verify with: wslkit doctor check --elevated   (DEF001 should report OK). On devices managed by Defender for Endpoint, tamper protection or policy can silently revert local exclusions; DEF001 will show that."},
 	}
 	p.Rollback = []fix.Step{
 		fix.WMIMethod(fmt.Sprintf("Remove the same %d path and %d process exclusion(s) via %s.Remove", len(addPaths), len(addProcs), defenderClass), defenderNamespace, defenderClass, "Remove", params),

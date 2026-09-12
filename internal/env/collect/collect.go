@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wslkit/wsldoctor/internal/env"
+	"github.com/wslkit/wslkit/internal/env"
 )
 
 type Options struct {
@@ -26,7 +26,7 @@ func (o Options) withDefaults() Options {
 		o.EventWindow = 7 * 24 * time.Hour
 	}
 	if o.Tool == "" {
-		o.Tool = "wsldoctor"
+		o.Tool = "wslkit"
 	}
 	return o
 }

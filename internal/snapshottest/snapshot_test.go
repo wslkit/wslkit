@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wslkit/wsldoctor/internal/probe"
-	"github.com/wslkit/wsldoctor/internal/probe/all"
-	"github.com/wslkit/wsldoctor/internal/render"
+	"github.com/wslkit/wslkit/internal/probe"
+	"github.com/wslkit/wslkit/internal/probe/all"
+	"github.com/wslkit/wslkit/internal/render"
 )
 
 type expectation struct {

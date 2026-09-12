@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/wslkit/wsldoctor/internal/env"
-	"github.com/wslkit/wsldoctor/internal/probe"
+	"github.com/wslkit/wslkit/internal/env"
+	"github.com/wslkit/wslkit/internal/probe"
 )
 
 // ---------------------------------------------------------------- HST004
@@ -68,7 +68,7 @@ func (p Build) Run(e *env.Env) probe.Result {
 		}
 		r := b.Res(probe.Warn, conf, summary)
 		r.Detail = strings.Join(lines, "\n")
-		r.FixHint = "shutdown /r /t 0     (reboot, then re-run wsldoctor check)"
+		r.FixHint = "shutdown /r /t 0     (reboot, then re-run wslkit doctor check)"
 		r.Refs = []string{"https://github.com/microsoft/WSL/releases/tag/2.6.1"}
 		return r
 	}

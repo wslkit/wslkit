@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wslkit/wsldoctor/internal/data"
-	"github.com/wslkit/wsldoctor/internal/wslver"
+	"github.com/wslkit/wslkit/internal/data"
+	"github.com/wslkit/wslkit/internal/wslver"
 )
 
 func table(t *testing.T) *data.ConfigKeys {
@@ -105,7 +105,7 @@ func TestCommentOut(t *testing.T) {
 	cfg := Parse("[wsl2]\nbogus=1\nmemory=4GB\n")
 	fs := Lint(cfg, table(t), Host{})
 	lines := CommentOut(cfg, fs)
-	if len(lines) != 4 || !strings.HasPrefix(lines[1], "# wsldoctor: unknown key") || lines[2] != "# bogus=1" {
+	if len(lines) != 4 || !strings.HasPrefix(lines[1], "# wslkit:unknown key") || lines[2] != "# bogus=1" {
 		t.Fatalf("lines = %q", lines)
 	}
 	if lines[3] != "memory=4GB" {

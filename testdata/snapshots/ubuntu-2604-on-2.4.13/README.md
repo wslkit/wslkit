@@ -14,7 +14,7 @@ hierarchy, so systemd cannot start (see `docs/research/2026-09-feature-research.
 Note: `microsoft/WSL#13484` shows the same error string from a *different* cause
 (corrupted VHD); it is not this bug.
 
-Provenance: captured on the original machine after the fix with `wsldoctor check --json`,
+Provenance: captured on the original machine after the fix with `wslkit doctor check --json`,
 then the runtime version strings were rewritten from 2.7.13.0 back to 2.4.13.0 (the
 registry and VHDX facts are otherwise unchanged). The `results` array inside `env.json` is
 stale and ignored; only `env` is loaded.

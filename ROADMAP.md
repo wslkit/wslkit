@@ -1,5 +1,8 @@
 # wsldoctor — Development phases and feature research
 
+> **2026-09-12: wsldoctor is now `wslkit doctor`** (ADR 0008). Command names below read
+> with the `wslkit doctor` prefix; probe and fix IDs are unchanged.
+
 > Companion to [PLAN.md](PLAN.md) and [ARCHITECTURE.md](ARCHITECTURE.md). PLAN.md is the specification (what the probes are and
 > why). This document is the *how and when*: engineering phases, spikes that must land
 > before code, and research into features the plan does not yet cover.
@@ -54,14 +57,14 @@ once the answer is recorded in `docs/decisions/`.
 > (two fixtures, founding bug included) and the CI workflows. Not yet done from this
 > list: code signing, Scoop/winget manifests.
 
-Deliverable: `wsldoctor check` runs, gathers `Env`, renders zero probes, emits `--json`.
+Deliverable: `wslkit doctor check` runs, gathers `Env`, renders zero probes, emits `--json`.
 
 - **`Env` gathering**, one pass, no `wsl.exe` invocation unless `--allow-vm-wake`. Use
   `collect-wsl-logs.ps1` as the checklist of sources: HKCU/HKLM `Lxss`, `P9NP` and
   `WinSock2` service keys, WSL COM CLSIDs `{e66b0f30-…}` / `{a9b7a1b9-…}`, `Windows NT\CurrentVersion`,
   `Tcpip6\Parameters`, services `wslservice`/`LxssManager`/`vmcompute`/`HvHost`, Appx package,
   optional features, `.wslconfig`, `%TEMP%\wsl-install-logs.txt`, `%TEMP%\wsl-crashes`.
-- **Snapshot mode.** `Env` serialises to JSON. `wsldoctor check --from-snapshot env.json`
+- **Snapshot mode.** `Env` serialises to JSON. `wslkit doctor check --from-snapshot env.json`
   runs every probe against a saved environment. Probes are pure functions of `Env`.
   This is the entire testing strategy: every bug report that includes `--json` output
   becomes a regression fixture in `testdata/snapshots/`. Build it in Phase 1, not later.
@@ -105,7 +108,7 @@ founding-bug snapshot prints `WSL001 FAIL` first.
 - `EVT001` in the form S4 permits.
 - `HIB001` extended to sleep/resume (`PWR001`, §3.7).
 - `ZON001`, `DSK003`, `DSK005`, `DSK006` (VHD ownership, §3.4).
-- `wsldoctor explain <error>` (§3.2) and `wsldoctor preflight` (§3.11).
+- `wslkit doctor explain <error>` (§3.2) and `wsldoctor preflight` (§3.11).
 - `fix zone`, `fix oobe`, `fix wslconfig`.
 
 ### Phase 4 — M3: depth
@@ -127,7 +130,7 @@ PLAN §12 checklist plus:
 - **Snapshot donation.** `--report` ends with "attach `wsldoctor-env.json` to help".
   A `CONTRIBUTING.md` section explains that a snapshot + expected finding = a test.
 - Triage template for `microsoft/WSL` `failure-to-launch` issues asking for
-  `wsldoctor check --report`. Adoption path, and free fixtures.
+  `wslkit doctor check --report`. Adoption path, and free fixtures.
 
 ## 2. Cross-cutting engineering decisions to ratify
 
@@ -137,7 +140,7 @@ PLAN §12 checklist plus:
 | WMI vs. direct API | Direct Win32 where it exists (services, registry, event log, file attributes, VHDX header). WMI only for optional features, hypervisor presence, Defender. | WMI adds 100–300 ms per query and a COM apartment; keep it to three probes. |
 | Waking the VM | Never by default. `wsl.exe` calls are behind `--allow-vm-wake`; the renderer marks probes skipped for that reason. Per-probe context deadline, default 5 s. | A wedged `vmmem` means `wsl.exe` hangs. `check` must finish regardless. |
 | Testing | Snapshot corpus is the primary test; live runs are smoke only. | You cannot CI a broken WSL. You can CI a JSON file describing one. |
-| Fix safety | Every `fix` writes `%LOCALAPPDATA%\wsldoctor\undo\<timestamp>.json` with prior values, and `wsldoctor undo <id>` replays it. | PLAN requires a printed rollback; a stored one is stronger and costs little. |
+| Fix safety | Every `fix` writes `%LOCALAPPDATA%\wsldoctor\undo\<timestamp>.json` with prior values, and `wslkit doctor undo <id>` replays it. | PLAN requires a printed rollback; a stored one is stronger and costs little. |
 | Redaction | `--report` redacts by default; `--no-redact` opt-out. Redact before rendering, not after, so JSON and markdown agree. | Output is destined for public issues. |
 
 ## 3. Feature research
@@ -161,7 +164,7 @@ Also record *host* requirements: mirrored networking and Hyper-V firewall need
 Windows 11 22H2+, several `[wsl2]` keys are Windows 11 only, `wsl.conf [boot]` needs
 Windows 11 / Server 2022. That becomes `HST004`.
 
-### 3.2 `wsldoctor explain <error>` — the error-code dictionary
+### 3.2 `wslkit doctor explain <error>` — the error-code dictionary
 
 WSL error strings are call paths: `Wsl/Service/RegisterDistro/CreateVm/HCS/HCS_E_HYPERV_NOT_INSTALLED`,
 `Wsl/Service/E_UNEXPECTED`, `Wsl/WSL_E_DEFAULT_DISTRO_NOT_FOUND`, `Wsl/InstallDistro/E_UNEXPECTED`.

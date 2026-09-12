@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wslkit/wsldoctor/internal/env"
-	"github.com/wslkit/wsldoctor/internal/fix"
+	"github.com/wslkit/wslkit/internal/env"
+	"github.com/wslkit/wslkit/internal/fix"
 )
 
 func defenderEnv() *env.Env {

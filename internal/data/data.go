@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/wslkit/wsldoctor/internal/wslver"
+	"github.com/wslkit/wslkit/internal/wslver"
 )
 
 //go:embed all:files
@@ -82,7 +82,7 @@ func LoadCompat() (*Compat, error) {
 // Validate checks every version string parses, every required capability
 // exists, and every row carries at least one version bound.
 func (c *Compat) Validate() error {
-	if c.Schema != "wsldoctor/compat/v1" {
+	if c.Schema != "wslkit/compat/v1" {
 		return fmt.Errorf("compat.json: unexpected schema %q", c.Schema)
 	}
 	for name, v := range map[string]string{

@@ -5,7 +5,7 @@ package exec
 import (
 	"errors"
 
-	"github.com/wslkit/wsldoctor/internal/fix"
+	"github.com/wslkit/wslkit/internal/fix"
 )
 
 func runWMIMethod(fix.Step) error {

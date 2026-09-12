@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wslkit/wsldoctor/internal/env"
+	"github.com/wslkit/wslkit/internal/env"
 )
 
 // Step is one operation. Kinds:
@@ -104,7 +104,7 @@ type Recording struct{ Steps []Step }
 func (r *Recording) Run(s Step) error { r.Steps = append(r.Steps, s); return nil }
 
 // Apply runs every step; on the first error it returns which step failed.
-// Rollback is not automatic: the journal entry holds it for `wsldoctor undo`.
+// Rollback is not automatic: the journal entry holds it for `wslkit doctor undo`.
 func Apply(p Plan, ex Executor) error {
 	for i, s := range p.Steps {
 		if err := ex.Run(s); err != nil {
@@ -166,12 +166,13 @@ func Describe(p Plan) string {
 // Journal persists applied plans so `undo` can replay Rollback.
 type Journal struct{ Dir string }
 
-// DefaultJournalDir is %LOCALAPPDATA%\wsldoctor\undo, or a temp dir fallback.
+// DefaultJournalDir is %LOCALAPPDATA%\wslkit\undo (one journal for the whole
+// kit), or a temp dir fallback.
 func DefaultJournalDir() string {
 	if la := os.Getenv("LOCALAPPDATA"); la != "" {
-		return filepath.Join(la, "wsldoctor", "undo")
+		return filepath.Join(la, "wslkit", "undo")
 	}
-	return filepath.Join(os.TempDir(), "wsldoctor", "undo")
+	return filepath.Join(os.TempDir(), "wslkit", "undo")
 }
 
 func (j Journal) Save(p Plan) (string, error) {

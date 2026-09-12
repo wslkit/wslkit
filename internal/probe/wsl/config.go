@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/wslkit/wsldoctor/internal/data"
-	"github.com/wslkit/wsldoctor/internal/env"
-	"github.com/wslkit/wsldoctor/internal/probe"
-	"github.com/wslkit/wsldoctor/internal/wslconfig"
-	"github.com/wslkit/wsldoctor/internal/wslver"
+	"github.com/wslkit/wslkit/internal/data"
+	"github.com/wslkit/wslkit/internal/env"
+	"github.com/wslkit/wslkit/internal/probe"
+	"github.com/wslkit/wslkit/internal/wslconfig"
+	"github.com/wslkit/wslkit/internal/wslver"
 )
 
 // ---------------------------------------------------------------- WSL005
@@ -89,12 +89,12 @@ func (p ConfigLint) Run(e *env.Env) probe.Result {
 	case len(fails) > 0:
 		r := b.Res(probe.Fail, 0.7, fmt.Sprintf(".wslconfig has %d setting(s) that stop WSL from starting", len(fails)))
 		r.Detail = detail
-		r.FixID, r.FixHint = "wslconfig", "edit "+e.Config.WslConfigPath+"   or: wsldoctor fix wslconfig"
+		r.FixID, r.FixHint = "wslconfig", "edit "+e.Config.WslConfigPath+"   or: wslkit doctor fix wslconfig"
 		return r
 	case len(warns) > 0:
 		r := b.Res(probe.Warn, 0.4, fmt.Sprintf(".wslconfig has %d setting(s) WSL ignores or misreads", len(warns)))
 		r.Detail = detail
-		r.FixID, r.FixHint = "wslconfig", "wsldoctor fix wslconfig      (comments out ignored lines, with a backup)"
+		r.FixID, r.FixHint = "wslconfig", "wslkit doctor fix wslconfig      (comments out ignored lines, with a backup)"
 		return r
 	default:
 		r := b.Res(probe.OK, 0.4, fmt.Sprintf(".wslconfig is valid (%d settings)", len(cfg.Entries)))

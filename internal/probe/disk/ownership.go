@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/wslkit/wsldoctor/internal/env"
-	"github.com/wslkit/wsldoctor/internal/probe"
-	"github.com/wslkit/wsldoctor/internal/wslver"
+	"github.com/wslkit/wslkit/internal/env"
+	"github.com/wslkit/wslkit/internal/probe"
+	"github.com/wslkit/wslkit/internal/wslver"
 )
 
 // ---------------------------------------------------------------- DSK006
@@ -62,7 +62,7 @@ func (p Ownership) Run(e *env.Env) probe.Result {
 	}
 	r := b.Res(probe.Warn, 0.55, fmt.Sprintf("VHDX for %s is not owned by the current user", strings.Join(foreign, ", ")))
 	r.Detail = strings.Join(lines, "\n") + "\nAttaching a disk owned by another account can fail with ERROR_ACCESS_DENIED (Wsl/Service/CreateInstance/AttachDisk/E_ACCESSDENIED), typically after wsl --move or --import across volumes."
-	r.FixID, r.FixHint = "update", "wsldoctor fix update   (2.7.12+ handles it)   or take ownership: takeown /F \"<path>\\ext4.vhdx\""
+	r.FixID, r.FixHint = "update", "wslkit doctor fix update   (2.7.12+ handles it)   or take ownership: takeown /F \"<path>\\ext4.vhdx\""
 	r.Refs = []string{"https://github.com/microsoft/WSL/releases/tag/2.7.12", "https://github.com/microsoft/WSL/releases/tag/2.7.11"}
 	return r
 }
