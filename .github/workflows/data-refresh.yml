@@ -1,0 +1,39 @@
+name: data-refresh
+
+on:
+  schedule:
+    - cron: "23 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  latest-stable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: read latest stable and pre-release from the WSL releases API
+        id: rel
+        run: |
+          curl -fsSL -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/microsoft/WSL/releases?per_page=30" > releases.json
+          stable=$(jq -r '[.[] | select(.prerelease==false and .draft==false)][0].tag_name' releases.json)
+          pre=$(jq -r '[.[] | select(.prerelease==true and .draft==false)][0].tag_name' releases.json)
+          echo "stable=$stable" >> "$GITHUB_OUTPUT"
+          echo "pre=$pre" >> "$GITHUB_OUTPUT"
+      - name: update compat.json
+        run: |
+          f=internal/data/files/compat.json
+          jq --arg s "${{ steps.rel.outputs.stable }}" --arg p "${{ steps.rel.outputs.pre }}" --arg d "$(date -u +%F)" \
+             '.latest_stable=$s | .latest_prerelease=$p | .updated=$d' "$f" > tmp && mv tmp "$f"
+          git diff --stat
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          title: "data: WSL latest stable ${{ steps.rel.outputs.stable }}, pre-release ${{ steps.rel.outputs.pre }}"
+          commit-message: "data: refresh compat.json from microsoft/WSL releases"
+          branch: data/refresh
+          body: |
+            Automated refresh of `internal/data/files/compat.json` from the microsoft/WSL releases API.
+            Review the diff; the distro rows are not touched by this job.

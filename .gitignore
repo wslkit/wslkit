@@ -1,0 +1,8 @@
+*.exe
+*.test
+*.out
+dist/
+spikes/**/*.exe
+testdata/fuzz/
+.idea/
+.vscode/

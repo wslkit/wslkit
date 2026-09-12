@@ -1,0 +1,11 @@
+{
+  "top": [
+    { "id": "WSL001", "status": "FAIL", "min_confidence": 0.85, "fix_id": "update" }
+  ],
+  "require": [
+    { "id": "WSL003", "status": "WARN", "fix_id": "update" },
+    { "id": "WSL002", "status": "OK" },
+    { "id": "HST003", "status": "OK" },
+    { "id": "DSK002", "status": "OK" }
+  ]
+}

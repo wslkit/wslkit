@@ -1,0 +1,43 @@
+name: ci-windows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: integration + live smoke
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: unit + integration tests
+        run: go test -count=1 -tags integration ./...
+      - name: build
+        run: go build -trimpath -o wsldoctor.exe ./cmd/wsldoctor
+      - name: live smoke (hosted runners have no WSL 2; expect HST/WSL findings, never a crash)
+        shell: pwsh
+        run: |
+          .\wsldoctor.exe check
+          $code = $LASTEXITCODE
+          if ($code -notin 0,1) { throw "check exited with $code" }
+          .\wsldoctor.exe check --json > env.json
+          if ($LASTEXITCODE -notin 0,1) { throw "check --json exited with $LASTEXITCODE" }
+          .\wsldoctor.exe check --from-snapshot env.json --verbose
+          if ($LASTEXITCODE -notin 0,1) { throw "from-snapshot exited with $LASTEXITCODE" }
+          .\wsldoctor.exe check --report
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runner-snapshot-${{ matrix.os }}
+          path: env.json

@@ -1,0 +1,50 @@
+version: 2
+project_name: wsldoctor
+
+builds:
+  - id: wsldoctor
+    main: ./cmd/wsldoctor
+    binary: wsldoctor
+    env: [CGO_ENABLED=0]
+    goos: [windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: zip
+    formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_windows_{{ .Arch }}"
+    files: [LICENSE*, README.md]
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+sboms:
+  - artifacts: archive
+
+changelog:
+  use: github
+  groups:
+    - title: Probes
+      regexp: '^.*?(probe|WSL\d|HST\d|DSK\d|NET\d|MEM\d|DEF\d|PLG\d|EVT\d).*$'
+      order: 0
+    - title: Fixes
+      regexp: '^.*?fix.*$'
+      order: 1
+    - title: Other
+      order: 999
+
+release:
+  prerelease: auto
+  draft: false
+
+# Scoop and winget publishing are enabled once the wslkit buckets exist:
+# scoops:
+#   - repository: {owner: wslkit, name: scoop-wsldoctor}
+#     homepage: https://github.com/wslkit/wsldoctor
+#     description: Diagnose why WSL 2 is broken or slow, then fix it.
+#     license: TBD
