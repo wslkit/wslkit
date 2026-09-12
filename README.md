@@ -7,8 +7,17 @@ wsldoctor check              # read-only, no admin rights, ranked diagnosis
 wsldoctor fix <action>       # explicit, per-action remediation
 ```
 
-> **Status: pre-development.** Nothing is implemented yet.
-> See **[PLAN.md](PLAN.md)** for the full specification, probe catalog and milestones.
+> **Status: M1 in progress, unreleased.** `check` runs end to end in about a second with
+> the first 15 probes; `fix update` and `fix shutdown` plan and apply with an undo journal.
+> Not yet: Defender fix, `.wslconfig` lint, networking probes, signed releases.
+> See **[PLAN.md](PLAN.md)** for the full specification, probe catalog and milestones,
+> **[ROADMAP.md](ROADMAP.md)** for development phases, spike results and feature research,
+> **[ARCHITECTURE.md](ARCHITECTURE.md)** for language, code layout, CI/CD and testing,
+> and **[CONTRIBUTING.md](CONTRIBUTING.md)** to build it or donate a snapshot.
+
+```
+go build ./cmd/wsldoctor && .\wsldoctor.exe check
+```
 
 ## Why
 

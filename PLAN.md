@@ -2,6 +2,8 @@
 
 > Status: **not started**. This document is the specification. It exists so a fresh
 > Claude Code session (or any contributor) can pick up development with full context.
+> Development phases, spikes and feature research live in [ROADMAP.md](ROADMAP.md);
+> language, code layout, CI/CD and testing in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## 1. What it is
 
@@ -157,7 +159,7 @@ Ordered by implementation priority. `M1` probes are the minimum viable release.
 | `HST002` | **M1** | Services: `LxssManager`, `vmcompute`, `HvHost` — state and start type. | Service Control Manager |
 | `HST003` | **M1** | Virtualization enabled in firmware; nested-virt / competing hypervisor (VMware, VirtualBox) detection. | `Win32_ComputerSystem`, CPUID |
 | `HST004` | M2 | Windows build vs WSL feature requirements; pending reboot after a feature change. | |
-| `DEF001` | **M1** | **Windows Defender exclusions.** Check whether `ext4.vhdx`, `%LOCALAPPDATA%\wsl`, `vmmem`/`vmwp` are excluded. **Reading exclusions is possible unelevated via `MpPreference`; *setting* them is admin-only — this is the one fix that elevates.** | 119 reactions |
+| `DEF001` | **M1** | **Windows Defender exclusions.** Check whether `ext4.vhdx`, `%LOCALAPPDATA%\wsl`, `vmmem`/`vmwp` are excluded. **Correction (ADR 0007, 2026-09-12): reading exclusions via `MSFT_MpPreference` returns "Must be an administrator to view exclusions" unelevated on current builds; only real-time-protection state is readable. Unelevated the probe reports `UNKNOWN`; `--elevated` does the full check. Setting them is admin-only — this is the one fix that elevates.** | 119 reactions |
 | `HIB001` | M2 | Detect a resume-from-hibernate state where the VM is wedged; correlate last resume time against VM health. | 259 reactions |
 
 ### Disk
