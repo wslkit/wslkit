@@ -312,11 +312,21 @@ type Procs struct {
 	WslServiceRunning Field[bool]   `json:"wslservice_running"`
 }
 
+// Plugin is one value under HKLM\...\Lxss\Plugins, checked the way
+// PluginManager::LoadPlugins does: REG_SZ type, unique path, valid Authenticode
+// signature (official builds), and the WSLPluginAPI_EntryPointV1 export.
 type Plugin struct {
-	Name    string `json:"name"`
-	Path    string `json:"path"`
-	Exists  bool   `json:"exists"`
-	Version string `json:"version,omitempty"`
+	Name      string `json:"name"`
+	Path      string `json:"path"`
+	ValueType string `json:"value_type,omitempty"` // REG_SZ expected; anything else is skipped by WSL
+	Exists    bool   `json:"exists"`
+	Version   string `json:"version,omitempty"`
+	Duplicate bool   `json:"duplicate,omitempty"` // same DLL path as an earlier value
+	// Signature: "trusted", "unsigned", "bad_digest", "untrusted_root", "error:<hr>", or "" if not checked.
+	Signature string `json:"signature,omitempty"`
+	// EntryPoint: true when the export table lists WSLPluginAPI_EntryPointV1; ExportsErr says why it could not be read.
+	EntryPoint bool   `json:"entry_point"`
+	ExportsErr string `json:"exports_err,omitempty"`
 }
 
 // New returns an Env with schema and defaults set.
