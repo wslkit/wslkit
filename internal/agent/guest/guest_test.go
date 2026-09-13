@@ -161,11 +161,12 @@ func TestAgentReconnectsAfterHostDrop(t *testing.T) {
 func TestAgentRefusesLocalConnectionWhileDisconnected(t *testing.T) {
 	// Host address that nobody listens on: connect fails, agent keeps retrying.
 	listen, localAddr := localListener(t)
+	noGrace := time.Duration(0)
 	a := &Agent{
 		Config: config.Guest{Port: 1, Listeners: []config.Listener{{Name: "x", Unix: "/x", Target: "tcp:127.0.0.1:9", OwnerUID: -1}}},
 		Name:   "D", Version: "t",
 		Connect: tcpTransport("127.0.0.1:1"), Logger: log.New(io.Discard, "", 0), ListenUnix: listen,
-		MinBackoff: 10 * time.Millisecond, MaxBackoff: 20 * time.Millisecond,
+		MinBackoff: 10 * time.Millisecond, MaxBackoff: 20 * time.Millisecond, ConnectGrace: &noGrace,
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

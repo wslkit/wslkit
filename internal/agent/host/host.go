@@ -54,20 +54,32 @@ func StatusPath() string { return filepath.Join(config.HostDir(), "status.json")
 // ReadStatus loads the default status file; ok is false when absent.
 func ReadStatus() (Status, bool, error) { return ReadStatusFrom(StatusPath()) }
 
-// ReadStatusFrom loads a status file; ok is false when absent.
+// ReadStatusFrom loads a status file; ok is false when absent. The daemon
+// replaces the file by rename while readers may have it open, so a sharing
+// violation is transient and retried.
 func ReadStatusFrom(path string) (Status, bool, error) {
-	b, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return Status{}, false, nil
+	var lastErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		b, err := os.ReadFile(path)
+		switch {
+		case errors.Is(err, os.ErrNotExist):
+			return Status{}, false, nil
+		case err != nil:
+			lastErr = err
+			time.Sleep(40 * time.Millisecond)
+			continue
+		}
+		var s Status
+		if err := json.Unmarshal(b, &s); err != nil {
+			// A half-written file is impossible (write+rename), but a truncated
+			// read is not worth failing on; retry once more.
+			lastErr = err
+			time.Sleep(40 * time.Millisecond)
+			continue
+		}
+		return s, true, nil
 	}
-	if err != nil {
-		return Status{}, false, err
-	}
-	var s Status
-	if err := json.Unmarshal(b, &s); err != nil {
-		return Status{}, false, err
-	}
-	return s, true, nil
+	return Status{}, false, lastErr
 }
 
 // Daemon serves guest sessions.
@@ -80,6 +92,7 @@ type Daemon struct {
 	StatusFile string
 
 	mu       sync.Mutex
+	wmu      sync.Mutex // serialises status-file writes
 	status   Status
 	sessions map[*session]struct{}
 	// inflight counts session handlers so Serve can drain before returning:
@@ -262,10 +275,20 @@ func (d *Daemon) writeStatus() {
 		return
 	}
 	_ = os.MkdirAll(filepath.Dir(d.StatusFile), 0o700)
-	tmp := d.StatusFile + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o600); err == nil {
-		_ = os.Rename(tmp, d.StatusFile)
+	// Serialise writers so two renames never race each other.
+	d.wmu.Lock()
+	defer d.wmu.Unlock()
+	tmp := fmt.Sprintf("%s.%d.tmp", d.StatusFile, os.Getpid())
+	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+		return
 	}
+	for attempt := 0; attempt < 5; attempt++ {
+		if err := os.Rename(tmp, d.StatusFile); err == nil {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	_ = os.Remove(tmp)
 }
 
 // Alive reports whether a status file describes a live process. It is a

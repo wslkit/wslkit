@@ -37,6 +37,18 @@ type Agent struct {
 	ListenUnix func(l config.Listener) (net.Listener, error)
 	// Backoff between reconnects (default 2s, doubling to 30s).
 	MinBackoff, MaxBackoff time.Duration
+	// ConnectGrace is how long a local connection waits for the host session
+	// when the agent is between connections (default 3s). Zero refuses at once.
+	ConnectGrace *time.Duration
+}
+
+const defaultConnectGrace = 3 * time.Second
+
+func (a *Agent) connectGrace() time.Duration {
+	if a.ConnectGrace == nil {
+		return defaultConnectGrace
+	}
+	return *a.ConnectGrace
 }
 
 // Run serves until ctx ends, reconnecting to the host as needed. Listeners are
@@ -166,7 +178,18 @@ func (a *Agent) serveListener(ctx context.Context, ln net.Listener, l config.Lis
 			continue
 		}
 		go func() {
+			// A client can arrive while the agent is reconnecting (the VM restarts,
+			// the daemon is restarted). Wait briefly rather than failing the client.
 			sess := current()
+			for deadline := time.Now().Add(a.connectGrace()); sess == nil && time.Now().Before(deadline); {
+				select {
+				case <-time.After(25 * time.Millisecond):
+				case <-ctx.Done():
+					_ = c.Close()
+					return
+				}
+				sess = current()
+			}
 			if sess == nil {
 				a.Logger.Printf("%s: connection while host is disconnected; refusing", l.Name)
 				_ = c.Close()
