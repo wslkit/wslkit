@@ -16,6 +16,13 @@ var (
 	reUsersPath = regexp.MustCompile(`(?i)([A-Z]:\\+Users\\+)([^\\/"'\s]+)`)
 	reUsersJSON = regexp.MustCompile(`(?i)([A-Z]:\\\\Users\\\\)([^\\/"'\s]+)`)
 	reSID       = regexp.MustCompile(`S-1-5-21-\d+-\d+-\d+-\d+`)
+	// Paths inside a distribution reach the output too: a check that walks
+	// \\wsl.localhost reports what it found there, and /home/<name> names a
+	// person as plainly as C:\Users\<name> does.
+	reLinuxHome = regexp.MustCompile(`(/home/)([^/"'\s\\]+)`)
+	// A Windows drive as Linux sees it. The Windows rules above do not fire
+	// on it, because by then the path is /mnt/c/Users/<name>.
+	reMntUsers = regexp.MustCompile(`(?i)(/mnt/[a-z]/Users/)([^/"'\s\\]+)`)
 )
 
 // String applies all rules. Safe to run on JSON (handles escaped backslashes) and on text.
@@ -28,6 +35,8 @@ func String(s string, r Rules) string {
 	s = reUsersJSON.ReplaceAllString(s, `${1}<user>`)
 	s = reUsersPath.ReplaceAllString(s, `${1}<user>`)
 	s = reSID.ReplaceAllString(s, `S-1-5-21-<redacted>`)
+	s = reMntUsers.ReplaceAllString(s, `${1}<user>`)
+	s = reLinuxHome.ReplaceAllString(s, `${1}<user>`)
 	if r.Hostname != "" && len(r.Hostname) >= 3 {
 		s = replaceWord(s, r.Hostname, "<host>")
 	}
