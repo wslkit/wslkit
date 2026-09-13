@@ -18,6 +18,8 @@ func (a *App) diskUsage() {
 
   wslkit disk list [--probe]              every distribution and what its disk costs
   wslkit disk info <distro> [--probe]     everything known about one distribution
+  wslkit disk trim <distro>               ask the guest to release the blocks it no longer uses
+  wslkit disk compact [distro]            trim, stop, then shrink the disk file
 
 Flags common to every disk subcommand:
   --json        machine-readable output, one object per line, sizes in bytes
@@ -28,6 +30,15 @@ Flags common to every disk subcommand:
   --probe       start a stopped distribution to read the usage inside it.
                 Off by default: starting a distribution to measure it changes
                 the thing being measured.
+
+compact flags:
+  --all               every WSL 2 distribution
+  --file PATH         a loose .vhdx, such as the one Docker Desktop keeps
+  --no-trim           skip the fstrim step. Compaction then reclaims almost
+                      nothing, because the disk still holds the stale data
+  --restart           start the distribution again afterwards if it was running
+  --shutdown          permit stopping every distribution to free the disk
+  --unlock-timeout D  how long to wait for the utility VM to let go (default 1m30s)
 
 Sizes: "size on disk" is what the volume actually spends, which is the number
 that changes when you free space. "virtual size" is the maximum the disk may
@@ -56,6 +67,10 @@ func (a *App) disk(args []string) int {
 		return a.diskList(args[1:])
 	case "info":
 		return a.diskInfo(args[1:])
+	case "trim":
+		return a.diskTrim(args[1:])
+	case "compact":
+		return a.diskCompact(args[1:])
 	case "help", "--help", "-h":
 		a.diskUsage()
 		return ExitOK
@@ -102,7 +117,7 @@ func diskExitFor(err error) int {
 	case errors.Is(err, disk.ErrNotFound), errors.Is(err, disk.ErrNoDistros),
 		errors.Is(err, disk.ErrNoDefault), errors.Is(err, disk.ErrAmbiguous):
 		return ExitDiskNotFound
-	case errors.Is(err, disk.ErrRunning):
+	case errors.Is(err, disk.ErrRunning), errors.Is(err, disk.ErrBusy):
 		return ExitDiskBusy
 	case errors.Is(err, disk.ErrNotWSL2), errors.Is(err, disk.ErrNotVHDX):
 		return ExitCollector

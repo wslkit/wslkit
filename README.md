@@ -77,8 +77,8 @@ wslkit sock status -d Ubuntu
 
 ## Disks
 
-`wslkit disk` reports what each distribution costs on disk and what could be
-reclaimed. It reads only: nothing is started, and nothing is changed.
+`wslkit disk` reports what each distribution costs on disk, and reclaims what it
+can. Reporting reads only: nothing is started and nothing is changed.
 
 ```
 wslkit disk list                 every distribution, its size on disk and what is reclaimable
@@ -86,6 +86,19 @@ wslkit disk list --json          integer bytes, one object per line
 wslkit disk info Ubuntu          registration, disk geometry and guest usage
 wslkit disk info Ubuntu --probe  start it if stopped, to read the usage inside
 ```
+
+Reclaiming space is two steps: the guest has to discard the blocks it no longer
+uses, then the disk file itself is shrunk. `compact` does both.
+
+```
+wslkit disk trim Ubuntu                  ask the guest to discard what it no longer uses
+wslkit disk compact Ubuntu               trim, stop, then shrink the file
+wslkit disk compact --all --shutdown     every distribution, stopping WSL to free the disks
+wslkit disk compact --file D:\d.vhdx     a loose disk, such as the one Docker Desktop keeps
+wslkit disk compact Ubuntu --dry-run     the plan, having changed nothing
+```
+
+No elevation is needed for any of this.
 
 This is the Go port of [wsldisk](https://github.com/wslkit/wsldisk); progress
 towards retiring that repository is tracked in [docs/wsldisk-parity.md](docs/wsldisk-parity.md).

@@ -21,10 +21,14 @@ type fakeFile struct {
 }
 
 type fakeFS struct {
-	files   map[string]fakeFile
-	volumes map[string]VolumeInfo
-	dirs    map[string][]DirEntry
-	env     map[string]string
+	files map[string]fakeFile
+	// unlockAfter makes a file report itself locked for this many calls and
+	// free afterwards, so the wait loop can be exercised without waiting.
+	unlockAfter map[string]int
+	lockCalls   map[string]int
+	volumes     map[string]VolumeInfo
+	dirs        map[string][]DirEntry
+	env         map[string]string
 }
 
 func (f *fakeFS) Exists(path string) bool {
@@ -65,7 +69,17 @@ func (f *fakeFS) AllocatedBytes(path string) (uint64, error) {
 
 func (f *fakeFS) Locked(path string) (bool, error) {
 	v, err := f.get(path)
-	return v.locked, err
+	if err != nil {
+		return false, err
+	}
+	if n, ok := f.unlockAfter[path]; ok {
+		if f.lockCalls == nil {
+			f.lockCalls = map[string]int{}
+		}
+		f.lockCalls[path]++
+		return f.lockCalls[path] <= n, nil
+	}
+	return v.locked, nil
 }
 
 func (f *fakeFS) Volume(path string) (VolumeInfo, error) {

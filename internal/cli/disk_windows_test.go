@@ -110,6 +110,7 @@ func TestDiskExitCodeMapping(t *testing.T) {
 		{disk.ErrNoDefault, ExitDiskNotFound},
 		{disk.ErrAmbiguous, ExitDiskNotFound},
 		{disk.ErrRunning, ExitDiskBusy},
+		{disk.ErrBusy, ExitDiskBusy},
 		{disk.ErrNotWSL2, ExitCollector},
 		{disk.ErrNotVHDX, ExitCollector},
 		{errors.New("something else"), ExitFindings},

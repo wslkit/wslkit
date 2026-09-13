@@ -318,9 +318,9 @@ func (h Handle) Compact(flags uint32, progress ProgressFunc) error {
 
 	for {
 		waited, _ := windows.WaitForSingleObject(event, uint32(pollInterval.Milliseconds()))
-		p, err := h.operationProgress()
+		p, err := h.operationProgress(&ov)
 		if err != nil {
-			h.cancel(event)
+			h.cancel(event, &ov)
 			return err
 		}
 		if syscall.Errno(p.OperationStatus) != syscall.Errno(windows.ERROR_IO_PENDING) {
@@ -331,7 +331,7 @@ func (h Handle) Compact(flags uint32, progress ProgressFunc) error {
 			return nil
 		}
 		if !report(progress, Progress{Current: p.CurrentValue, Total: p.CompletionValue}) {
-			h.cancel(event)
+			h.cancel(event, &ov)
 			return ErrCancelled
 		}
 		_ = waited
@@ -350,29 +350,32 @@ func report(f ProgressFunc, p Progress) bool {
 // overlapped structure. Best effort: there is nothing useful to do if the
 // cancellation itself fails, and returning early is the one thing that is
 // unsafe.
-func (h Handle) cancel(event windows.Handle) {
+func (h Handle) cancel(event windows.Handle, ov *windows.Overlapped) {
 	_ = windows.CancelIoEx(windows.Handle(h), nil)
 	for i := 0; i < cancelPollAttempts; i++ {
 		if s, err := windows.WaitForSingleObject(event, uint32(cancelPollInterval.Milliseconds())); err == nil && s == windows.WAIT_OBJECT_0 {
 			return
 		}
-		p, err := h.operationProgress()
+		p, err := h.operationProgress(ov)
 		if err != nil || syscall.Errno(p.OperationStatus) != syscall.Errno(windows.ERROR_IO_PENDING) {
 			return
 		}
 	}
 }
 
-func (h Handle) operationProgress() (virtualDiskProgress, error) {
+// operationProgress asks how far an operation has got.
+//
+// The overlapped structure is not optional: it is what identifies which
+// operation is being asked about, and passing nil fails the call with
+// ERROR_INVALID_PARAMETER rather than defaulting to the only one in flight.
+func (h Handle) operationProgress(ov *windows.Overlapped) (virtualDiskProgress, error) {
 	var p virtualDiskProgress
 	if err := available(procGetVirtualDiskOperationProg); err != nil {
 		return p, err
 	}
-	// The overlapped pointer identifies the operation. Passing nil asks
-	// about the only one in flight, which is all wslkit ever starts.
 	r, _, _ := procGetVirtualDiskOperationProg.Call(
 		uintptr(h),
-		0,
+		uintptr(unsafe.Pointer(ov)),
 		uintptr(unsafe.Pointer(&p)),
 	)
 	if r != 0 {
