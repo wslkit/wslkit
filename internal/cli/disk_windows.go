@@ -27,6 +27,8 @@ func (a *App) diskUsage() {
   wslkit disk relink <distro> <path>      point a distribution at a disk that has moved
   wslkit disk move <distro> <directory>   move a distribution disk, then check it still boots
   wslkit disk config [path|get|set|edit]   show or change the settings
+  wslkit disk trash <distro>              unregister a distribution but keep its disk
+  wslkit disk undelete <distro>           register a trashed distribution again
 
 Flags common to every disk subcommand:
   --json        machine-readable output, one object per line, sizes in bytes
@@ -45,6 +47,13 @@ orphans flags:
   --delete            delete what was found, after one confirmation for the set
   --relink DISTRO     point a distribution at a disk, with --to
   --to PATH           the disk to point it at
+
+trash flags:
+  --list              what is in the trash, and how old
+  --purge             delete trashed distributions permanently
+  --older-than AGE    with --purge, only entries at least this old: 30d, 12h, 90m
+  --shutdown          permit stopping every distribution to free the disk. The
+                      utility VM keeps every disk open while any one runs
 
 move flags:
   --keep-source       leave the original file where it is
@@ -109,6 +118,10 @@ func (a *App) disk(args []string) int {
 		return a.diskMove(args[1:])
 	case "config":
 		return a.diskConfig(args[1:])
+	case "trash":
+		return a.diskTrash(args[1:])
+	case "undelete":
+		return a.diskUndelete(args[1:])
 	case "help", "--help", "-h":
 		a.diskUsage()
 		return ExitOK

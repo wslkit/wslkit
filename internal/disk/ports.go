@@ -24,6 +24,15 @@ type Registry interface {
 	ReadString(guid, name string) (value string, present bool, err error)
 	// WriteString writes one string value to a distribution key.
 	WriteString(guid, name, value string) error
+	// ReadDWORD reads one numeric value from a distribution key.
+	ReadDWORD(guid, name string) (value uint32, present bool, err error)
+	// WriteDWORD writes one numeric value to a distribution key.
+	WriteDWORD(guid, name string, value uint32) error
+	// DefaultDistribution is the GUID of the default distribution, which
+	// lives on the Lxss key itself rather than on any distribution.
+	DefaultDistribution() (guid string, present bool, err error)
+	// SetDefaultDistribution makes one distribution the default.
+	SetDefaultDistribution(guid string) error
 }
 
 // VolumeInfo describes the volume a path sits on.
@@ -95,6 +104,12 @@ type FileSystem interface {
 	CopySparse(from, to string, progress func(done, total uint64) bool) error
 	// MkdirAll creates a directory and its parents.
 	MkdirAll(path string) error
+	// RemoveDir deletes an empty directory.
+	RemoveDir(path string) error
+	// ReadFile reads a small file whole.
+	ReadFile(path string) ([]byte, error)
+	// WriteFile writes a small file, replacing what was there.
+	WriteFile(path string, b []byte) error
 }
 
 // DiskFacts is what the virtual disk provider knows about a .vhdx, as opposed
@@ -140,6 +155,13 @@ type Host interface {
 	Terminate(ctx context.Context, name string) error
 	// Shutdown stops the utility VM and every distribution in it.
 	Shutdown(ctx context.Context) error
+	// Unregister removes a distribution from WSL. It deletes the disk along
+	// with the registration, which is why wslkit moves the disk out of the
+	// way before calling it.
+	Unregister(ctx context.Context, name string) error
+	// ImportInPlace registers an existing disk as a distribution, without
+	// copying it.
+	ImportInPlace(ctx context.Context, name, vhdPath string) error
 	// RunAsRoot executes a command inside a distribution as root. argv[0]
 	// must be an absolute path: wsl.exe does not search PATH for it.
 	RunAsRoot(ctx context.Context, distro string, argv []string, timeout time.Duration) (CommandResult, error)

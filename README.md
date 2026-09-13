@@ -151,6 +151,22 @@ source <(wslkit completion zsh)
 Distribution names are resolved when you press Tab, so a script generated last
 month knows about a distribution installed this morning.
 
+`wsl --unregister` deletes the disk along with the registration, without asking,
+and fires its notification only afterwards, so nothing can intercept it. `trash`
+is a wrapper that makes it survivable:
+
+```
+wslkit disk trash Ubuntu           unregister it, but keep the disk
+wslkit disk undelete Ubuntu        register it again, with its settings
+wslkit disk trash --list           what is in the trash, and how old
+wslkit disk trash --purge --older-than 30d   free the space for good
+```
+
+It stops the distribution, writes down everything the registration says, moves
+the disk to `%LOCALAPPDATA%\wslkit\trash`, and only then unregisters, so WSL
+finds nothing left to delete. `undelete` imports the disk where it lies and puts
+back the default user, the flags and its place as the default distribution.
+
 To put a disk on another drive:
 
 ```

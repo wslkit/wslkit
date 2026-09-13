@@ -289,3 +289,50 @@ func TestConfigPathPrintsAPath(t *testing.T) {
 		t.Errorf("stdout %q", out.String())
 	}
 }
+
+func TestTrashUsageErrors(t *testing.T) {
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"disk", "trash"}, "needs the name of a distribution, or --list, or --purge"},
+		{[]string{"disk", "trash", "--list", "--purge"}, "pick one"},
+		{[]string{"disk", "trash", "Ubuntu", "--list"}, "take no distribution name"},
+		{[]string{"disk", "trash", "--older-than", "30d"}, "only means something with --purge"},
+		{[]string{"disk", "trash", "One", "Two"}, "takes one distribution name"},
+		{[]string{"disk", "undelete"}, "needs the name of a distribution"},
+	} {
+		a, _, errb := newApp()
+		if code := a.Run(c.args); code != ExitUsage {
+			t.Errorf("%v: exit %d, want %d", c.args, code, ExitUsage)
+		}
+		if !strings.Contains(errb.String(), c.want) {
+			t.Errorf("%v: stderr %q", c.args, errb.String())
+		}
+	}
+}
+
+// An age that cannot be understood is refused before anything is deleted.
+func TestPurgeRefusesAnAgeItCannotRead(t *testing.T) {
+	a, _, errb := newApp()
+	code := a.Run([]string{"disk", "trash", "--purge", "--older-than", "thirty days"})
+	if code != ExitDiskPreflight {
+		t.Errorf("exit %d, want %d", code, ExitDiskPreflight)
+	}
+	if !strings.Contains(errb.String(), "30d") {
+		t.Errorf("the error should show the form it wants: %q", errb.String())
+	}
+}
+
+// Trash and undelete appear in the help, or nobody finds the safety net before
+// they need it.
+func TestTrashIsDocumentedInTheDiskHelp(t *testing.T) {
+	a, _, errb := newApp()
+	a.Run([]string{"disk", "help"})
+	out := errb.String()
+	for _, want := range []string{"wslkit disk trash", "wslkit disk undelete", "--older-than"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the help does not mention %q:\n%s", want, out)
+		}
+	}
+}

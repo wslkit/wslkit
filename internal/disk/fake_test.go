@@ -3,6 +3,7 @@ package disk
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -34,6 +35,8 @@ type fakeFS struct {
 	renameErr   error
 	copyErr     error
 	volumeErr   error
+	blobs       map[string][]byte
+	removedDirs []string
 	volumes     map[string]VolumeInfo
 	dirs        map[string][]DirEntry
 	env         map[string]string
@@ -144,9 +147,14 @@ type fakeHost struct {
 	results    map[string]CommandResult // distro+" "+argv[0] -> result
 	// byArgs is keyed on the whole command line, for tests that need
 	// different answers for the same program on different paths.
-	byArgs map[string]CommandResult
-	runErr error
-	calls  []string
+	byArgs        map[string]CommandResult
+	runErr        error
+	calls         []string
+	unregisterErr error
+	importErr     error
+	// onImport stands in for what wsl.exe would do: create a new
+	// registration, with a fresh GUID, for the imported disk.
+	onImport func(name, vhdPath string)
 }
 
 func (f *fakeHost) Running(ctx context.Context) ([]string, error) {
@@ -197,8 +205,24 @@ func (f *fakeFS) Remove(path string) error {
 		return errors.New("no such file: " + path)
 	}
 	delete(f.files, path)
+	delete(f.blobs, path)
+	f.dropFromDir(path)
 	f.removed = append(f.removed, path)
 	return nil
+}
+
+// dropFromDir stops a removed file showing up in its parent's listing.
+func (f *fakeFS) dropFromDir(path string) {
+	parent := DirOf(path)
+	var kept []DirEntry
+	for _, e := range f.dirs[parent] {
+		if e.Path != path {
+			kept = append(kept, e)
+		}
+	}
+	if f.dirs != nil {
+		f.dirs[parent] = kept
+	}
 }
 
 // fakeRegistry stands in for the Lxss registration.
@@ -212,6 +236,8 @@ type fakeRegistry struct {
 	// failWriteOn makes the write of this value name fail, so the rollback
 	// path can be exercised.
 	failWriteOn string
+	dwords      map[string]uint32
+	defaultGUID string
 }
 
 func (f *fakeRegistry) key(guid, name string) string { return guid + "\x00" + name }
@@ -249,7 +275,16 @@ func (f *fakeFS) Rename(from, to string) error {
 		return f.renameErr
 	}
 	delete(f.files, from)
+	f.dropFromDir(from)
 	f.files[to] = v
+	f.addToDir(to)
+	if b, ok := f.blobs[from]; ok {
+		delete(f.blobs, from)
+		if f.blobs == nil {
+			f.blobs = map[string][]byte{}
+		}
+		f.blobs[to] = b
+	}
 	f.renames = append(f.renames, from+" -> "+to)
 	return nil
 }
@@ -280,11 +315,129 @@ func (f *fakeFS) CopySparse(from, to string, progress func(done, total uint64) b
 		return errors.New("cancelled")
 	}
 	f.files[to] = v
+	f.addToDir(to)
 	f.copies = append(f.copies, from+" -> "+to)
 	return nil
 }
 
 func (f *fakeFS) MkdirAll(path string) error {
 	f.mkdirs = append(f.mkdirs, path)
+	if f.dirs == nil {
+		f.dirs = map[string][]DirEntry{}
+	}
+	if _, ok := f.dirs[path]; !ok {
+		f.dirs[path] = nil
+	}
+	parent := DirOf(path)
+	for _, e := range f.dirs[parent] {
+		if e.Path == path {
+			return nil
+		}
+	}
+	f.dirs[parent] = append(f.dirs[parent], DirEntry{Path: path, IsDir: true})
+	return nil
+}
+
+func (f *fakeRegistry) ReadDWORD(guid, name string) (uint32, bool, error) {
+	v, ok := f.dwords[f.key(guid, name)]
+	return v, ok, nil
+}
+
+func (f *fakeRegistry) WriteDWORD(guid, name string, value uint32) error {
+	if f.writeErr != nil {
+		return f.writeErr
+	}
+	if name == f.failWriteOn {
+		return errors.New("write refused: " + name)
+	}
+	if f.dwords == nil {
+		f.dwords = map[string]uint32{}
+	}
+	f.dwords[f.key(guid, name)] = value
+	f.writes = append(f.writes, fmt.Sprintf("%s/%s=%d", guid, name, value))
+	return nil
+}
+
+func (f *fakeRegistry) DefaultDistribution() (string, bool, error) {
+	return f.defaultGUID, f.defaultGUID != "", nil
+}
+
+func (f *fakeRegistry) SetDefaultDistribution(guid string) error {
+	if f.writeErr != nil {
+		return f.writeErr
+	}
+	f.defaultGUID = guid
+	f.writes = append(f.writes, "DefaultDistribution="+guid)
+	return nil
+}
+
+func (f *fakeFS) RemoveDir(path string) error {
+	delete(f.dirs, path)
+	f.removedDirs = append(f.removedDirs, path)
+	// A directory is also an entry of its parent, so it has to stop being
+	// listed there or the trash still appears to hold it.
+	parent := DirOf(path)
+	var kept []DirEntry
+	for _, e := range f.dirs[parent] {
+		if e.Path != path {
+			kept = append(kept, e)
+		}
+	}
+	f.dirs[parent] = kept
+	return nil
+}
+
+func (f *fakeFS) ReadFile(path string) ([]byte, error) {
+	b, ok := f.blobs[path]
+	if !ok {
+		return nil, errors.New("no such file: " + path)
+	}
+	return b, nil
+}
+
+func (f *fakeFS) WriteFile(path string, b []byte) error {
+	if f.blobs == nil {
+		f.blobs = map[string][]byte{}
+	}
+	f.blobs[path] = b
+	if f.files == nil {
+		f.files = map[string]fakeFile{}
+	}
+	f.files[path] = fakeFile{size: uint64(len(b)), onDisk: uint64(len(b))}
+	f.addToDir(path)
+	return nil
+}
+
+// addToDir makes a written file show up in its parent's listing, the way a real
+// filesystem would.
+func (f *fakeFS) addToDir(path string) {
+	if f.dirs == nil {
+		f.dirs = map[string][]DirEntry{}
+	}
+	parent := DirOf(path)
+	for _, e := range f.dirs[parent] {
+		if e.Path == path {
+			return
+		}
+	}
+	f.dirs[parent] = append(f.dirs[parent], DirEntry{Path: path})
+}
+
+func (f *fakeHost) Unregister(ctx context.Context, name string) error {
+	f.calls = append(f.calls, "unregister "+name)
+	if f.unregisterErr != nil {
+		return f.unregisterErr
+	}
+	return nil
+}
+
+func (f *fakeHost) ImportInPlace(ctx context.Context, name, vhdPath string) error {
+	f.calls = append(f.calls, "import-in-place "+name+" "+vhdPath)
+	if f.importErr != nil {
+		return f.importErr
+	}
+	if f.onImport != nil {
+		f.onImport(name, vhdPath)
+	}
 	return nil
 }

@@ -94,6 +94,8 @@ func CommandTree() []cmdNode {
 				{Name: "orphans", Desc: "Virtual disks that no distribution claims", Flags: withDiskFlags("--scan", "--delete", "--relink", "--to")},
 				{Name: "relink", Desc: "Point a distribution at a disk that has moved", Flags: withDiskFlags(), Positional: []argKind{argDistro, argPath}},
 				{Name: "move", Desc: "Move a distribution disk, then check it still boots", Flags: withDiskFlags("--keep-source"), Positional: []argKind{argDistro, argDir}},
+				{Name: "trash", Desc: "Unregister a distribution but keep its disk", Flags: withDiskFlags("--list", "--purge", "--older-than", "--shutdown"), Positional: []argKind{argDistro}},
+				{Name: "undelete", Desc: "Register a trashed distribution again", Flags: withDiskFlags(), Positional: []argKind{argOther}},
 				{Name: "config", Desc: "Show or change the disk settings", Flags: withDiskFlags(), Subs: []cmdNode{
 					{Name: "path", Desc: "Print the path of the settings file"},
 					{Name: "get", Desc: "Print one setting, or all of them", Positional: []argKind{argOther}},
