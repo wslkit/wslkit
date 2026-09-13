@@ -58,9 +58,9 @@ linters:
               desc: pure packages must not touch COM (ADR 0004)
             - pkg: os/exec
               desc: pure packages must not run processes (ADR 0004)
-            - pkg: github.com/wslkit/wsldoctor/internal/winapi
+            - pkg: github.com/wslkit/wslkit/internal/winapi
               desc: pure packages must not import winapi (ADR 0004)
-            - pkg: github.com/wslkit/wsldoctor/internal/env/collect
+            - pkg: github.com/wslkit/wslkit/internal/env/collect
               desc: probes read env, they never collect (ADR 0004)
   exclusions:
     paths:
