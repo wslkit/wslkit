@@ -1,4 +1,4 @@
-// Package wsl holds runtime and distro probes (WSL001–WSL007, ZON001).
+// Package wsl holds runtime and distro probes (WSL001–WSL007, ZON001, MNT001).
 package wsl
 
 import (
@@ -13,7 +13,7 @@ import (
 
 // All returns the probes in this package in execution order.
 func All() []probe.Probe {
-	return []probe.Probe{Installed{}, Compat{}, UpdateAvailable{}, Inventory{}, ConfigLint{}, WslConf{}, ZoneFiles{}}
+	return []probe.Probe{Installed{}, Compat{}, UpdateAvailable{}, Inventory{}, ConfigLint{}, WslConf{}, ZoneFiles{}, Watchers{}}
 }
 
 // ---------------------------------------------------------------- WSL002

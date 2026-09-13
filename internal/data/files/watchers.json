@@ -1,0 +1,42 @@
+{
+  "schema": "wslkit/watchers/v1",
+  "updated": "2026-09-13",
+  "comment": "Tools whose job depends on noticing a file change, and the setting that switches each to polling. inotify does not work over the Windows filesystem: /mnt/c is a protocol to a server that never reports a change, so a watch set there is accepted and never fires. Upstream (microsoft/WSL#4739, locked October 2024) is clear that user land cannot fix it, so polling is the whole of the advice. Matched against the command name and against the base name of the first argument, so a script gets the name the user typed rather than its interpreter. Deliberately short: a false positive costs a reader their attention on a warning that did not apply to them.",
+  "tools": [
+    {
+      "match": "node",
+      "knob": "CHOKIDAR_USEPOLLING=1 in the environment",
+      "note": "chokidar is what nodemon, webpack, jest and most of the rest watch with."
+    },
+    { "match": "nodemon", "knob": "nodemon --legacy-watch" },
+    { "match": "vite", "knob": "server.watch.usePolling = true in vite.config" },
+    { "match": "webpack", "knob": "watchOptions.poll = 1000 in the webpack config" },
+    { "match": "rollup", "knob": "--watch.chokidar.usePolling" },
+    { "match": "parcel", "knob": "CHOKIDAR_USEPOLLING=1 in the environment" },
+    { "match": "ng", "knob": "CHOKIDAR_USEPOLLING=1 in the environment" },
+    {
+      "match": "next-server",
+      "knob": "CHOKIDAR_USEPOLLING=1, or webpackDevMiddleware.watchOptions.poll in next.config"
+    },
+    { "match": "jekyll", "knob": "jekyll serve --force-polling" },
+    { "match": "hugo", "knob": "hugo server --poll 700ms" },
+    { "match": "gulp", "knob": "CHOKIDAR_USEPOLLING=1 in the environment" },
+    { "match": "grunt", "knob": "grunt watch with a poll interval set" },
+    { "match": "cargo-watch", "knob": "cargo watch --poll" },
+    { "match": "air", "knob": "poll = true under [build] in .air.toml" },
+    { "match": "entr", "knob": "ENTR_INOTIFY_WORKAROUND=1 in the environment" },
+    {
+      "match": "inotifywait",
+      "knob": "there is no flag for this; inotifywait cannot see a change made on the Windows side",
+      "note": "The only working shape is a polling loop, or moving the files into the distribution."
+    },
+    { "match": "fswatch", "knob": "fswatch --monitor=poll_monitor" },
+    {
+      "match": "watchman",
+      "knob": "not usable here; watchman needs inotify",
+      "note": "Move the tree into the distribution instead."
+    },
+    { "match": "tsc", "knob": "tsc --watch --watchFile priorityPollingInterval" },
+    { "match": "dotnet", "knob": "DOTNET_USE_POLLING_FILE_WATCHER=1 in the environment" }
+  ]
+}

@@ -31,6 +31,29 @@ func (o Options) withDefaults() Options {
 	return o
 }
 
+// budgetMargin is what a late piece of work leaves of the collector's deadline
+// for the collector itself to finish in.
+const budgetMargin = 250 * time.Millisecond
+
+// remainingBudget is how long a last, optional piece of work inside a collector
+// may take.
+//
+// Work that reads inside a distribution happens at the end of the collector
+// that already read the registry, under that collector's deadline. Taking the
+// full per-collector timeout would push past it and have the whole collector
+// abandoned, losing the inventory everything else depends on over a scan that
+// is only a nice-to-have. So it gets what is left, not what it was offered.
+func remainingBudget(ctx context.Context, timeout time.Duration) time.Duration {
+	dl, ok := ctx.Deadline()
+	if !ok {
+		return timeout
+	}
+	if left := time.Until(dl) - budgetMargin; left < timeout {
+		return left
+	}
+	return timeout
+}
+
 type collector struct {
 	name string
 	run  func(ctx context.Context, e *env.Env, o Options) error

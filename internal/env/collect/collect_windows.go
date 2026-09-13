@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/sys/windows"
@@ -398,7 +399,14 @@ func collectDistros(ctx context.Context, e *env.Env, o Options) error {
 	// Read after the loop, so every distribution already knows whether it is
 	// running: that is what decides whether the file can be read at all.
 	readWslConfFor(ctx, out, o.Timeout)
-	scanZoneFilesFor(ctx, out, o.Timeout)
+	// Both read inside the running distributions and both are bounded by what
+	// is left of this collector's deadline, so they run together rather than
+	// one of them spending the budget the other needs.
+	var inside sync.WaitGroup
+	inside.Add(2)
+	go func() { defer inside.Done(); scanZoneFilesFor(ctx, out, o.Timeout) }()
+	go func() { defer inside.Done(); readWatchersFor(ctx, out, o.Timeout) }()
+	inside.Wait()
 	e.Distros = env.Ok(out, src)
 	return nil
 }
