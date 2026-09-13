@@ -1,11 +1,15 @@
 # wsldisk parity checklist
 
-`wslkit/wsldisk` is archived once every row below is done. Until then it stays
-open and this file is the gate. See ADR 0011 for how the port is built and what
-it deliberately changes.
+This was the gate for archiving `wslkit/wsldisk`, the C++ tool that `wslkit disk`
+replaces. See ADR 0011 for how the port is built and what it deliberately
+changes.
 
-**Status: every command and flag is ported.** What remains is archiving the
-repository itself, which is the owner's call.
+**Status: complete.** Every command and flag is ported, and `wslkit/wsldisk` was
+archived on 2026-09-13. Its README, its repository description and a pinned
+issue point here. This file is kept as the record of what was ported and why.
+
+The C++ repository stays readable: `docs/RESEARCH.md` there holds measurements
+that are cited from this repository and not repeated in it.
 
 The reference is wsldisk at commit `a0d60c5`.
 
@@ -127,4 +131,4 @@ reason in a comment next to the code.
 - [x] The cache catalogue is carried over and embedded, as JSON rather than TOML.
 - [x] The README covers every disk subcommand. Site pages are tracked separately
       in the documentation site issue.
-- [ ] `wsldisk` is archived and its README points at wslkit.
+- [x] `wsldisk` is archived and its README points at wslkit.
