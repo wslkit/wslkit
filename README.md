@@ -87,4 +87,4 @@ The binary is multi-call: a copy or shim named `wsldoctor.exe` behaves as `wslki
 
 ## Licence
 
-TBD before first public release.
+[MIT](LICENSE), matching `wsldisk` and `wsldrive`.
