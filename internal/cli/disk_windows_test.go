@@ -209,3 +209,30 @@ func TestOrphansTakesNoArguments(t *testing.T) {
 		t.Errorf("stderr %q", errb.String())
 	}
 }
+
+func TestMoveNeedsTwoArguments(t *testing.T) {
+	for _, args := range [][]string{
+		{"disk", "move"},
+		{"disk", "move", "Ubuntu"},
+		{"disk", "move", "Ubuntu", `D:\wsl`, "extra"},
+	} {
+		a, _, errb := newApp()
+		if code := a.Run(args); code != ExitUsage {
+			t.Errorf("%v: exit %d, want %d", args, code, ExitUsage)
+		}
+		if !strings.Contains(errb.String(), "destination-directory") {
+			t.Errorf("%v: stderr %q", args, errb.String())
+		}
+	}
+}
+
+// The destination is a directory, because the disk keeps its name. Saying so in
+// the usage line saves a user discovering it by moving a disk to a path that
+// becomes its new file name.
+func TestMoveUsageSaysTheDestinationIsADirectory(t *testing.T) {
+	a, _, errb := newApp()
+	a.Run([]string{"disk", "move"})
+	if !strings.Contains(errb.String(), "the disk keeps its file name") {
+		t.Errorf("stderr %q", errb.String())
+	}
+}

@@ -128,6 +128,19 @@ deletes anything, refuses any file that is open, and treats end of input as a
 no. `relink` writes registry values only, starts the distribution to check the
 new path works, and puts the registry back if it does not.
 
+To put a disk on another drive:
+
+```
+wslkit disk move Ubuntu D:\wsl                 move it, then check it still boots
+wslkit disk move Ubuntu D:\wsl --keep-source   copy it and leave the original
+wslkit disk move Ubuntu D:\wsl --dry-run       the plan, having changed nothing
+```
+
+The copy preserves the holes in the disk, so a 12 GiB file stays 12 GiB rather
+than becoming the terabyte it is nominally allowed to reach. The original is
+deleted last, and only once the distribution has started from its new home; if
+it does not start, everything is put back.
+
 This is the Go port of [wsldisk](https://github.com/wslkit/wsldisk); progress
 towards retiring that repository is tracked in [docs/wsldisk-parity.md](docs/wsldisk-parity.md).
 
