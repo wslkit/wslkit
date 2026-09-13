@@ -104,6 +104,7 @@ func CommandTree() []cmdNode {
 				}},
 			},
 		},
+		{Name: "top", Desc: "What the utility VM is using, and which distribution is responsible", Flags: []string{"--json", "--interval", "--once", "--timeout"}, Positional: []argKind{argDistro}},
 		{Name: "completion", Desc: "Print a shell completion script", Positional: []argKind{argShell}},
 		{Name: "version", Desc: "Print the version"},
 		{Name: "help", Desc: "Print usage"},
