@@ -1,0 +1,19 @@
+{{/* The sidebar. Sections and order come from site/data/nav.yaml, which is
+     also what the generator checks every page against, so a page that is in
+     docs/ but in no section fails the build rather than becoming unreachable. */}}
+<nav class="side" aria-label="Documentation">
+  {{ $ctx := . }}
+  {{ $current := .RelPermalink }}
+  {{ range hugo.Data.nav.sections }}
+  <p class="sechead">{{ .section }}</p>
+  <ul>
+    {{ range .pages }}
+      {{ with $ctx.Site.GetPage (printf "/%s" .) }}
+      <li{{ if eq $current .RelPermalink }} class="here"{{ end }}>
+        <a href="{{ .RelPermalink }}">{{ if .Params.short }}{{ .Params.short }}{{ else }}{{ .Title }}{{ end }}</a>
+      </li>
+      {{ end }}
+    {{ end }}
+  </ul>
+  {{ end }}
+</nav>

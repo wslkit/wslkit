@@ -7,3 +7,9 @@ testdata/fuzz/
 .idea/
 .vscode/
 internal/agent/payload/files/wslkit-agent-linux-*
+
+# The documentation site is generated from docs/ and from the data tables the
+# binary embeds. Never edit it; edit docs/, or the data file behind the page.
+site/content/
+site/public/
+site/.hugo_build.lock

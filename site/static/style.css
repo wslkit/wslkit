@@ -1,0 +1,251 @@
+/* wslkit documentation site.
+ *
+ * One stylesheet, no build step, no framework. It is read as often as it is
+ * changed, so it is grouped by what a reader sees rather than by selector.
+ */
+
+:root {
+  --ink: #17202a;
+  --ink-soft: #4a5568;
+  --line: #dde3ea;
+  --bg: #ffffff;
+  --bg-soft: #f6f8fa;
+  --accent: #0b5fa5;
+  --accent-soft: #e7f0f8;
+  --warn: #8a5300;
+  --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e6edf3;
+    --ink-soft: #9aa7b4;
+    --line: #2b333c;
+    --bg: #0f1419;
+    --bg-soft: #161b22;
+    --accent: #6cb6ff;
+    --accent-soft: #16242f;
+    --warn: #e3b341;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+a { color: var(--accent); }
+a:hover { text-decoration-thickness: 2px; }
+
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+.skip:focus {
+  left: 8px;
+  top: 8px;
+  padding: 8px 12px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 4px;
+  z-index: 10;
+}
+
+/* Header */
+
+.top {
+  display: flex;
+  align-items: baseline;
+  gap: 24px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-soft);
+}
+.brand {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+.toplinks { margin-left: auto; display: flex; gap: 18px; font-size: 0.92rem; }
+
+/* Layout */
+
+.shell {
+  display: flex;
+  gap: 40px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 24px 64px;
+  align-items: flex-start;
+}
+
+main {
+  flex: 1;
+  min-width: 0;
+  max-width: 46rem;
+}
+
+/* Sidebar */
+
+.side {
+  width: 15rem;
+  flex: 0 0 15rem;
+  position: sticky;
+  top: 24px;
+  font-size: 0.93rem;
+}
+.side .sechead {
+  margin: 20px 0 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.side ul { list-style: none; margin: 0; padding: 0; }
+.side li { margin: 1px 0; }
+.side a {
+  display: block;
+  padding: 4px 10px;
+  border-radius: 5px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.side a:hover { background: var(--bg-soft); }
+.side .here > a {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Prose */
+
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 12px; }
+h2 {
+  font-size: 1.35rem;
+  margin: 40px 0 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+h3 { font-size: 1.08rem; margin: 26px 0 8px; }
+p, li { overflow-wrap: break-word; }
+
+.summary {
+  font-size: 1.08rem;
+  color: var(--ink-soft);
+  margin: 0 0 22px;
+}
+
+blockquote {
+  margin: 20px 0;
+  padding: 2px 18px;
+  border-left: 3px solid var(--warn);
+  color: var(--ink-soft);
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--bg-soft);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 14px 16px;
+  overflow-x: auto;
+}
+pre code { background: none; padding: 0; font-size: 0.86rem; }
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 18px 0;
+  font-size: 0.93rem;
+  display: block;
+  overflow-x: auto;
+}
+th, td {
+  border: 1px solid var(--line);
+  padding: 7px 11px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: var(--bg-soft); }
+
+/* Table of contents */
+
+.toc {
+  margin: 20px 0 26px;
+  padding: 10px 14px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 0.92rem;
+}
+.toc summary { cursor: pointer; font-weight: 600; }
+.toc ul { margin: 8px 0 2px; padding-left: 20px; }
+
+/* Home page cards */
+
+.cards h2 { border-top: 1px solid var(--line); }
+.cardgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 12px;
+  margin: 14px 0 6px;
+}
+.card {
+  display: block;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--ink);
+  background: var(--bg);
+}
+.card:hover { border-color: var(--accent); background: var(--bg-soft); }
+.card strong { display: block; color: var(--accent); margin-bottom: 3px; }
+.card span { font-size: 0.9rem; color: var(--ink-soft); }
+
+/* Footer */
+
+.foot {
+  border-top: 1px solid var(--line);
+  padding: 20px 24px 40px;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+.foot p { max-width: 1180px; margin: 0 auto; }
+
+.edit {
+  margin-top: 44px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 0.88rem;
+}
+
+/* Narrow screens: the sidebar becomes a block above the content. */
+
+@media (max-width: 860px) {
+  .shell { flex-direction: column; gap: 8px; padding-top: 18px; }
+  .side {
+    position: static;
+    width: auto;
+    flex: none;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+  }
+  main { max-width: none; }
+}

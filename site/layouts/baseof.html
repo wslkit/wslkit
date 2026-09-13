@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} &middot; {{ .Site.Title }}{{ end }}</title>
+{{- with .Params.summary }}
+<meta name="description" content="{{ . }}">
+{{- end }}
+<link rel="stylesheet" href="{{ "style.css" | relURL }}">
+<link rel="stylesheet" href="{{ "chroma.css" | relURL }}">
+<link rel="icon" href="data:,">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <a class="brand" href="{{ "" | relURL }}">wslkit</a>
+  <nav class="toplinks">
+    <a href="https://github.com/wslkit/wslkit">Source</a>
+    <a href="https://github.com/wslkit/wslkit/issues">Issues</a>
+  </nav>
+</header>
+
+<div class="shell">
+  {{ partial "nav.html" . }}
+  <main id="main">
+    {{ block "main" . }}{{ end }}
+  </main>
+</div>
+
+<footer class="foot">
+  <p>wslkit is <a href="https://github.com/wslkit/wslkit/blob/main/LICENSE">MIT licensed</a>.
+  This page is generated from
+  <a href="https://github.com/wslkit/wslkit/tree/main/docs">docs/</a> in the repository.</p>
+</footer>
+</body>
+</html>

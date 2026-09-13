@@ -1,0 +1,21 @@
+{{ define "main" }}
+<article class="home">
+  {{ .Content }}
+  {{ $ctx := . }}
+  {{ range hugo.Data.nav.sections }}
+  <section class="cards">
+    <h2>{{ .section }}</h2>
+    <div class="cardgrid">
+      {{ range .pages }}
+        {{ with $ctx.Site.GetPage (printf "/%s" .) }}
+        <a class="card" href="{{ .RelPermalink }}">
+          <strong>{{ if .Params.short }}{{ .Params.short }}{{ else }}{{ .Title }}{{ end }}</strong>
+          <span>{{ .Params.summary }}</span>
+        </a>
+        {{ end }}
+      {{ end }}
+    </div>
+  </section>
+  {{ end }}
+</article>
+{{ end }}

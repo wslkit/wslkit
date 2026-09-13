@@ -1,0 +1,18 @@
+{{ define "main" }}
+<article>
+  <h1>{{ .Title }}</h1>
+  {{- with .Params.summary }}
+  <p class="summary">{{ . }}</p>
+  {{- end }}
+  {{- if gt (len .TableOfContents) 40 }}
+  <details class="toc">
+    <summary>On this page</summary>
+    {{ .TableOfContents }}
+  </details>
+  {{- end }}
+  {{ .Content }}
+  {{- if .Params.source }}
+  <p class="edit"><a href="https://github.com/wslkit/wslkit/blob/main/{{ .Params.source }}">Edit this page</a></p>
+  {{- end }}
+</article>
+{{ end }}
