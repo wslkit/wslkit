@@ -1,0 +1,38 @@
+{
+  "schema": "wslkit/disk-caches/v1",
+  "updated": "2026-09-13",
+  "comment": "Paths inside a WSL 2 distribution that commonly hold reclaimable data, used by `wslkit disk usage`. This is a catalogue for reporting only: wslkit never deletes anything here. `safe` false does not mean dangerous, it means wslkit cannot judge on the user's behalf. A path starting ~/ is expanded against every real home directory. No entry may end in a slash: the containment check that stops /var/log claiming /var/logbook depends on it.",
+  "caches": [
+    {"path": "/var/cache/apt/archives", "label": "apt package cache", "safe": true, "note": "downloaded .deb files; apt-get clean empties it and apt refetches on demand"},
+    {"path": "/var/lib/apt/lists", "label": "apt package lists", "safe": true, "note": "rebuilt by apt-get update"},
+    {"path": "/var/cache/dnf", "label": "dnf cache", "safe": true},
+    {"path": "/var/cache/yum", "label": "yum cache", "safe": true},
+    {"path": "/var/cache/pacman/pkg", "label": "pacman package cache", "safe": true, "note": "paccache -r keeps the most recent versions"},
+    {"path": "/var/cache/zypp", "label": "zypper cache", "safe": true},
+    {"path": "/var/cache/apk", "label": "apk cache", "safe": true},
+    {"path": "/var/cache/man", "label": "man page cache", "safe": true},
+
+    {"path": "~/.cache/pip", "label": "pip cache", "safe": true},
+    {"path": "~/.npm", "label": "npm cache", "safe": true, "note": "npm cache clean --force empties it"},
+    {"path": "~/.cache/yarn", "label": "yarn cache", "safe": true},
+    {"path": "~/.local/share/pnpm/store", "label": "pnpm store", "safe": false, "note": "pnpm hard-links from here into every project, so emptying it breaks installed dependencies until they are reinstalled"},
+    {"path": "~/.cargo/registry", "label": "cargo registry", "safe": true, "note": "sources and .crate files, refetched on the next build"},
+    {"path": "~/.rustup/toolchains", "label": "rustup toolchains", "safe": false, "note": "these are installed compilers, not a cache; remove individual ones with rustup toolchain uninstall"},
+    {"path": "~/go/pkg/mod", "label": "go module cache", "safe": true, "note": "go clean -modcache empties it; modules are refetched on the next build"},
+    {"path": "~/.cache/go-build", "label": "go build cache", "safe": true},
+    {"path": "~/.gradle/caches", "label": "gradle cache", "safe": true},
+    {"path": "~/.m2/repository", "label": "maven repository", "safe": true, "note": "refetched from the configured repositories, which is slow on a poor connection"},
+    {"path": "~/.nuget/packages", "label": "nuget packages", "safe": true},
+    {"path": "~/.cache/composer", "label": "composer cache", "safe": true},
+    {"path": "~/.cache", "label": "user cache", "safe": true, "note": "contains the entries above that live under it; the total counts them once"},
+
+    {"path": "/var/lib/docker", "label": "docker storage", "safe": false, "note": "images, containers and volumes, not a cache; reclaim with docker system prune"},
+    {"path": "/var/lib/containers", "label": "podman storage", "safe": false, "note": "reclaim with podman system prune"},
+    {"path": "/var/lib/snapd", "label": "snap packages", "safe": false, "note": "installed snaps and their old revisions"},
+
+    {"path": "/var/log/journal", "label": "systemd journal", "safe": true, "note": "journalctl --vacuum-size=100M trims it"},
+    {"path": "/var/log", "label": "logs", "safe": false, "note": "includes the journal above; some of it may be wanted evidence"},
+    {"path": "/tmp", "label": "temporary files", "safe": true},
+    {"path": "/var/tmp", "label": "temporary files that survive a reboot", "safe": true}
+  ]
+}

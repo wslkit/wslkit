@@ -284,3 +284,79 @@ func (a *App) renderPlanPrefixed(f diskFlags, p disk.Plan, prefix string) int {
 	disk.RenderDryRun(a.Stdout, p, prefix)
 	return ExitOK
 }
+
+// ---------------------------------------------------------------- usage
+
+func (a *App) diskUsageCmd(args []string) int {
+	fs := flag.NewFlagSet("disk usage", flag.ContinueOnError)
+	fs.SetOutput(a.Stderr)
+	var f diskFlags
+	f.register(fs)
+	top := fs.Int("top", 0, "show only the largest N entries")
+	byDir := fs.Bool("by-directory", false, "also break the whole guest down by directory")
+	depth := fs.Int("depth", disk.DefaultDepth, "how deep the directory breakdown goes")
+	name, code := oneDistroArg(a, fs, args, "disk usage")
+	if code != ExitOK {
+		return code
+	}
+	if *depth < 1 || *depth > disk.MaxDepth {
+		fmt.Fprintf(a.Stderr, "--depth must be between 1 and %d\n", disk.MaxDepth)
+		return ExitUsage
+	}
+	if !*byDir && isSet(fs, "depth") {
+		fmt.Fprintln(a.Stderr, "--depth only means something with --by-directory")
+		return ExitUsage
+	}
+	if *top < 0 {
+		fmt.Fprintln(a.Stderr, "--top must not be negative")
+		return ExitUsage
+	}
+
+	e := diskEnv()
+	list, _, err := e.Registry.Distros()
+	if err != nil {
+		fmt.Fprintf(a.Stderr, "error: %v\n", err)
+		return diskExitFor(err)
+	}
+	r, err := disk.Resolve(list, name)
+	if err != nil {
+		fmt.Fprintf(a.Stderr, "error: %v\n", err)
+		return diskExitFor(err)
+	}
+	plan, err := disk.PlanUsage(r)
+	if err != nil {
+		fmt.Fprintf(a.Stderr, "error: %v\n", err)
+		return diskExitFor(err)
+	}
+	if f.dryRun {
+		return a.renderPlan(f, plan)
+	}
+
+	o := disk.UsageOptions{Top: *top, ByDirectory: *byDir, Depth: *depth, Timeout: disk.DefaultUsageTimeout}
+	u, err := disk.MeasureUsage(context.Background(), e, r, o)
+	if err != nil {
+		fmt.Fprintf(a.Stderr, "error: %v\n", err)
+		return diskExitFor(err)
+	}
+	if f.jsonOut {
+		if err := disk.WriteJSONLine(a.Stdout, disk.UsageJSON(u)); err != nil {
+			fmt.Fprintf(a.Stderr, "error: %v\n", err)
+			return ExitFindings
+		}
+		return ExitOK
+	}
+	disk.RenderUsage(a.Stdout, u)
+	return ExitOK
+}
+
+// isSet reports whether a flag was given on the command line, as opposed to
+// holding its default. The flag package only exposes this by walking the set.
+func isSet(fs *flag.FlagSet, name string) bool {
+	found := false
+	fs.Visit(func(fl *flag.Flag) {
+		if fl.Name == name {
+			found = true
+		}
+	})
+	return found
+}
