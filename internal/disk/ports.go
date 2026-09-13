@@ -79,6 +79,8 @@ type FileSystem interface {
 	List(dir, pattern string) ([]DirEntry, error)
 	// ExpandEnv expands %NAME% references.
 	ExpandEnv(s string) (string, error)
+	// Remove deletes a file.
+	Remove(path string) error
 }
 
 // DiskFacts is what the virtual disk provider knows about a .vhdx, as opposed

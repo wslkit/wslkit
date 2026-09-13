@@ -26,7 +26,7 @@ func main() {
 	if sub, ok := aliases[invokedAs(os.Args[0])]; ok {
 		args = append([]string{sub}, args...)
 	}
-	app := &cli.App{Version: version, Stdout: os.Stdout, Stderr: os.Stderr}
+	app := &cli.App{Version: version, Stdout: os.Stdout, Stderr: os.Stderr, Stdin: os.Stdin}
 	os.Exit(app.Run(args))
 }
 

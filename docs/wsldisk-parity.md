@@ -15,9 +15,9 @@ The reference is wsldisk at commit `a0d60c5`.
 | `wsldisk trim <distro>` | `wslkit disk trim <distro>` | **done** |
 | `wsldisk compact [distro]` | `wslkit disk compact [distro]` | **done** |
 | `wsldisk usage <distro>` | `wslkit disk usage <distro>` | **done** |
-| `wsldisk orphans` | `wslkit disk orphans` | todo |
+| `wsldisk orphans` | `wslkit disk orphans` | **done** |
 | `wsldisk move <distro> <dir>` | `wslkit disk move <distro> <dir>` | todo |
-| `wsldisk relink <distro> <path>` | `wslkit disk relink <distro> <path>` | todo |
+| `wsldisk relink <distro> <path>` | `wslkit disk relink <distro> <path>` | **done** |
 | `wsldisk config [path\|get\|set\|edit]` | `wslkit disk config ...` | todo |
 | `wsldisk completion <shell>` | `wslkit completion <shell>` | todo, kit-wide rather than disk-only |
 
@@ -31,19 +31,19 @@ wired to a flag in wsldisk and which ADR 0003 rules out.
 | `--json` | all but `completion` | **done** for list, info |
 | `--verbose`, `-v` | all | **done** for list, info |
 | `--dry-run` | all | **done** for list, info, trim, compact, usage |
-| `--yes`, `-y` | all | todo, lands with `orphans --delete` |
+| `--yes`, `-y` | all | **done** |
 | `--log FILE` | all | todo |
 | `--probe` | `list`, `info` | **done** |
 | `--top`, `--by-directory`, `--depth` | `usage` | **done** |
 | `--all`, `--file`, `--no-trim`, `--restart`, `--shutdown` | `compact` | **done**, plus `--unlock-timeout` and `--trim-timeout` |
-| `--scan`, `--delete`, `--relink`, `--to` | `orphans` | todo |
+| `--scan`, `--delete`, `--relink`, `--to` | `orphans` | **done** |
 | `--keep-source` | `move` | todo |
 
 ## Contracts
 
 | Item | Status |
 |---|---|
-| Exit codes 0, 2, 3, 5, 10, 11 | **done**, defined in `internal/cli/disk_windows.go` |
+| Exit codes 0, 2, 3, 5, 10, 11 | **done**, all six now reachable |
 | JSON: sizes as integer bytes, sorted keys, absent never zero | **done** |
 | JSON: one object per line, not an array | **done** |
 | Errors as a JSON object on stdout under `--json` | todo |
@@ -79,15 +79,15 @@ reason in a comment next to the code.
       labelled as such.
 - [x] Compaction waits for the utility VM to release the disk, and says which
       of the three reasons it could not.
-- [ ] The smoke test after a move or relink is `/bin/sh -c :`, because NixOS-WSL
+- [x] The smoke test after a move or relink is `/bin/sh -c :`, because NixOS-WSL
       has no `/bin/true`.
 - [ ] `move` deletes the source only after the distribution has booted from the
       copy.
 - [x] A plan may not schedule an undoable change after an irreversible step.
-- [ ] `orphans` re-checks the extension in code, because the filesystem matches
+- [x] `orphans` re-checks the extension in code, because the filesystem matches
       `*.vhdx` against short names too.
-- [ ] `orphans --delete` asks once for the whole set, and end-of-input is a no.
-- [ ] Docker Desktop keeps a disk no distribution claims; deleting it is not
+- [x] `orphans --delete` asks once for the whole set, and end-of-input is a no.
+- [x] Docker Desktop keeps a disk no distribution claims; deleting it is not
       safe merely because it is unclaimed.
 
 ## Repository

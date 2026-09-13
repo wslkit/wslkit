@@ -112,6 +112,22 @@ wslkit disk usage Ubuntu --top 10 --json       the ten largest, as integer bytes
 means wslkit cannot judge whether what it holds still matters, not that removing
 it is dangerous.
 
+When a disk has been moved by hand, or a distribution was removed and its disk
+was not:
+
+```
+wslkit disk orphans                            .vhdx files no distribution claims
+wslkit disk orphans --scan D:\wsl               look somewhere else as well
+wslkit disk orphans --delete                   after one confirmation for the whole set
+wslkit disk relink Ubuntu D:\wsl\ext4.vhdx      repoint a distribution at its disk
+```
+
+Unclaimed is not the same as unused: Docker Desktop keeps a disk holding every
+volume you have and no distribution claims it. `orphans` says so before it
+deletes anything, refuses any file that is open, and treats end of input as a
+no. `relink` writes registry values only, starts the distribution to check the
+new path works, and puts the registry back if it does not.
+
 This is the Go port of [wsldisk](https://github.com/wslkit/wsldisk); progress
 towards retiring that repository is tracked in [docs/wsldisk-parity.md](docs/wsldisk-parity.md).
 

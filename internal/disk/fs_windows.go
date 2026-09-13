@@ -284,3 +284,15 @@ func (WindowsFS) ExpandEnv(s string) (string, error) {
 	}
 	return windows.UTF16ToString(buf), nil
 }
+
+// Remove deletes a file.
+func (WindowsFS) Remove(path string) error {
+	p, err := widePath(path)
+	if err != nil {
+		return err
+	}
+	if err := windows.DeleteFile(p); err != nil {
+		return fmt.Errorf("disk: deleting %s: %w", path, err)
+	}
+	return nil
+}

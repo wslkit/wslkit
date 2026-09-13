@@ -43,6 +43,10 @@ type App struct {
 	Version string
 	Stdout  io.Writer
 	Stderr  io.Writer
+	// Stdin is read only to answer a confirmation prompt. A nil Stdin, or
+	// one at end of input, is a "no": a piped command with nothing to answer
+	// with has not consented to anything.
+	Stdin io.Reader
 }
 
 // Run dispatches the top-level command tree.
