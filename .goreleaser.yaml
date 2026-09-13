@@ -1,6 +1,11 @@
 version: 2
 project_name: wslkit
 
+before:
+  hooks:
+    # Cross-compile the guest agent so it is embedded in wslkit.exe.
+    - go run ./tools/build-agent -version {{.Version}}
+
 builds:
   - id: wslkit
     main: ./cmd/wslkit

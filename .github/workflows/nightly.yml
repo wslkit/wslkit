@@ -18,6 +18,7 @@ jobs:
           - { pkg: ./internal/wslconfig, fn: FuzzParse }
           - { pkg: ./internal/wslver, fn: FuzzParse }
           - { pkg: ./internal/wslerr, fn: FuzzParse }
+          - { pkg: ./internal/agent/proto, fn: FuzzReadFrame }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

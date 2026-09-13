@@ -12,7 +12,7 @@ import (
 )
 
 func All() []probe.Probe {
-	return []probe.Probe{Features{}, Services{}, Virtualization{}, Build{}, Defender{}, Plugins{}}
+	return []probe.Probe{Features{}, Services{}, Virtualization{}, Build{}, Defender{}, Plugins{}, AgentDaemon{}}
 }
 
 // ---------------------------------------------------------------- HST001
