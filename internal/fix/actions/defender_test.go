@@ -104,3 +104,31 @@ func TestWMIMethodRoundTrip(t *testing.T) {
 		t.Fatal("wrong kind must fail")
 	}
 }
+
+// A disk already covered by a folder rule, a wildcard or the extension list
+// does not need a rule of its own. Adding one anyway leaves the user an
+// exclusion to wonder about later, and makes the fix look like it did
+// something when there was nothing to do.
+func TestDefenderPlanSkipsWhatIsAlreadyCovered(t *testing.T) {
+	cases := map[string]env.Exclusions{
+		"the folder above":    {Paths: []string{`C:\Users\u\AppData\Local\wsl`, `D:\wsl`}},
+		"a wildcard per user": {Paths: []string{`C:\Users\*\AppData\Local\wsl`, `D:\wsl\*`}},
+		"the vhdx extension":  {Extensions: []string{"vhdx"}},
+		"an environment name": {Paths: []string{`%LOCALAPPDATA%\wsl`, `D:\wsl`}},
+	}
+	for name, ex := range cases {
+		t.Run(name, func(t *testing.T) {
+			e := defenderEnv()
+			e.UserProfile = `C:\Users\u`
+			ex.Processes = []string{"vmmem", "vmmemWSL", "wslservice.exe"}
+			e.Defender.Exclusions = env.Ok(ex, "t")
+			p, err := Defender{}.Plan(e, fix.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(p.Steps) != 1 || p.Steps[0].Kind != "note" {
+				t.Fatalf("plan should have nothing to do: %+v", p.Steps)
+			}
+		})
+	}
+}

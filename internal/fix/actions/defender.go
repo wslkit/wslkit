@@ -8,6 +8,7 @@ import (
 
 	"github.com/wslkit/wslkit/internal/env"
 	"github.com/wslkit/wslkit/internal/fix"
+	"github.com/wslkit/wslkit/internal/probe/host"
 )
 
 const (
@@ -46,18 +47,25 @@ func (d Defender) Plan(e *env.Env, o fix.Options) (fix.Plan, error) {
 	sort.Strings(paths)
 
 	// Skip what is already excluded when the list was readable (elevated planning).
-	var existingPaths, existingProcs map[string]bool
-	if e.Defender.Exclusions.OK() {
-		existingPaths = lowerSet(e.Defender.Exclusions.Value.Paths)
+	var existingProcs map[string]bool
+	readable := e.Defender.Exclusions.OK()
+	if readable {
 		existingProcs = lowerSet(e.Defender.Exclusions.Value.Processes)
 	} else {
 		p.Warnings = append(p.Warnings, "The current exclusion list could not be read; entries that already exist are re-added harmlessly.")
 	}
 	var addPaths, addProcs []string
 	for _, pth := range paths {
-		if !existingPaths[strings.ToLower(pth)] {
-			addPaths = append(addPaths, pth)
+		// Covered is not the same as listed: a folder rule, a wildcard for
+		// every account, or an exclusion of the vhdx extension all protect
+		// this disk already, and adding the file on top of one of them
+		// leaves the user a rule to wonder about later.
+		if readable {
+			if _, ok := host.ExcludedBy(pth, e.Defender.Exclusions.Value, e.UserProfile); ok {
+				continue
+			}
 		}
+		addPaths = append(addPaths, pth)
 	}
 	for _, proc := range defenderProcesses {
 		if !existingProcs[strings.ToLower(proc)] {

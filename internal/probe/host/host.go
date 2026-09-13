@@ -207,14 +207,20 @@ func (p Defender) Run(e *env.Env) probe.Result {
 		return b.Res(probe.Unknown, 0.1, "could not read Defender exclusions: "+d.Exclusions.Err)
 	}
 	ex := d.Exclusions.Value
-	var missing []string
+	var missing, covered []string
 	for _, dist := range distros {
 		if !dist.Vhd.OK() {
 			continue
 		}
-		if !pathExcluded(dist.Vhd.Value.Path, ex.Paths) {
-			missing = append(missing, dist.Vhd.Value.Path)
+		// Matched against the whole exclusion list, wildcards, environment
+		// variables and extension rules included. Telling someone who did
+		// exclude their disk that they did not is worse than not checking:
+		// they go and add a second, redundant rule.
+		if rule, ok := ExcludedBy(dist.Vhd.Value.Path, ex, e.UserProfile); ok {
+			covered = append(covered, fmt.Sprintf("%s (%s)", dist.Name, rule))
+			continue
 		}
+		missing = append(missing, dist.Vhd.Value.Path)
 	}
 	var missingProc []string
 	for _, proc := range []string{"vmmem", "vmmemWSL", "wslservice.exe", "wsl.exe"} {
@@ -224,8 +230,16 @@ func (p Defender) Run(e *env.Env) probe.Result {
 	}
 	if len(missing) == 0 {
 		r := b.Res(probe.OK, 0.6, "All distro disks are excluded from Defender real-time scanning")
+		// Which rule covered each disk, because an exclusion that turns out
+		// to be a wildcard somebody else wrote is worth seeing.
+		if len(covered) > 0 {
+			r.Detail = "Excluded by:\n  " + strings.Join(covered, "\n  ")
+		}
 		if len(missingProc) > 0 {
-			r.Detail = "Process exclusions not set for: " + strings.Join(missingProc, ", ") + " (optional)"
+			if r.Detail != "" {
+				r.Detail += "\n"
+			}
+			r.Detail += "Process exclusions not set for: " + strings.Join(missingProc, ", ") + " (optional)"
 		}
 		return r
 	}
@@ -238,20 +252,6 @@ func (p Defender) Run(e *env.Env) probe.Result {
 	r.FixHint = "wslkit doctor fix defender --apply     (from an elevated terminal; dry run without --apply)"
 	r.Refs = []string{"https://github.com/microsoft/WSL/issues/8995"}
 	return r
-}
-
-func pathExcluded(path string, exclusions []string) bool {
-	p := strings.ToLower(strings.TrimPrefix(path, `\\?\`))
-	for _, ex := range exclusions {
-		x := strings.ToLower(strings.TrimSuffix(ex, `\`))
-		if x == "" {
-			continue
-		}
-		if p == x || strings.HasPrefix(p, x+`\`) {
-			return true
-		}
-	}
-	return false
 }
 
 func containsFold(list []string, s string) bool {
