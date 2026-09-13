@@ -15,7 +15,7 @@ sections:
     pages: [doctor, disk, top, agent, sock]
 
   - section: Guides
-    pages: [wsl-will-not-start, reclaim-disk-space, zone-identifier-files, windows-keys-in-wsl, report-a-bug]
+    pages: [wsl-will-not-start, reclaim-disk-space, file-watchers, zone-identifier-files, windows-keys-in-wsl, report-a-bug]
 
   - section: Reference
     pages: [errors, wslconfig, probes, fixes, compatibility, exit-codes, json]
@@ -31,6 +31,7 @@ short:
   windows-keys-in-wsl: Use your Windows keys
   report-a-bug: Report a bug well
   zone-identifier-files: Zone.Identifier files
+  file-watchers: Watchers never fire
   wslconfig: .wslconfig keys
   exit-codes: Exit codes
   json: JSON output

@@ -247,6 +247,22 @@ type Distro struct {
 	// download is saved into the distribution over \\wsl.localhost. Same
 	// rule as WslConf: running distributions only.
 	ZoneFiles Field[ZoneScan] `json:"zone_files,omitempty"`
+	// Watchers are processes in this distribution that watch files, working
+	// on a mounted Windows drive where watching does not work. Read from
+	// /proc over \\wsl.localhost, running distributions only.
+	Watchers Field[[]WatchProc] `json:"watchers,omitempty"`
+}
+
+// WatchProc is one file-watching process working on the Windows filesystem.
+//
+// The command line is deliberately not kept: it is where tokens and passwords
+// end up, and the tool's name and its directory are the whole of what the
+// finding needs.
+type WatchProc struct {
+	// Name is the tool, as the user would name it.
+	Name string `json:"name"`
+	// Dir is where it is working, which is what makes it a finding.
+	Dir string `json:"dir"`
 }
 
 // ZoneScan is the result of looking for :Zone.Identifier files in one

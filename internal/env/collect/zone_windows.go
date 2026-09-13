@@ -58,36 +58,13 @@ func scanZoneFiles(ctx context.Context, distro string, timeout time.Duration) en
 // zonePath is the root of the scan for one distribution.
 func zonePath(distro string) string { return `\\wsl.localhost\` + distro }
 
-// zoneMargin is what the scan leaves of the collector's deadline for the
-// collector to finish in.
-const zoneMargin = 250 * time.Millisecond
-
-// zoneBudget is how long the scan may take.
-//
-// This is the last thing the distribution collector does, and it runs under
-// that collector's deadline. Taking the full per-collector timeout would push
-// past it and have the whole collector abandoned, losing the registry inventory
-// that everything else depends on over a walk that is only a nice-to-have. So
-// the scan gets what is left, not what it was offered.
-func zoneBudget(ctx context.Context, timeout time.Duration) time.Duration {
-	dl, ok := ctx.Deadline()
-	if !ok {
-		return timeout
-	}
-	left := time.Until(dl) - zoneMargin
-	if left < timeout {
-		return left
-	}
-	return timeout
-}
-
 // scanZoneFilesFor fills in the scan for every distribution that is running.
 //
 // The distributions are scanned concurrently. Sequentially they would share one
 // collector deadline between them, so a machine with several running
 // distributions would report on the first and give up on the rest.
 func scanZoneFilesFor(ctx context.Context, distros []env.Distro, timeout time.Duration) {
-	budget := zoneBudget(ctx, timeout)
+	budget := remainingBudget(ctx, timeout)
 	var wg sync.WaitGroup
 	for i := range distros {
 		d := &distros[i]
