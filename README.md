@@ -75,13 +75,28 @@ wslkit sock enable gpg-agent -d Ubuntu     # gpg4win, including its SSH support
 wslkit sock status -d Ubuntu
 ```
 
+## Disks
+
+`wslkit disk` reports what each distribution costs on disk and what could be
+reclaimed. It reads only: nothing is started, and nothing is changed.
+
+```
+wslkit disk list                 every distribution, its size on disk and what is reclaimable
+wslkit disk list --json          integer bytes, one object per line
+wslkit disk info Ubuntu          registration, disk geometry and guest usage
+wslkit disk info Ubuntu --probe  start it if stopped, to read the usage inside
+```
+
+This is the Go port of [wsldisk](https://github.com/wslkit/wsldisk); progress
+towards retiring that repository is tracked in [docs/wsldisk-parity.md](docs/wsldisk-parity.md).
+
 ## Legacy name
 
 The binary is multi-call: a copy or shim named `wsldoctor.exe` behaves as `wslkit doctor`.
 
 ## Part of wslkit
 
-- [wsldisk](https://github.com/wslkit/wsldisk) — reclaim disk space from WSL 2 virtual disks (to become `wslkit disk`)
+- [wsldisk](https://github.com/wslkit/wsldisk) — reclaim disk space from WSL 2 virtual disks (being absorbed as `wslkit disk`)
 - [wsldrive](https://github.com/wslkit/wsldrive) — cross the WSL 2 filesystem boundary at native speed
 - [skrog](https://github.com/wslkit/skrog) — the upstream Docker Engine on Windows via WSL 2
 
