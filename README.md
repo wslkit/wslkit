@@ -139,6 +139,18 @@ wslkit disk config edit                        open it in $EDITOR
 
 A flag given on the command line always wins over the setting.
 
+Tab completion for every command, generated from the command tree so it cannot
+drift:
+
+```
+wslkit completion powershell | Out-String | Invoke-Expression
+source <(wslkit completion bash)
+source <(wslkit completion zsh)
+```
+
+Distribution names are resolved when you press Tab, so a script generated last
+month knows about a distribution installed this morning.
+
 To put a disk on another drive:
 
 ```

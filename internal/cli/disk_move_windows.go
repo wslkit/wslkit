@@ -39,13 +39,11 @@ func (a *App) diskMove(args []string) int {
 	e := diskEnv()
 	list, _, err := e.Registry.Distros()
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	r, err := disk.Resolve(list, name)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 
 	running, known := false, true
@@ -63,12 +61,10 @@ func (a *App) diskMove(args []string) int {
 	o := disk.MoveOptions{KeepSource: *keep}
 	plan, err := disk.PlanMove(e, r, target, o, running, known)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	if err := plan.Valid(); err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return ExitFindings
+		return a.diskFail(f, err)
 	}
 	if f.dryRun {
 		return a.renderPlan(f, plan)
@@ -80,8 +76,7 @@ func (a *App) diskMove(args []string) int {
 	}
 	res, err := disk.Move(ctx, e, r, target, o, progress)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	if f.jsonOut {
 		if err := disk.WriteJSONLine(a.Stdout, disk.MoveJSON(res)); err != nil {

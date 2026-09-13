@@ -64,6 +64,8 @@ func (a *App) Run(args []string) int {
 		return a.sock(args[1:])
 	case "disk":
 		return a.disk(args[1:])
+	case "completion":
+		return a.completion(args[1:])
 	case "version", "--version", "-v":
 		fmt.Fprintf(a.Stdout, "%s %s\n", Product, a.Version)
 		return ExitOK
@@ -112,7 +114,9 @@ func (a *App) usage() {
   wslkit agent ...                     guest agent: install into a distro, run the Windows daemon (wslkit agent help)
   wslkit sock ...                      bridge Windows sockets into a distro: ssh-agent, gpg-agent (wslkit sock help)
   wslkit disk ...                      inspect and maintain distribution disks: list, info (wslkit disk help)
+  wslkit completion <shell>            a completion script for powershell, bash or zsh
   wslkit version
+  wslkit help
 
 check / explain flags:
   --json                  machine-readable output (schema wslkit/result/v1)

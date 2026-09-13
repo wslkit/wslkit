@@ -4,6 +4,9 @@
 open and this file is the gate. See ADR 0011 for how the port is built and what
 it deliberately changes.
 
+**Status: every command and flag is ported.** What remains is archiving the
+repository itself, which is the owner's call.
+
 The reference is wsldisk at commit `a0d60c5`.
 
 ## Commands
@@ -19,7 +22,7 @@ The reference is wsldisk at commit `a0d60c5`.
 | `wsldisk move <distro> <dir>` | `wslkit disk move <distro> <dir>` | **done** |
 | `wsldisk relink <distro> <path>` | `wslkit disk relink <distro> <path>` | **done** |
 | `wsldisk config [path|get|set|edit]` | `wslkit disk config ...` | **done** |
-| `wsldisk completion <shell>` | `wslkit completion <shell>` | todo, kit-wide rather than disk-only |
+| `wsldisk completion <shell>` | `wslkit completion <shell>` | **done**, kit-wide rather than disk-only |
 
 Not ported, deliberately: `--elevate` and the elevated worker, which were never
 wired to a flag in wsldisk and which ADR 0003 rules out.
@@ -32,7 +35,7 @@ wired to a flag in wsldisk and which ADR 0003 rules out.
 | `--verbose`, `-v` | all | **done** for list, info |
 | `--dry-run` | all | **done** for list, info, trim, compact, usage |
 | `--yes`, `-y` | all | **done** |
-| `--log FILE` | all | todo |
+| `--log FILE` | all | **done** |
 | `--probe` | `list`, `info` | **done** |
 | `--top`, `--by-directory`, `--depth` | `usage` | **done** |
 | `--all`, `--file`, `--no-trim`, `--restart`, `--shutdown` | `compact` | **done**, plus `--unlock-timeout` and `--trim-timeout` |
@@ -63,7 +66,7 @@ config that turned trimming off could not be overridden from the CLI at all.
 | Exit codes 0, 2, 3, 5, 10, 11 | **done**, all six now reachable |
 | JSON: sizes as integer bytes, sorted keys, absent never zero | **done** |
 | JSON: one object per line, not an array | **done** |
-| Errors as a JSON object on stdout under `--json` | todo |
+| Errors as a JSON object on stdout under `--json` | **done**, with the stable token |
 | Human table: two-space gutter, `-` for unmeasurable, no trailing space | **done** |
 | `format_size` truncates rather than rounds | **done** |
 | Widths counted in code points | **done** |
@@ -114,8 +117,14 @@ reason in a comment next to the code.
 - [x] An unparseable settings file is a warning everywhere except `config`
       itself, which fails, because that is what the user came to look at.
 
+- [x] Completion is generated from the command tree, never hand-written, and a
+      test fails if the tree and the usage text disagree.
+- [x] Distribution names are resolved when the user presses Tab, not baked into
+      the script.
+
 ## Repository
 
 - [x] The cache catalogue is carried over and embedded, as JSON rather than TOML.
-- [ ] README and site pages cover every disk subcommand.
+- [x] The README covers every disk subcommand. Site pages are tracked separately
+      in the documentation site issue.
 - [ ] `wsldisk` is archived and its README points at wslkit.
