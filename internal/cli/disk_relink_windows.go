@@ -56,8 +56,7 @@ func (a *App) diskOrphans(args []string) int {
 	e := diskEnv()
 	list, warnings, err := e.Registry.Distros()
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	for _, w := range warnings {
 		fmt.Fprintf(a.Stderr, "warning: %s\n", w)
@@ -69,8 +68,7 @@ func (a *App) diskOrphans(args []string) int {
 
 	orphans, scanWarnings, err := disk.ScanOrphans(e, list, roots)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	for _, w := range scanWarnings {
 		fmt.Fprintf(a.Stderr, "warning: %s\n", w)
@@ -220,13 +218,11 @@ func (a *App) relinkWith(f diskFlags, name, target string) int {
 	e := diskEnv()
 	list, _, err := e.Registry.Distros()
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	r, err := disk.Resolve(list, name)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 
 	running, known := false, true
@@ -242,12 +238,10 @@ func (a *App) relinkWith(f diskFlags, name, target string) int {
 
 	plan, err := disk.PlanRelink(e, r, target, running, known)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	if err := plan.Valid(); err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return ExitFindings
+		return a.diskFail(f, err)
 	}
 	if f.dryRun {
 		return a.renderPlan(f, plan)
@@ -259,8 +253,7 @@ func (a *App) relinkWith(f diskFlags, name, target string) int {
 	}
 	res, err := disk.Relink(ctx, e, r, target, progress)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	if f.jsonOut {
 		if err := disk.WriteJSONLine(a.Stdout, disk.RelinkJSON(res)); err != nil {

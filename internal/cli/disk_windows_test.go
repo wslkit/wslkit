@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -11,11 +10,6 @@ import (
 
 	"github.com/wslkit/wslkit/internal/disk"
 )
-
-func newApp() (*App, *bytes.Buffer, *bytes.Buffer) {
-	var out, errb bytes.Buffer
-	return &App{Version: "test", Stdout: &out, Stderr: &errb}, &out, &errb
-}
 
 func TestDiskUsageErrors(t *testing.T) {
 	cases := []struct {

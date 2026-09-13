@@ -28,19 +28,16 @@ func (a *App) diskTrim(args []string) int {
 	e := diskEnv()
 	list, _, err := e.Registry.Distros()
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	r, err := disk.Resolve(list, name)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 
 	plan, err := disk.PlanTrim(r)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	if f.dryRun {
 		return a.renderPlan(f, plan)
@@ -48,8 +45,7 @@ func (a *App) diskTrim(args []string) int {
 
 	res, err := disk.Trim(context.Background(), e, r, *trimTimeout)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	if f.jsonOut {
 		if err := disk.WriteJSONLine(a.Stdout, disk.TrimJSON(res)); err != nil {
@@ -132,8 +128,7 @@ func (a *App) diskCompact(args []string) int {
 
 	targets, err := a.compactTargets(ctx, e, name, *all, *file, &o)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	if len(targets) == 0 {
 		if !f.jsonOut {
@@ -164,8 +159,7 @@ func (a *App) diskCompact(args []string) int {
 			continue
 		}
 		if err := plan.Valid(); err != nil {
-			fmt.Fprintf(a.Stderr, "error: %v\n", err)
-			return ExitFindings
+			return a.diskFail(f, err)
 		}
 		if f.dryRun {
 			prefix := ""
@@ -328,18 +322,15 @@ func (a *App) diskUsageCmd(args []string) int {
 	e := diskEnv()
 	list, _, err := e.Registry.Distros()
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	r, err := disk.Resolve(list, name)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	plan, err := disk.PlanUsage(r)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	if f.dryRun {
 		return a.renderPlan(f, plan)
@@ -348,8 +339,7 @@ func (a *App) diskUsageCmd(args []string) int {
 	o := disk.UsageOptions{Top: *top, ByDirectory: *byDir, Depth: *depth, Timeout: disk.DefaultUsageTimeout}
 	u, err := disk.MeasureUsage(context.Background(), e, r, o)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	if f.jsonOut {
 		if err := disk.WriteJSONLine(a.Stdout, disk.UsageJSON(u)); err != nil {

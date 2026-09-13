@@ -58,8 +58,7 @@ func (a *App) configShow(f diskFlags) int {
 		// `config` itself fails on an unreadable file, unlike every other
 		// command, which warns and carries on: the user is here to look
 		// at the file, so hiding the problem would be unhelpful.
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	wsl := disk.WslConfigValues(e.FS)
 
@@ -94,8 +93,7 @@ func (a *App) configShow(f diskFlags) int {
 func (a *App) configPath(f diskFlags) int {
 	path, err := disk.ConfigPath(diskEnv().FS)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	if f.jsonOut {
 		if err := disk.WriteJSONLine(a.Stdout, map[string]any{"path": path}); err != nil {
@@ -116,8 +114,7 @@ func (a *App) configGet(f diskFlags, args []string) int {
 	e := diskEnv()
 	c, _, err := disk.LoadConfig(e.FS)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 
 	if len(args) == 0 {
@@ -144,8 +141,7 @@ func (a *App) configGet(f diskFlags, args []string) int {
 	v, ok := disk.ConfigValue(c, key)
 	if !ok {
 		err := disk.UnknownSettingError(key)
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	if f.jsonOut {
 		if err := disk.WriteJSONLine(a.Stdout, map[string]any{"key": key, "value": v}); err != nil {
@@ -170,12 +166,10 @@ func (a *App) configSet(f diskFlags, args []string) int {
 	e := diskEnv()
 	c, path, err := disk.LoadConfig(e.FS)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	if err := disk.SetConfigValue(&c, key, value); err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	// Read back what was stored rather than echoing what was typed, so the
 	// user sees the value as the file will hold it.
@@ -196,8 +190,7 @@ func (a *App) configSet(f diskFlags, args []string) int {
 	}
 
 	if _, err := disk.SaveConfig(e.FS, c); err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	if f.jsonOut {
 		if err := disk.WriteJSONLine(a.Stdout, map[string]any{"key": key, "value": stored}); err != nil {
@@ -220,8 +213,7 @@ func (a *App) configEdit(f diskFlags) int {
 	}
 	if !e.FS.Exists(path) {
 		if _, err := disk.SaveConfig(e.FS, c); err != nil {
-			fmt.Fprintf(a.Stderr, "error: %v\n", err)
-			return diskExitFor(err)
+			return a.diskFail(f, err)
 		}
 	}
 	if f.dryRun {
@@ -236,8 +228,7 @@ func (a *App) configEdit(f diskFlags) int {
 		return ExitOK
 	}
 	if err := disk.OpenEditor(e.FS, path); err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	return ExitOK
 }

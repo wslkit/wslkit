@@ -7,6 +7,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -31,6 +33,7 @@ Flags common to every disk subcommand:
   --verbose     explain what is happening, on stderr
   --dry-run     show what would happen and change nothing
   -y, --yes     do not prompt for confirmation
+  --log FILE    append a transcript to this file as well as stderr
 
   --probe       start a stopped distribution to read the usage inside it.
                 Off by default: starting a distribution to measure it changes
@@ -82,6 +85,7 @@ const (
 )
 
 func (a *App) disk(args []string) int {
+	defer a.startLog(args)()
 	if len(args) == 0 {
 		a.diskUsage()
 		return ExitUsage
@@ -123,6 +127,9 @@ type diskFlags struct {
 	yes     bool
 	probe   bool
 	timeout time.Duration
+	// logFile is parsed here so the flag is accepted, but acted on before
+	// dispatch: see startLog.
+	logFile string
 }
 
 func (f *diskFlags) register(fs *flag.FlagSet) {
@@ -133,6 +140,7 @@ func (f *diskFlags) register(fs *flag.FlagSet) {
 	fs.BoolVar(&f.yes, "yes", false, "do not prompt for confirmation")
 	fs.BoolVar(&f.yes, "y", false, "do not prompt for confirmation")
 	fs.DurationVar(&f.timeout, "timeout", 30*time.Second, "bound on each command run inside a distribution")
+	fs.StringVar(&f.logFile, "log", "", "append a transcript to this file as well as stderr")
 }
 
 // diskEnv builds the production port set.
@@ -235,8 +243,7 @@ func (a *App) diskList(args []string) int {
 	ctx := context.Background()
 	rows, err := a.diskRows(ctx, diskEnv(), f, "")
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 
 	if f.jsonOut {
@@ -288,12 +295,10 @@ func (a *App) diskInfo(args []string) int {
 	ctx := context.Background()
 	rows, err := a.diskRows(ctx, diskEnv(), f, name)
 	if err != nil {
-		fmt.Fprintf(a.Stderr, "error: %v\n", err)
-		return diskExitFor(err)
+		return a.diskFail(f, err)
 	}
 	if len(rows) == 0 {
-		fmt.Fprintf(a.Stderr, "error: %v\n", disk.ErrNotFound)
-		return ExitDiskNotFound
+		return a.diskFail(f, disk.ErrNotFound)
 	}
 
 	row := rows[0]
@@ -328,4 +333,91 @@ func (a *App) diskNothingToChange(f diskFlags, command string) int {
 	}
 	fmt.Fprintf(a.Stdout, "--dry-run: %s\n", note)
 	return ExitOK
+}
+
+// errorToken is the stable name for a class of failure, so a --json consumer
+// can branch on it without parsing prose or matching an exit number.
+func errorToken(code int) string {
+	switch code {
+	case ExitUsage:
+		return "usage"
+	case ExitDiskPreflight:
+		return "preflight"
+	case ExitDiskPartial:
+		return "partial"
+	case ExitDiskNotFound:
+		return "distro-not-found"
+	case ExitDiskBusy:
+		return "distro-busy"
+	default:
+		return "generic"
+	}
+}
+
+// diskFail reports a failure and returns the exit code for it.
+//
+// Under --json the error is an object on stdout, so a consumer reading the
+// stream gets the failure in the same shape as everything else rather than
+// having to watch stderr as well. Otherwise it is a line on stderr.
+func (a *App) diskFail(f diskFlags, err error) int {
+	code := diskExitFor(err)
+	if !f.jsonOut {
+		fmt.Fprintf(a.Stderr, "error: %v\n", err)
+		return code
+	}
+	if werr := disk.WriteJSONLine(a.Stdout, map[string]any{
+		"error":     errorToken(code),
+		"exit_code": code,
+		"message":   err.Error(),
+	}); werr != nil {
+		// The stream is the only channel a --json caller reads, and it
+		// has just failed. Say so where it can still be seen.
+		fmt.Fprintf(a.Stderr, "error: %v\n", err)
+	}
+	return code
+}
+
+// logPathFrom finds --log in the raw arguments.
+//
+// It is read before the subcommand is dispatched, because the flag set that
+// would parse it belongs to the subcommand, and a failure worth logging can
+// happen before that point.
+func logPathFrom(args []string) (string, bool) {
+	for i, a := range args {
+		switch {
+		case a == "--log" || a == "-log":
+			if i+1 < len(args) {
+				return args[i+1], true
+			}
+		case strings.HasPrefix(a, "--log="):
+			return strings.TrimPrefix(a, "--log="), true
+		case strings.HasPrefix(a, "-log="):
+			return strings.TrimPrefix(a, "-log="), true
+		}
+	}
+	return "", false
+}
+
+// startLog opens the log and tees stderr into it, returning a function that
+// closes it again.
+//
+// A log that cannot be opened is a warning, never a failure: the user asked to
+// compact a disk, and losing the transcript is not a reason to refuse.
+func (a *App) startLog(args []string) func() {
+	path, ok := logPathFrom(args)
+	if !ok || path == "" {
+		return func() {}
+	}
+	fh, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		fmt.Fprintf(a.Stderr, "warning: the log %s could not be opened, so nothing is being written to it: %v\n", path, err)
+		return func() {}
+	}
+	fmt.Fprintf(fh, "\n=== %s  wslkit disk %s\n", time.Now().Format(time.RFC3339), strings.Join(args, " "))
+	previous := a.Stderr
+	a.Stderr = io.MultiWriter(previous, fh)
+	return func() {
+		a.Stderr = previous
+		_ = fh.Close()
+	}
 }
