@@ -236,3 +236,62 @@ func TestMoveUsageSaysTheDestinationIsADirectory(t *testing.T) {
 		t.Errorf("stderr %q", errb.String())
 	}
 }
+
+func TestConfigUsageErrors(t *testing.T) {
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"disk", "config", "frobnicate"}, "unknown config verb"},
+		{[]string{"disk", "config", "set", "only-one"}, "config set KEY VALUE"},
+		{[]string{"disk", "config", "get", "a", "b"}, "config get [KEY]"},
+	} {
+		a, _, errb := newApp()
+		if code := a.Run(c.args); code != ExitUsage {
+			t.Errorf("%v: exit %d, want %d", c.args, code, ExitUsage)
+		}
+		if !strings.Contains(errb.String(), c.want) {
+			t.Errorf("%v: stderr %q", c.args, errb.String())
+		}
+	}
+}
+
+// The key and value are written before the flags as often as after, and the
+// flag package stops at the first bare word.
+func TestConfigSetAcceptsFlagsOnEitherSide(t *testing.T) {
+	for _, args := range [][]string{
+		{"disk", "config", "set", "compact.trim", "false", "--dry-run"},
+		{"disk", "config", "set", "--dry-run", "compact.trim", "false"},
+	} {
+		a, out, errb := newApp()
+		if code := a.Run(args); code != ExitOK {
+			t.Fatalf("%v: exit %d (stderr %q)", args, code, errb.String())
+		}
+		if !strings.Contains(out.String(), "compact.trim = false") {
+			t.Errorf("%v: stdout %q", args, out.String())
+		}
+	}
+}
+
+// The settings file is never written by a dry run.
+func TestConfigSetDryRunSaysSo(t *testing.T) {
+	a, out, _ := newApp()
+	if code := a.Run([]string{"disk", "config", "set", "compact.trim", "false", "--dry-run"}); code != ExitOK {
+		t.Fatalf("exit %d", code)
+	}
+	if !strings.Contains(out.String(), "was not changed") {
+		t.Errorf("stdout %q", out.String())
+	}
+}
+
+// `config path` must work even when the file cannot be parsed: that is exactly
+// when someone needs to know where it is.
+func TestConfigPathPrintsAPath(t *testing.T) {
+	a, out, errb := newApp()
+	if code := a.Run([]string{"disk", "config", "path"}); code != ExitOK {
+		t.Fatalf("exit %d (stderr %q)", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "config.toml") {
+		t.Errorf("stdout %q", out.String())
+	}
+}

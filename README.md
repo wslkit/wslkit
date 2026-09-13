@@ -128,6 +128,17 @@ deletes anything, refuses any file that is open, and treats end of input as a
 no. `relink` writes registry values only, starts the distribution to check the
 new path works, and puts the registry back if it does not.
 
+Settings live in `%APPDATA%wslkitnfig.toml`:
+
+```
+wslkit disk config                             what is set, and where
+wslkit disk config set compact.trim false      change one setting
+wslkit disk config get compact.trim            the bare value, for scripts
+wslkit disk config edit                        open it in $EDITOR
+```
+
+A flag given on the command line always wins over the setting.
+
 To put a disk on another drive:
 
 ```
