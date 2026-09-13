@@ -26,6 +26,8 @@ type fakeFS struct {
 	// free afterwards, so the wait loop can be exercised without waiting.
 	unlockAfter map[string]int
 	lockCalls   map[string]int
+	removed     []string
+	listErr     map[string]error
 	volumes     map[string]VolumeInfo
 	dirs        map[string][]DirEntry
 	env         map[string]string
@@ -96,6 +98,9 @@ func (f *fakeFS) Volume(path string) (VolumeInfo, error) {
 }
 
 func (f *fakeFS) List(dir, pattern string) ([]DirEntry, error) {
+	if err, ok := f.listErr[dir]; ok {
+		return nil, err
+	}
 	return f.dirs[dir], nil
 }
 
@@ -180,3 +185,51 @@ func (c *fakeClock) Sleep(d time.Duration) {
 
 // u64 is a helper for building the pointer-valued optional fields.
 func u64(v uint64) *uint64 { return &v }
+
+func (f *fakeFS) Remove(path string) error {
+	if _, ok := f.files[path]; !ok {
+		return errors.New("no such file: " + path)
+	}
+	delete(f.files, path)
+	f.removed = append(f.removed, path)
+	return nil
+}
+
+// fakeRegistry stands in for the Lxss registration.
+type fakeRegistry struct {
+	list     []Registration
+	warnings []string
+	err      error
+	values   map[string]string
+	writes   []string
+	writeErr error
+	// failWriteOn makes the write of this value name fail, so the rollback
+	// path can be exercised.
+	failWriteOn string
+}
+
+func (f *fakeRegistry) key(guid, name string) string { return guid + "\x00" + name }
+
+func (f *fakeRegistry) Distros() ([]Registration, []string, error) {
+	return f.list, f.warnings, f.err
+}
+
+func (f *fakeRegistry) ReadString(guid, name string) (string, bool, error) {
+	v, ok := f.values[f.key(guid, name)]
+	return v, ok, nil
+}
+
+func (f *fakeRegistry) WriteString(guid, name, value string) error {
+	if f.writeErr != nil {
+		return f.writeErr
+	}
+	if name == f.failWriteOn {
+		return errors.New("write refused: " + name)
+	}
+	if f.values == nil {
+		f.values = map[string]string{}
+	}
+	f.values[f.key(guid, name)] = value
+	f.writes = append(f.writes, guid+"/"+name+"="+value)
+	return nil
+}

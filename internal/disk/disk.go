@@ -103,6 +103,10 @@ var (
 	ErrRunning = errors.New("disk: the distribution is running")
 	// ErrNotVHDX means the disk is not a .vhdx and wslkit will not touch it.
 	ErrNotVHDX = errors.New("disk: the distribution disk is not a .vhdx")
+	// ErrRefused means a check declined before anything ran, so nothing has
+	// changed. It is the difference a script needs between "this did not
+	// start" and "this failed partway".
+	ErrRefused = errors.New("disk: refused before anything was changed")
 )
 
 // Resolve picks one registration by name. An empty name selects the default

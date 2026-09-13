@@ -121,7 +121,7 @@ func PlanCompact(e Env, t CompactTarget, o CompactOptions) (Plan, error) {
 		return p, fmt.Errorf("%w: %s", ErrNotVHDX, path)
 	}
 	if !e.FS.Exists(path) {
-		return p, fmt.Errorf("disk: %s is not there. Run wslkit disk orphans to find disks nothing claims, or wslkit disk relink to repoint the distribution", path)
+		return p, fmt.Errorf("%w: %s is not there. Run wslkit disk orphans to find disks nothing claims, or wslkit disk relink to repoint the distribution", ErrRefused, path)
 	}
 
 	if t.Reg.Name != "" {
@@ -324,8 +324,11 @@ func othersRunning(ctx context.Context, e Env, exclude string) ([]string, error)
 // ships without /bin/true, where a missing binary boots the distribution and
 // then fails the exec, which is indistinguishable from a distribution that will
 // not start.
+// bootCheckTimeout bounds the check that a distribution comes up.
+const bootCheckTimeout = 2 * time.Minute
+
 func start(ctx context.Context, e Env, name string) error {
-	res, err := e.Host.RunAsRoot(ctx, name, []string{"/bin/sh", "-c", ":"}, 2*time.Minute)
+	res, err := e.Host.RunAsRoot(ctx, name, []string{"/bin/sh", "-c", ":"}, bootCheckTimeout)
 	if err != nil {
 		return err
 	}

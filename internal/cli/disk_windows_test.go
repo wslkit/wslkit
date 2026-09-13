@@ -111,8 +111,9 @@ func TestDiskExitCodeMapping(t *testing.T) {
 		{disk.ErrAmbiguous, ExitDiskNotFound},
 		{disk.ErrRunning, ExitDiskBusy},
 		{disk.ErrBusy, ExitDiskBusy},
-		{disk.ErrNotWSL2, ExitCollector},
-		{disk.ErrNotVHDX, ExitCollector},
+		{disk.ErrNotWSL2, ExitDiskPreflight},
+		{disk.ErrNotVHDX, ExitDiskPreflight},
+		{disk.ErrRefused, ExitDiskPreflight},
 		{errors.New("something else"), ExitFindings},
 	} {
 		if got := diskExitFor(c.err); got != c.want {
@@ -130,5 +131,81 @@ func TestDiskAppearsInTheTopLevelUsage(t *testing.T) {
 	a.Run(nil)
 	if !strings.Contains(errb.String(), "wslkit disk ...") {
 		t.Errorf("disk is missing from the top-level usage:\n%s", errb.String())
+	}
+}
+
+// One question for the whole set, and end of input is a no: a piped command
+// with nothing to answer with has not consented to anything.
+func TestConfirm(t *testing.T) {
+	for _, c := range []struct {
+		name  string
+		stdin string
+		want  bool
+	}{
+		{"yes", "y\n", true},
+		{"long yes", "YES\n", true},
+		{"no", "n\n", false},
+		{"bare enter", "\n", false},
+		{"anything else", "maybe\n", false},
+		{"end of input", "", false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			a, _, _ := newApp()
+			a.Stdin = strings.NewReader(c.stdin)
+			if got := a.confirm("delete 1 file(s)?"); got != c.want {
+				t.Errorf("got %v, want %v", got, c.want)
+			}
+		})
+	}
+}
+
+// No stdin at all is also a no, not a crash.
+func TestConfirmWithNoStdin(t *testing.T) {
+	a, _, _ := newApp()
+	if a.confirm("delete?") {
+		t.Error("a missing stdin must not read as consent")
+	}
+}
+
+// A lone --to used to fall through to a plain scan and exit 0, which reads as a
+// repoint that happened and did not.
+func TestOrphansRelinkAndToRequireEachOther(t *testing.T) {
+	for _, args := range [][]string{
+		{"disk", "orphans", "--to", `D:\a.vhdx`},
+		{"disk", "orphans", "--relink", "Ubuntu"},
+	} {
+		a, _, errb := newApp()
+		if code := a.Run(args); code != ExitUsage {
+			t.Errorf("%v: exit %d, want %d", args, code, ExitUsage)
+		}
+		if !strings.Contains(errb.String(), "go together") {
+			t.Errorf("%v: stderr %q", args, errb.String())
+		}
+	}
+}
+
+func TestRelinkNeedsTwoArguments(t *testing.T) {
+	for _, args := range [][]string{
+		{"disk", "relink"},
+		{"disk", "relink", "Ubuntu"},
+		{"disk", "relink", "Ubuntu", `D:\a.vhdx`, "extra"},
+	} {
+		a, _, errb := newApp()
+		if code := a.Run(args); code != ExitUsage {
+			t.Errorf("%v: exit %d, want %d", args, code, ExitUsage)
+		}
+		if !strings.Contains(errb.String(), "wslkit disk relink <distro> <path-to-vhdx>") {
+			t.Errorf("%v: stderr %q", args, errb.String())
+		}
+	}
+}
+
+func TestOrphansTakesNoArguments(t *testing.T) {
+	a, _, errb := newApp()
+	if code := a.Run([]string{"disk", "orphans", "extra"}); code != ExitUsage {
+		t.Errorf("exit %d", code)
+	}
+	if !strings.Contains(errb.String(), "takes no arguments") {
+		t.Errorf("stderr %q", errb.String())
 	}
 }

@@ -21,16 +21,25 @@ func (a *App) diskUsage() {
   wslkit disk trim <distro>               ask the guest to release the blocks it no longer uses
   wslkit disk compact [distro]            trim, stop, then shrink the disk file
   wslkit disk usage <distro>              where the space inside a distribution went
+  wslkit disk orphans                     virtual disks that no distribution claims
+  wslkit disk relink <distro> <path>      point a distribution at a disk that has moved
 
 Flags common to every disk subcommand:
   --json        machine-readable output, one object per line, sizes in bytes
   --verbose     explain what is happening, on stderr
-  --dry-run     show what would happen and change nothing. list and info only
-                read, so it reports that there was nothing to change
+  --dry-run     show what would happen and change nothing
+  -y, --yes     do not prompt for confirmation
 
   --probe       start a stopped distribution to read the usage inside it.
                 Off by default: starting a distribution to measure it changes
                 the thing being measured.
+
+orphans flags:
+  --scan DIR          another directory to search, on top of the built-in three.
+                      May be given more than once
+  --delete            delete what was found, after one confirmation for the set
+  --relink DISTRO     point a distribution at a disk, with --to
+  --to PATH           the disk to point it at
 
 usage flags:
   --top N             show only the largest N entries
@@ -58,9 +67,13 @@ grow to and is normally 1 TiB whatever the distribution holds.
 // which already match, while 10 and 11 name the two failures worth branching
 // on.
 const (
-	ExitDiskPartial  = 5
-	ExitDiskNotFound = 10
-	ExitDiskBusy     = 11
+	// ExitDiskPreflight means a check declined before anything ran, so
+	// nothing changed. It shares its number with the kit's collector
+	// failure, which carries the same meaning: the command did not start.
+	ExitDiskPreflight = ExitCollector
+	ExitDiskPartial   = 5
+	ExitDiskNotFound  = 10
+	ExitDiskBusy      = 11
 )
 
 func (a *App) disk(args []string) int {
@@ -79,6 +92,10 @@ func (a *App) disk(args []string) int {
 		return a.diskCompact(args[1:])
 	case "usage":
 		return a.diskUsageCmd(args[1:])
+	case "orphans":
+		return a.diskOrphans(args[1:])
+	case "relink":
+		return a.diskRelink(args[1:])
 	case "help", "--help", "-h":
 		a.diskUsage()
 		return ExitOK
@@ -94,6 +111,7 @@ type diskFlags struct {
 	jsonOut bool
 	verbose bool
 	dryRun  bool
+	yes     bool
 	probe   bool
 	timeout time.Duration
 }
@@ -103,6 +121,8 @@ func (f *diskFlags) register(fs *flag.FlagSet) {
 	fs.BoolVar(&f.verbose, "verbose", false, "explain what is happening, on stderr")
 	fs.BoolVar(&f.verbose, "v", false, "explain what is happening, on stderr")
 	fs.BoolVar(&f.dryRun, "dry-run", false, "show what would happen and change nothing")
+	fs.BoolVar(&f.yes, "yes", false, "do not prompt for confirmation")
+	fs.BoolVar(&f.yes, "y", false, "do not prompt for confirmation")
 	fs.DurationVar(&f.timeout, "timeout", 30*time.Second, "bound on each command run inside a distribution")
 }
 
@@ -127,8 +147,8 @@ func diskExitFor(err error) int {
 		return ExitDiskNotFound
 	case errors.Is(err, disk.ErrRunning), errors.Is(err, disk.ErrBusy):
 		return ExitDiskBusy
-	case errors.Is(err, disk.ErrNotWSL2), errors.Is(err, disk.ErrNotVHDX):
-		return ExitCollector
+	case errors.Is(err, disk.ErrNotWSL2), errors.Is(err, disk.ErrNotVHDX), errors.Is(err, disk.ErrRefused):
+		return ExitDiskPreflight
 	default:
 		return ExitFindings
 	}
