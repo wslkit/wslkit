@@ -23,6 +23,7 @@ func (a *App) diskUsage() {
   wslkit disk usage <distro>              where the space inside a distribution went
   wslkit disk orphans                     virtual disks that no distribution claims
   wslkit disk relink <distro> <path>      point a distribution at a disk that has moved
+  wslkit disk move <distro> <directory>   move a distribution disk, then check it still boots
 
 Flags common to every disk subcommand:
   --json        machine-readable output, one object per line, sizes in bytes
@@ -40,6 +41,9 @@ orphans flags:
   --delete            delete what was found, after one confirmation for the set
   --relink DISTRO     point a distribution at a disk, with --to
   --to PATH           the disk to point it at
+
+move flags:
+  --keep-source       leave the original file where it is
 
 usage flags:
   --top N             show only the largest N entries
@@ -96,6 +100,8 @@ func (a *App) disk(args []string) int {
 		return a.diskOrphans(args[1:])
 	case "relink":
 		return a.diskRelink(args[1:])
+	case "move":
+		return a.diskMove(args[1:])
 	case "help", "--help", "-h":
 		a.diskUsage()
 		return ExitOK

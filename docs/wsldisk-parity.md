@@ -16,7 +16,7 @@ The reference is wsldisk at commit `a0d60c5`.
 | `wsldisk compact [distro]` | `wslkit disk compact [distro]` | **done** |
 | `wsldisk usage <distro>` | `wslkit disk usage <distro>` | **done** |
 | `wsldisk orphans` | `wslkit disk orphans` | **done** |
-| `wsldisk move <distro> <dir>` | `wslkit disk move <distro> <dir>` | todo |
+| `wsldisk move <distro> <dir>` | `wslkit disk move <distro> <dir>` | **done** |
 | `wsldisk relink <distro> <path>` | `wslkit disk relink <distro> <path>` | **done** |
 | `wsldisk config [path\|get\|set\|edit]` | `wslkit disk config ...` | todo |
 | `wsldisk completion <shell>` | `wslkit completion <shell>` | todo, kit-wide rather than disk-only |
@@ -37,7 +37,7 @@ wired to a flag in wsldisk and which ADR 0003 rules out.
 | `--top`, `--by-directory`, `--depth` | `usage` | **done** |
 | `--all`, `--file`, `--no-trim`, `--restart`, `--shutdown` | `compact` | **done**, plus `--unlock-timeout` and `--trim-timeout` |
 | `--scan`, `--delete`, `--relink`, `--to` | `orphans` | **done** |
-| `--keep-source` | `move` | todo |
+| `--keep-source` | `move` | **done** |
 
 ## Contracts
 
@@ -61,6 +61,9 @@ reason in a comment next to the code.
 - [x] `~` expands against real home directories only, never service accounts.
 - [x] Overlapping catalogue entries are counted once, so the total never claims
       more space than the guest is using.
+- [x] The copy is sparse-aware, so moving a disk does not write out its holes.
+- [x] A cross-volume rename is never attempted: its fallback would fill the
+      holes in.
 - [x] `df` columns are counted from the right, never by header text, so a
       localised guest and a wrapped device name both parse.
 - [x] A registration with no `DistributionName` or no `BasePath` is a warning
@@ -81,7 +84,7 @@ reason in a comment next to the code.
       of the three reasons it could not.
 - [x] The smoke test after a move or relink is `/bin/sh -c :`, because NixOS-WSL
       has no `/bin/true`.
-- [ ] `move` deletes the source only after the distribution has booted from the
+- [x] `move` deletes the source only after the distribution has booted from the
       copy.
 - [x] A plan may not schedule an undoable change after an irreversible step.
 - [x] `orphans` re-checks the extension in code, because the filesystem matches

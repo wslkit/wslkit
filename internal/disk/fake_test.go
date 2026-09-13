@@ -28,6 +28,12 @@ type fakeFS struct {
 	lockCalls   map[string]int
 	removed     []string
 	listErr     map[string]error
+	renames     []string
+	copies      []string
+	mkdirs      []string
+	renameErr   error
+	copyErr     error
+	volumeErr   error
 	volumes     map[string]VolumeInfo
 	dirs        map[string][]DirEntry
 	env         map[string]string
@@ -231,5 +237,54 @@ func (f *fakeRegistry) WriteString(guid, name, value string) error {
 	}
 	f.values[f.key(guid, name)] = value
 	f.writes = append(f.writes, guid+"/"+name+"="+value)
+	return nil
+}
+
+func (f *fakeFS) Rename(from, to string) error {
+	v, ok := f.files[from]
+	if !ok {
+		return errors.New("no such file: " + from)
+	}
+	if f.renameErr != nil {
+		return f.renameErr
+	}
+	delete(f.files, from)
+	f.files[to] = v
+	f.renames = append(f.renames, from+" -> "+to)
+	return nil
+}
+
+func (f *fakeFS) SameVolume(a, b string) (bool, error) {
+	if f.volumeErr != nil {
+		return false, f.volumeErr
+	}
+	return driveOf(a) == driveOf(b), nil
+}
+
+func driveOf(p string) string {
+	if len(p) >= 2 && p[1] == ':' {
+		return strings.ToUpper(p[:2])
+	}
+	return ""
+}
+
+func (f *fakeFS) CopySparse(from, to string, progress func(done, total uint64) bool) error {
+	v, ok := f.files[from]
+	if !ok {
+		return errors.New("no such file: " + from)
+	}
+	if f.copyErr != nil {
+		return f.copyErr
+	}
+	if progress != nil && !progress(v.onDisk, v.onDisk) {
+		return errors.New("cancelled")
+	}
+	f.files[to] = v
+	f.copies = append(f.copies, from+" -> "+to)
+	return nil
+}
+
+func (f *fakeFS) MkdirAll(path string) error {
+	f.mkdirs = append(f.mkdirs, path)
 	return nil
 }

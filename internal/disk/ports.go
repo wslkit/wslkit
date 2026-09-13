@@ -81,6 +81,20 @@ type FileSystem interface {
 	ExpandEnv(s string) (string, error)
 	// Remove deletes a file.
 	Remove(path string) error
+	// Rename moves a file within a volume. It deliberately does not fall
+	// back to a cross-volume copy, which would fill in the holes of a
+	// sparse file.
+	Rename(from, to string) error
+	// SameVolume reports whether two paths live on the same volume. It
+	// resolves both rather than comparing drive letters, so a mounted
+	// folder answers correctly.
+	SameVolume(a, b string) (bool, error)
+	// CopySparse copies a file, preserving its holes. Progress is reported
+	// against the real bytes, not the logical length; returning false
+	// cancels.
+	CopySparse(from, to string, progress func(done, total uint64) bool) error
+	// MkdirAll creates a directory and its parents.
+	MkdirAll(path string) error
 }
 
 // DiskFacts is what the virtual disk provider knows about a .vhdx, as opposed
