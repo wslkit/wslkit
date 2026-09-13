@@ -12,7 +12,6 @@ package disk
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -70,7 +69,20 @@ func (r Registration) VhdPath() string {
 	if r.Version != 2 || r.BasePath == "" {
 		return ""
 	}
-	return filepath.Join(r.Base(), r.VhdName())
+	return joinWindows(r.Base(), r.VhdName())
+}
+
+// joinWindows joins Windows path components with a backslash.
+//
+// filepath.Join is not usable here. These are always Windows paths, but this
+// file is built and tested on Linux too (ADR 0004), where filepath would join
+// them with a forward slash and produce a path that matches nothing.
+func joinWindows(dir, name string) string {
+	dir = strings.TrimRight(dir, `\/`)
+	if dir == "" {
+		return name
+	}
+	return dir + `\` + name
 }
 
 // Errors that command code matches on rather than comparing strings.
@@ -198,7 +210,10 @@ func Check(s State) []Precondition {
 	})
 
 	path := s.Reg.VhdPath()
-	isVHDX := strings.EqualFold(filepath.Ext(path), ".vhdx")
+	// A suffix test rather than filepath.Ext: on a non-Windows build filepath
+	// does not treat a backslash as a separator, so path handling here stays
+	// independent of the host.
+	isVHDX := strings.HasSuffix(strings.ToLower(path), ".vhdx")
 	out = append(out, Precondition{
 		Name:   "vhdx",
 		OK:     path != "" && isVHDX,

@@ -202,3 +202,38 @@ func TestDecodeFlags(t *testing.T) {
 		}
 	}
 }
+
+// The disk paths are Windows paths whatever the host is. This file is built and
+// tested on Linux too, where filepath would join with a forward slash and
+// produce a path that matches nothing on the machine it describes.
+func TestVhdPathAlwaysUsesTheWindowsSeparator(t *testing.T) {
+	got := reg("Ubuntu").VhdPath()
+	if strings.Contains(got, "/") {
+		t.Fatalf("path contains a forward slash on this host: %q", got)
+	}
+	if got != `C:\wsl\Ubuntu\ext4.vhdx` {
+		t.Fatalf("got %q", got)
+	}
+	// A base path that already ends in a separator must not double it.
+	trailing := reg("Ubuntu", func(r *Registration) { r.BasePath = `C:\wsl\Ubuntu\` }).VhdPath()
+	if trailing != `C:\wsl\Ubuntu\ext4.vhdx` {
+		t.Fatalf("trailing separator: got %q", trailing)
+	}
+}
+
+// The .vhdx check must not depend on the host's idea of a path separator
+// either.
+func TestCheckRecognisesAVhdxOnAnyHost(t *testing.T) {
+	ps := Check(State{Reg: reg("Ubuntu"), VhdExists: true})
+	for _, p := range ps {
+		if p.Name == "vhdx" && !p.OK {
+			t.Fatalf("a .vhdx was not recognised: %s", p.Detail)
+		}
+	}
+	other := Check(State{Reg: reg("Odd", func(r *Registration) { r.VhdFileName = "rootfs.img" }), VhdExists: true})
+	for _, p := range other {
+		if p.Name == "vhdx" && p.OK {
+			t.Fatal("a non-vhdx disk should be refused")
+		}
+	}
+}

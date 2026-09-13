@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -101,7 +100,13 @@ func (f *fakeFS) Locked(path string) (bool, error) {
 }
 
 func (f *fakeFS) Volume(path string) (VolumeInfo, error) {
-	if v, ok := f.volumes[filepath.VolumeName(path)]; ok {
+	// Keyed on the drive letter, extracted without filepath so the fake
+	// behaves the same on the Linux job as it does on Windows.
+	drive := ""
+	if len(path) >= 2 && path[1] == ':' {
+		drive = strings.ToUpper(path[:2])
+	}
+	if v, ok := f.volumes[drive]; ok {
 		return v, nil
 	}
 	return VolumeInfo{}, errors.New("no volume for " + path)
@@ -173,9 +178,8 @@ func (f *fakeHost) RunAsRoot(ctx context.Context, distro string, argv []string, 
 }
 
 type fakeClock struct {
-	now    time.Time
-	slept  []time.Duration
-	elapse bool
+	now   time.Time
+	slept []time.Duration
 }
 
 func (c *fakeClock) Now() time.Time { return c.now }
