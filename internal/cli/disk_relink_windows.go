@@ -63,7 +63,11 @@ func (a *App) diskOrphans(args []string) int {
 		fmt.Fprintf(a.Stderr, "warning: %s\n", w)
 	}
 
-	orphans, scanWarnings, err := disk.ScanOrphans(e, list, scan)
+	// Configured roots are added to the built-in three, then the flag on top.
+	cfg := a.diskConfigOrDefaults(e)
+	roots := append(append([]string{}, cfg.ScanDirs...), scan...)
+
+	orphans, scanWarnings, err := disk.ScanOrphans(e, list, roots)
 	if err != nil {
 		fmt.Fprintf(a.Stderr, "error: %v\n", err)
 		return diskExitFor(err)

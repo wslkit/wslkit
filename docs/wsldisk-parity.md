@@ -18,7 +18,7 @@ The reference is wsldisk at commit `a0d60c5`.
 | `wsldisk orphans` | `wslkit disk orphans` | **done** |
 | `wsldisk move <distro> <dir>` | `wslkit disk move <distro> <dir>` | **done** |
 | `wsldisk relink <distro> <path>` | `wslkit disk relink <distro> <path>` | **done** |
-| `wsldisk config [path\|get\|set\|edit]` | `wslkit disk config ...` | todo |
+| `wsldisk config [path|get|set|edit]` | `wslkit disk config ...` | **done** |
 | `wsldisk completion <shell>` | `wslkit completion <shell>` | todo, kit-wide rather than disk-only |
 
 Not ported, deliberately: `--elevate` and the elevated worker, which were never
@@ -38,6 +38,23 @@ wired to a flag in wsldisk and which ADR 0003 rules out.
 | `--all`, `--file`, `--no-trim`, `--restart`, `--shutdown` | `compact` | **done**, plus `--unlock-timeout` and `--trim-timeout` |
 | `--scan`, `--delete`, `--relink`, `--to` | `orphans` | **done** |
 | `--keep-source` | `move` | **done** |
+
+## Settings
+
+`%APPDATA%wslkitnfig.toml`, written by `wslkit disk config set` and safe to
+edit by hand. Unknown keys are ignored so a file from a later version still
+loads.
+
+| Key | Default | Notes |
+|---|---|---|
+| `scan.dirs` | empty | Extra `orphans` roots, semicolon-separated when set |
+| `compact.trim` | `true` | |
+| `compact.restart` | `false` | |
+| `wsl.unlock_timeout_seconds` | `90` | At most 3600 |
+
+One deliberate improvement on wsldisk: a flag actually given on the command line
+wins over the setting in either direction. wsldisk folded them one-way, so a
+config that turned trimming off could not be overridden from the CLI at all.
 
 ## Contracts
 
@@ -92,6 +109,10 @@ reason in a comment next to the code.
 - [x] `orphans --delete` asks once for the whole set, and end-of-input is a no.
 - [x] Docker Desktop keeps a disk no distribution claims; deleting it is not
       safe merely because it is unclaimed.
+
+- [x] Settings are read from a file, with the four keys wsldisk had.
+- [x] An unparseable settings file is a warning everywhere except `config`
+      itself, which fails, because that is what the user came to look at.
 
 ## Repository
 

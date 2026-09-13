@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/wslkit/wslkit/internal/disk"
 )
@@ -106,16 +107,28 @@ func (a *App) diskCompact(args []string) int {
 		return ExitUsage
 	}
 
-	o := disk.CompactOptions{
-		Trim:          !*noTrim,
-		Shutdown:      *shutdown,
-		Restart:       *restart,
-		UnlockTimeout: *unlock,
-		TrimTimeout:   *trimTimeout,
-	}
-
 	ctx := context.Background()
 	e := diskEnv()
+
+	// Settings supply the defaults; a flag actually given on the command line
+	// wins, in either direction.
+	cfg := a.diskConfigOrDefaults(e)
+	o := disk.CompactOptions{
+		Trim:          cfg.CompactTrim,
+		Shutdown:      *shutdown,
+		Restart:       cfg.CompactRestart,
+		UnlockTimeout: time.Duration(cfg.UnlockTimeoutSeconds) * time.Second,
+		TrimTimeout:   *trimTimeout,
+	}
+	if isSet(fs, "no-trim") {
+		o.Trim = !*noTrim
+	}
+	if isSet(fs, "restart") {
+		o.Restart = *restart
+	}
+	if isSet(fs, "unlock-timeout") {
+		o.UnlockTimeout = *unlock
+	}
 
 	targets, err := a.compactTargets(ctx, e, name, *all, *file, &o)
 	if err != nil {

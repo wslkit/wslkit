@@ -155,8 +155,12 @@ func (d Details) String() string {
 	for i, k := range d.Keys {
 		b.WriteString(k)
 		b.WriteByte(':')
-		b.WriteString(strings.Repeat(" ", width-utf8.RuneCountInString(k)+1))
-		b.WriteString(d.Values[i])
+		// No padding before an empty value: that would be trailing
+		// whitespace, which shows up in diffs and in copied output.
+		if v := d.Values[i]; v != "" {
+			b.WriteString(strings.Repeat(" ", width-utf8.RuneCountInString(k)+1))
+			b.WriteString(v)
+		}
 		b.WriteByte('\n')
 	}
 	return b.String()
