@@ -184,6 +184,23 @@ This replaces [wsldisk](https://github.com/wslkit/wsldisk), which is archived.
 What was ported, and the three places this version deliberately differs, are in
 [docs/wsldisk-parity.md](docs/wsldisk-parity.md) and [ADR 0011](docs/decisions/0011-disk-subcommand.md).
 
+## What is using the memory
+
+`wslkit top` shows what the utility VM is using and which distribution is
+responsible, which is the question behind "why is vmmem so large".
+
+```
+wslkit top                     memory and CPU per distribution
+wslkit top --once              one sample, no CPU rate
+wslkit top --json              integer bytes
+```
+
+It splits the VM total into page cache, which Windows can reclaim, and
+anonymous memory, which it cannot. Per-distribution figures come from each
+distribution's own cgroup where WSL provides one, and from its process list
+where it does not; the report says which, and what that method leaves out.
+See [docs/research/2026-09-cgroups.md](docs/research/2026-09-cgroups.md).
+
 ## Legacy name
 
 The binary is multi-call: a copy or shim named `wsldoctor.exe` behaves as `wslkit doctor`.
