@@ -100,6 +100,18 @@ wslkit disk compact Ubuntu --dry-run     the plan, having changed nothing
 
 No elevation is needed for any of this.
 
+To find out what is using the space in the first place:
+
+```
+wslkit disk usage Ubuntu                       catalogued caches, biggest first
+wslkit disk usage Ubuntu --by-directory        plus a breakdown of the whole guest
+wslkit disk usage Ubuntu --top 10 --json       the ten largest, as integer bytes
+```
+
+`usage` only reports. It never deletes anything, and a row marked not clearable
+means wslkit cannot judge whether what it holds still matters, not that removing
+it is dangerous.
+
 This is the Go port of [wsldisk](https://github.com/wslkit/wsldisk); progress
 towards retiring that repository is tracked in [docs/wsldisk-parity.md](docs/wsldisk-parity.md).
 

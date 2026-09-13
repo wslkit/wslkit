@@ -20,6 +20,7 @@ func (a *App) diskUsage() {
   wslkit disk info <distro> [--probe]     everything known about one distribution
   wslkit disk trim <distro>               ask the guest to release the blocks it no longer uses
   wslkit disk compact [distro]            trim, stop, then shrink the disk file
+  wslkit disk usage <distro>              where the space inside a distribution went
 
 Flags common to every disk subcommand:
   --json        machine-readable output, one object per line, sizes in bytes
@@ -30,6 +31,11 @@ Flags common to every disk subcommand:
   --probe       start a stopped distribution to read the usage inside it.
                 Off by default: starting a distribution to measure it changes
                 the thing being measured.
+
+usage flags:
+  --top N             show only the largest N entries
+  --by-directory      also break the whole guest down by directory
+  --depth N           how deep that breakdown goes (1 to 8, default 2)
 
 compact flags:
   --all               every WSL 2 distribution
@@ -71,6 +77,8 @@ func (a *App) disk(args []string) int {
 		return a.diskTrim(args[1:])
 	case "compact":
 		return a.diskCompact(args[1:])
+	case "usage":
+		return a.diskUsageCmd(args[1:])
 	case "help", "--help", "-h":
 		a.diskUsage()
 		return ExitOK

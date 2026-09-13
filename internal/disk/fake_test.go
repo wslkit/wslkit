@@ -131,8 +131,11 @@ type fakeHost struct {
 	running    []string
 	runningErr error
 	results    map[string]CommandResult // distro+" "+argv[0] -> result
-	runErr     error
-	calls      []string
+	// byArgs is keyed on the whole command line, for tests that need
+	// different answers for the same program on different paths.
+	byArgs map[string]CommandResult
+	runErr error
+	calls  []string
 }
 
 func (f *fakeHost) Running(ctx context.Context) ([]string, error) {
@@ -153,6 +156,9 @@ func (f *fakeHost) RunAsRoot(ctx context.Context, distro string, argv []string, 
 	f.calls = append(f.calls, "run "+distro+" "+strings.Join(argv, " "))
 	if f.runErr != nil {
 		return CommandResult{}, f.runErr
+	}
+	if r, ok := f.byArgs[strings.Join(argv, " ")]; ok {
+		return r, nil
 	}
 	if r, ok := f.results[distro+" "+argv[0]]; ok {
 		return r, nil
