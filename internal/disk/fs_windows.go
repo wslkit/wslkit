@@ -242,7 +242,7 @@ func (WindowsFS) List(dir, pattern string) ([]DirEntry, error) {
 		}
 		return nil, fmt.Errorf("disk: listing %s: %w", dir, err)
 	}
-	defer windows.FindClose(h)
+	defer func() { _ = windows.FindClose(h) }()
 
 	var out []DirEntry
 	for {

@@ -18,7 +18,7 @@ func (WindowsDisks) Facts(path string) (DiskFacts, error) {
 	if err != nil {
 		return DiskFacts{}, err
 	}
-	defer h.Close()
+	defer func() { _ = h.Close() }()
 
 	size, err := h.Size()
 	if err != nil {
@@ -49,7 +49,7 @@ func (WindowsDisks) Compact(ctx context.Context, path string, progress func(curr
 	if err != nil {
 		return err
 	}
-	defer h.Close()
+	defer func() { _ = h.Close() }()
 
 	if loaded, err := h.IsLoaded(); err == nil && loaded {
 		return fmt.Errorf("disk: %s is attached, so it cannot be compacted: detach it first", path)

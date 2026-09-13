@@ -3,7 +3,6 @@ package disk
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 )
@@ -11,36 +10,6 @@ import (
 // The fakes below stand in for Windows. They are deliberately dumb: a map of
 // what each call should answer, so a test states the machine it is describing
 // instead of arranging one.
-
-type fakeRegistry struct {
-	list     []Registration
-	warnings []string
-	err      error
-	values   map[string]string // "guid\x00name" -> value
-	writes   []string
-	writeErr error
-}
-
-func (f *fakeRegistry) Distros() ([]Registration, []string, error) {
-	return f.list, f.warnings, f.err
-}
-
-func (f *fakeRegistry) ReadString(guid, name string) (string, bool, error) {
-	v, ok := f.values[guid+"\x00"+name]
-	return v, ok, nil
-}
-
-func (f *fakeRegistry) WriteString(guid, name, value string) error {
-	if f.writeErr != nil {
-		return f.writeErr
-	}
-	if f.values == nil {
-		f.values = map[string]string{}
-	}
-	f.values[guid+"\x00"+name] = value
-	f.writes = append(f.writes, fmt.Sprintf("%s/%s=%s", guid, name, value))
-	return nil
-}
 
 type fakeFile struct {
 	size      uint64
