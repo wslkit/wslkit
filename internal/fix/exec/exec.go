@@ -51,6 +51,22 @@ func (r Real) Run(s fix.Step) error {
 		}
 		fmt.Fprintf(out, "write %s (%d bytes)\n", s.Args[0], len(s.Args[1]))
 		return os.WriteFile(s.Args[0], []byte(s.Args[1]), 0o600)
+	case "file_delete":
+		if len(s.Args) != 1 {
+			return fmt.Errorf("file_delete needs one path")
+		}
+		// A directory is never what a fix meant to delete, and os.Remove
+		// would take an empty one.
+		if st, err := os.Lstat(s.Args[0]); err == nil && st.IsDir() {
+			return fmt.Errorf("refusing to delete a directory: %s", s.Args[0])
+		}
+		fmt.Fprintf(out, "delete %s\n", s.Args[0])
+		if err := os.Remove(s.Args[0]); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		// Already gone is the intended state, not a failure: it makes a
+		// half-applied plan safe to run again.
+		return nil
 	case "wmi_method":
 		fmt.Fprintf(out, "wmi %s\n", s.Description)
 		return runWMIMethod(s)

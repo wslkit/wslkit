@@ -89,6 +89,11 @@ A fix that needs an administrator says so and exits if the console does not
 already have one. wslkit does not relaunch itself; see the decision record on
 elevation.
 
+Most fixes can be rolled back. One cannot: `zone` deletes the
+[`:Zone.Identifier` files](zone-identifier-files.md) a saved download leaves
+inside a distribution, and there is nothing to restore them from. It says so in
+the plan, before you apply it.
+
 [Every fix](fixes.md) is in the reference.
 
 ## undo

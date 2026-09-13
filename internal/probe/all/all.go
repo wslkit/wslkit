@@ -15,7 +15,7 @@ import (
 func Probes() []probe.Probe {
 	var out []probe.Probe
 	out = append(out, host.All()...) // HST001-004, DEF001, PLG001: host facts first
-	out = append(out, wsl.All()...)  // WSL002, WSL001, WSL003, WSL004, WSL005, WSL006
+	out = append(out, wsl.All()...)  // WSL002, WSL001, WSL003, WSL004, WSL005, WSL006, ZON001
 	out = append(out, host.COMClass{})
 	out = append(out, disk.All()...) // DSK002, DSK001, DSK003, DSK005, DSK006
 	out = append(out, net.All()...)  // NET004, NET002
