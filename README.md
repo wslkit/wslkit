@@ -164,8 +164,9 @@ than becoming the terabyte it is nominally allowed to reach. The original is
 deleted last, and only once the distribution has started from its new home; if
 it does not start, everything is put back.
 
-This is the Go port of [wsldisk](https://github.com/wslkit/wsldisk); progress
-towards retiring that repository is tracked in [docs/wsldisk-parity.md](docs/wsldisk-parity.md).
+This replaces [wsldisk](https://github.com/wslkit/wsldisk), which is archived.
+What was ported, and the three places this version deliberately differs, are in
+[docs/wsldisk-parity.md](docs/wsldisk-parity.md) and [ADR 0011](docs/decisions/0011-disk-subcommand.md).
 
 ## Legacy name
 
@@ -173,10 +174,9 @@ The binary is multi-call: a copy or shim named `wsldoctor.exe` behaves as `wslki
 
 ## Part of wslkit
 
-- [wsldisk](https://github.com/wslkit/wsldisk) — reclaim disk space from WSL 2 virtual disks (being absorbed as `wslkit disk`)
 - [wsldrive](https://github.com/wslkit/wsldrive) — cross the WSL 2 filesystem boundary at native speed
 - [skrog](https://github.com/wslkit/skrog) — the upstream Docker Engine on Windows via WSL 2
 
 ## Licence
 
-[MIT](LICENSE), matching `wsldisk` and `wsldrive`.
+[MIT](LICENSE), matching `wsldrive` and `skrog`.
