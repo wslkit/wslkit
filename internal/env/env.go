@@ -235,7 +235,14 @@ type Distro struct {
 	ValueNames  []string       `json:"value_names,omitempty"`
 	Vhd         Field[VhdInfo] `json:"vhd"`
 	VolumeFree  Field[uint64]  `json:"volume_free_bytes"`
-	Running     Field[bool]    `json:"running"` // ErrVMWakeRefused unless determinable passively
+	// Running comes from `wsl --list --running`, which is a passive query:
+	// measured against a stopped VM it does not start one.
+	Running Field[bool] `json:"running"`
+	// WslConf is the distribution's own /etc/wsl.conf, read over
+	// \\wsl.localhost. Only attempted for a running distribution: reaching
+	// into a stopped one would start it, which a read-only diagnosis must
+	// not do.
+	WslConf Field[string] `json:"wsl_conf,omitempty"`
 }
 
 type VhdInfo struct {

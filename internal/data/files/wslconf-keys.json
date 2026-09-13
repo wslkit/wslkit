@@ -1,0 +1,106 @@
+{
+  "schema": "wslkit/wslconf-keys/v1",
+  "updated": "2026-09-13",
+  "source_commit": "eaa69e7",
+  "comment": "Keys accepted in /etc/wsl.conf, the per-distribution file INSIDE a distribution. Not to be confused with .wslconfig, the Windows-side file for the VM as a whole, which has its own table in wslconfig-keys.json. A key WSL does not recognise is silently ignored, which is why the lint exists: a misspelling looks exactly like a setting that did not take effect.",
+  "keys": [
+    {
+      "section": "automount",
+      "key": "enabled",
+      "type": "bool",
+      "default": "true",
+      "documented": true,
+      "desc": "Mount the Windows drives under the automount root."
+    },
+    {
+      "section": "automount",
+      "key": "mountFsTab",
+      "type": "bool",
+      "default": "true",
+      "documented": true,
+      "desc": "Process /etc/fstab when the distribution starts."
+    },
+    {
+      "section": "automount",
+      "key": "root",
+      "type": "path",
+      "default": "/mnt/",
+      "documented": true,
+      "desc": "Where the Windows drives are mounted."
+    },
+    {
+      "section": "automount",
+      "key": "options",
+      "type": "string",
+      "documented": true,
+      "desc": "Mount options for the Windows drives, for example metadata,uid=1000.",
+      "note": "These are appended to WSL's own defaults rather than replacing them, and an option WSL does not accept makes the whole value fail rather than being skipped."
+    },
+    {
+      "section": "network",
+      "key": "generateHosts",
+      "type": "bool",
+      "default": "true",
+      "documented": true,
+      "desc": "Let WSL write /etc/hosts."
+    },
+    {
+      "section": "network",
+      "key": "generateResolvConf",
+      "type": "bool",
+      "default": "true",
+      "documented": true,
+      "desc": "Let WSL write /etc/resolv.conf from the Windows DNS settings.",
+      "note": "With this off, /etc/resolv.conf is yours to maintain. A stale one here is a common cause of name resolution working on Windows and not inside the distribution, especially after joining or leaving a VPN."
+    },
+    {
+      "section": "network",
+      "key": "hostname",
+      "type": "string",
+      "documented": true,
+      "desc": "The hostname inside the distribution, instead of the Windows machine name."
+    },
+    {
+      "section": "interop",
+      "key": "enabled",
+      "type": "bool",
+      "default": "true",
+      "documented": true,
+      "desc": "Allow running Windows executables from inside the distribution."
+    },
+    {
+      "section": "interop",
+      "key": "appendWindowsPath",
+      "type": "bool",
+      "default": "true",
+      "documented": true,
+      "desc": "Put the Windows PATH on the end of the PATH inside the distribution.",
+      "note": "Turning this off is a common cause of a Windows tool suddenly not being found from inside the distribution."
+    },
+    {
+      "section": "user",
+      "key": "default",
+      "type": "string",
+      "documented": true,
+      "desc": "The user a shell starts as.",
+      "note": "This is read at start-up and written back to the DefaultUid value in the Windows registry, so changing it here and changing it with wsl --manage --set-default-user do the same thing."
+    },
+    {
+      "section": "boot",
+      "key": "systemd",
+      "type": "bool",
+      "default": "false",
+      "documented": true,
+      "desc": "Run systemd as the init inside the distribution.",
+      "note": "A distribution built to assume systemd, which most current ones are, will behave oddly without it: services do not start, and anything using systemctl fails."
+    },
+    {
+      "section": "boot",
+      "key": "command",
+      "type": "string",
+      "documented": true,
+      "desc": "A command to run as root when the distribution starts.",
+      "note": "It runs before any user shell and its failure is not reported anywhere obvious, so a mistake here looks like the distribution simply not working."
+    }
+  ]
+}
