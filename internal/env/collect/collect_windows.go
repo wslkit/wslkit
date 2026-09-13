@@ -338,6 +338,10 @@ func collectDistros(ctx context.Context, e *env.Env, o Options) error {
 	}
 	defer k.Close()
 	def, _, _ := k.GetStringValue("DefaultDistribution")
+
+	// Asked once for the whole listing rather than once per distribution.
+	// This does not start the utility VM; see running_windows.go.
+	running, runErr := runningDistros(ctx, o.Timeout)
 	subs, err := k.ReadSubKeyNames(0)
 	if err != nil {
 		e.Distros = env.Fail[[]env.Distro](kindOf(err), src, err)
@@ -366,7 +370,12 @@ func collectDistros(ctx context.Context, e *env.Env, o Options) error {
 		d.Modern = intValue(dk, "Modern")
 		d.ValueNames, _ = dk.ReadValueNames(0)
 		dk.Close()
-		d.Running = env.Fail[bool](env.ErrVMWakeRefused, "wsl --list --running", errors.New("not queried: would invoke wsl.exe"))
+		const runSrc = "wsl --list --running --quiet"
+		if runErr != nil {
+			d.Running = env.Fail[bool](kindOf(runErr), runSrc, runErr)
+		} else {
+			d.Running = env.Ok(running[d.Name], runSrc)
+		}
 		if d.Version == 2 && d.BasePath != "" {
 			vhdName := d.VhdFileName
 			if vhdName == "" {
@@ -386,6 +395,9 @@ func collectDistros(ctx context.Context, e *env.Env, o Options) error {
 		e.Distros = env.Ok([]env.Distro{}, src)
 		return nil
 	}
+	// Read after the loop, so every distribution already knows whether it is
+	// running: that is what decides whether the file can be read at all.
+	readWslConfFor(ctx, out, o.Timeout)
 	e.Distros = env.Ok(out, src)
 	return nil
 }
