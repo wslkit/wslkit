@@ -14,7 +14,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, windows-11-arm]
+        # windows-11-arm is slow (10m+ per run) and is exercised nightly instead.
+        os: [windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +23,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: build the guest agent for embedding
+        run: go run ./tools/build-agent -version ci
       - name: unit + integration tests
         run: go test -count=1 -tags integration ./...
       - name: build
@@ -39,6 +42,11 @@ jobs:
           Check @('doctor','check','--json') 6> $null | Out-File -Encoding utf8 env.json
           Check @('doctor','check','--from-snapshot','env.json','--verbose')
           Check @('doctor','--report')
+          # Agent commands that need no VM: status/vm-id report "not running" (exit 1) on a runner.
+          & .\wslkit.exe agent status
+          if ($LASTEXITCODE -notin 0,1) { throw "agent status exited with $LASTEXITCODE" }
+          & .\wslkit.exe agent vm-id
+          if ($LASTEXITCODE -notin 0,1) { throw "agent vm-id exited with $LASTEXITCODE" }
           # Legacy alias: a copy named wsldoctor.exe must behave as `wslkit doctor`.
           Copy-Item wslkit.exe wsldoctor.exe
           & .\wsldoctor.exe --from-snapshot env.json | Select-Object -First 1

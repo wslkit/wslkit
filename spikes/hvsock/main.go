@@ -27,9 +27,18 @@ func main() {
 		fmt.Println("usage: hvsock connect|listen <vmid> <port>")
 		os.Exit(2)
 	}
-	vm, err := guid.FromString(os.Args[2])
-	if err != nil {
-		panic(err)
+	var vm guid.GUID
+	switch os.Args[2] {
+	case "wildcard": // HV_GUID_WILDCARD: any VM
+		vm = guid.GUID{}
+	case "children": // HV_GUID_CHILDREN: any child partition
+		vm, _ = guid.FromString("90db8b89-0d35-4f79-8ce9-49ea0ac8b7cd")
+	default:
+		var err error
+		vm, err = guid.FromString(os.Args[2])
+		if err != nil {
+			panic(err)
+		}
 	}
 	port, _ := strconv.Atoi(os.Args[3])
 	addr := &winio.HvsockAddr{VMID: vm, ServiceID: winio.VsockServiceID(uint32(port))}

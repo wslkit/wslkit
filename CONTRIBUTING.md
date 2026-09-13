@@ -17,6 +17,19 @@ runner. From Windows you can at least compile-check it:
 
 There is no Makefile on purpose; the commands above are the whole build.
 
+The guest agent (`cmd/wslkit-agent`, Linux only) is embedded into `wslkit.exe`. Build it
+first when you need `wslkit agent install` to work locally:
+
+```
+go run ./tools/build-agent          # writes internal/agent/payload/files/wslkit-agent-linux-{amd64,arm64}
+go build ./cmd/wslkit
+```
+
+CI does this on every run; goreleaser does it in a `before` hook. The transport itself
+(Hyper-V sockets) cannot run on hosted runners, so verify a change to the agent end to
+end on a machine with WSL 2: `wslkit agent install -d <distro>`, `wslkit agent start`,
+`wslkit agent status` must show the guest connected.
+
 ## Where things live
 
 | Path | What | Runs on |

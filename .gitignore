@@ -6,3 +6,4 @@ spikes/**/*.exe
 testdata/fuzz/
 .idea/
 .vscode/
+internal/agent/payload/files/wslkit-agent-linux-*
