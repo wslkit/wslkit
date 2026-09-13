@@ -87,10 +87,11 @@ func (t *WslConfKeys) Validate() error {
 		if k.Section == "" || k.Key == "" {
 			return fmt.Errorf("data: wsl.conf key %d has no section or no key", n)
 		}
-		if strings.ToLower(k.Section) != k.Section {
-			return fmt.Errorf("data: wsl.conf section %q must be lower case, since matching is case-insensitive", k.Section)
-		}
-		id := k.Section + "." + strings.ToLower(k.Key)
+		// Sections and keys are stored as WSL spells them, because that is
+		// what gets suggested back to the user, and matched case-insensitively
+		// because that is how WSL reads the file. One of them really is
+		// camel case: fileServer.
+		id := strings.ToLower(k.Section) + "." + strings.ToLower(k.Key)
 		if seen[id] {
 			return fmt.Errorf("data: wsl.conf key %q appears twice", id)
 		}

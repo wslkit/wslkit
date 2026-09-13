@@ -2,7 +2,7 @@
   "schema": "wslkit/wslconf-keys/v1",
   "updated": "2026-09-13",
   "source_commit": "eaa69e7",
-  "comment": "Keys accepted in /etc/wsl.conf, the per-distribution file INSIDE a distribution. Not to be confused with .wslconfig, the Windows-side file for the VM as a whole, which has its own table in wslconfig-keys.json. A key WSL does not recognise is silently ignored, which is why the lint exists: a misspelling looks exactly like a setting that did not take effect.",
+  "comment": "Every key accepted in /etc/wsl.conf, the per-distribution file INSIDE a distribution. Not .wslconfig, which is the Windows-side file for the VM as a whole and has its own table. Read from src/linux/init/WslDistributionConfig.cpp:25-60, with defaults from WslDistributionConfig.h:57-86. Booleans accept true, false, 1 and 0, case-insensitively; yes, no, on and off are not accepted. Section and key names are matched case-insensitively, string values are not. Sections are never validated on their own: WSL joins section and key and looks up the whole name, so a bad section shows up as every key under it being unknown.",
   "keys": [
     {
       "section": "automount",
@@ -14,6 +14,23 @@
     },
     {
       "section": "automount",
+      "key": "root",
+      "type": "path",
+      "default": "/mnt",
+      "documented": true,
+      "desc": "Where the Windows drives are mounted.",
+      "note": "An empty value becomes /, and a trailing slash is always added. Pointing this at an existing system directory such as /usr layers drive mounts over it, which is awkward to undo from inside the distribution."
+    },
+    {
+      "section": "automount",
+      "key": "options",
+      "type": "string",
+      "documented": true,
+      "desc": "Extra mount options for the Windows drives, for example metadata.",
+      "note": "Appended after WSL's own noatime, uid and gid, and applied only to automounted drive letters, not to /etc/fstab entries."
+    },
+    {
+      "section": "automount",
       "key": "mountFsTab",
       "type": "bool",
       "default": "true",
@@ -22,43 +39,29 @@
     },
     {
       "section": "automount",
-      "key": "root",
-      "type": "path",
-      "default": "/mnt/",
-      "documented": true,
-      "desc": "Where the Windows drives are mounted."
+      "key": "ldconfig",
+      "type": "bool",
+      "default": "true",
+      "documented": false,
+      "desc": "Write the Windows and GPU library search path and run ldconfig."
     },
     {
       "section": "automount",
-      "key": "options",
-      "type": "string",
-      "documented": true,
-      "desc": "Mount options for the Windows drives, for example metadata,uid=1000.",
-      "note": "These are appended to WSL's own defaults rather than replacing them, and an option WSL does not accept makes the whole value fail rather than being skipped."
+      "key": "cgroups",
+      "type": "enum:v1,v2",
+      "default": "v2",
+      "documented": false,
+      "desc": "Which cgroup hierarchy is mounted at /sys/fs/cgroup.",
+      "note": "v1 is incompatible with per-distribution cgroup isolation, which recent WSL enables by default, and that conflict is only a warning. v1 also mounts a fresh tmpfs over /sys/fs/cgroup, which can leave systemd with a layout it did not expect. If the kernel command line disables cgroup v1, WSL falls back to v2 and only logs it."
     },
     {
-      "section": "network",
-      "key": "generateHosts",
-      "type": "bool",
-      "default": "true",
-      "documented": true,
-      "desc": "Let WSL write /etc/hosts."
-    },
-    {
-      "section": "network",
-      "key": "generateResolvConf",
-      "type": "bool",
-      "default": "true",
-      "documented": true,
-      "desc": "Let WSL write /etc/resolv.conf from the Windows DNS settings.",
-      "note": "With this off, /etc/resolv.conf is yours to maintain. A stale one here is a common cause of name resolution working on Windows and not inside the distribution, especially after joining or leaving a VPN."
-    },
-    {
-      "section": "network",
-      "key": "hostname",
-      "type": "string",
-      "documented": true,
-      "desc": "The hostname inside the distribution, instead of the Windows machine name."
+      "section": "filesystem",
+      "key": "umask",
+      "type": "int",
+      "default": "0022",
+      "documented": false,
+      "desc": "umask applied to login sessions and the file server.",
+      "note": "Read as C would read it, so a leading zero means octal and a leading 0x means hexadecimal."
     },
     {
       "section": "interop",
@@ -75,7 +78,88 @@
       "default": "true",
       "documented": true,
       "desc": "Put the Windows PATH on the end of the PATH inside the distribution.",
-      "note": "Turning this off is a common cause of a Windows tool suddenly not being found from inside the distribution."
+      "note": "Independent of interop.enabled: interop can work with no Windows entries on PATH. Turning this off is a common cause of a Windows tool suddenly not being found from inside the distribution."
+    },
+    {
+      "section": "network",
+      "key": "generateHosts",
+      "type": "bool",
+      "default": "true",
+      "documented": false,
+      "desc": "Let WSL write /etc/hosts."
+    },
+    {
+      "section": "network",
+      "key": "generateResolvConf",
+      "type": "bool",
+      "default": "true",
+      "documented": false,
+      "desc": "Let WSL manage /etc/resolv.conf.",
+      "note": "With this off WSL also removes the symlink it previously created, and writes no replacement. If nothing else provides one you are left with no /etc/resolv.conf at all, which looks like name resolution working on Windows and not inside the distribution."
+    },
+    {
+      "section": "network",
+      "key": "hostname",
+      "type": "string",
+      "documented": false,
+      "desc": "The hostname inside the distribution, instead of the Windows machine name."
+    },
+    {
+      "section": "time",
+      "key": "useWindowsTimezone",
+      "type": "bool",
+      "default": "true",
+      "documented": false,
+      "desc": "Keep /etc/localtime in step with the Windows timezone."
+    },
+    {
+      "section": "fileServer",
+      "key": "enabled",
+      "type": "bool",
+      "default": "true",
+      "documented": false,
+      "desc": "Run the file server that backs \\\\wsl.localhost.",
+      "note": "Turning this off makes the distribution unreachable from Windows Explorer and from anything that reads its files over that path, including wslkit's own wsl.conf check."
+    },
+    {
+      "section": "fileServer",
+      "key": "logFile",
+      "type": "path",
+      "documented": false,
+      "desc": "Where the file server writes its log."
+    },
+    {
+      "section": "fileServer",
+      "key": "logLevel",
+      "type": "int",
+      "default": "4",
+      "documented": false,
+      "desc": "How much the file server logs, 0 to 5."
+    },
+    {
+      "section": "fileServer",
+      "key": "logTruncate",
+      "type": "bool",
+      "default": "true",
+      "documented": false,
+      "desc": "Truncate the file server log when the distribution starts."
+    },
+    {
+      "section": "gpu",
+      "key": "enabled",
+      "type": "bool",
+      "default": "true",
+      "documented": false,
+      "desc": "Make the GPU driver share available inside the distribution."
+    },
+    {
+      "section": "gpu",
+      "key": "appendLibPath",
+      "type": "bool",
+      "default": "true",
+      "documented": false,
+      "desc": "Add the GPU library directory to the path.",
+      "note": "WSL 2 only."
     },
     {
       "section": "user",
@@ -83,7 +167,7 @@
       "type": "string",
       "documented": true,
       "desc": "The user a shell starts as.",
-      "note": "This is read at start-up and written back to the DefaultUid value in the Windows registry, so changing it here and changing it with wsl --manage --set-default-user do the same thing."
+      "note": "This beats the DefaultUid value in the Windows registry but never updates it, so the two drift apart and wsl --manage --set-default-user will appear not to have worked. Microsoft's own distribution validator discourages it for that reason. A username that does not exist falls back to the registry value, then to root."
     },
     {
       "section": "boot",
@@ -92,15 +176,42 @@
       "default": "false",
       "documented": true,
       "desc": "Run systemd as the init inside the distribution.",
-      "note": "A distribution built to assume systemd, which most current ones are, will behave oddly without it: services do not start, and anything using systemctl fails."
+      "note": "Forced off on WSL 1, and on WSL 2 if /sbin/init is not executable. A distribution built to assume systemd behaves oddly without it: systemctl reports that the system was not booted with systemd, and user sessions, socket activation and /run/user are all absent."
     },
     {
       "section": "boot",
       "key": "command",
       "type": "string",
       "documented": true,
-      "desc": "A command to run as root when the distribution starts.",
-      "note": "It runs before any user shell and its failure is not reported anywhere obvious, so a mistake here looks like the distribution simply not working."
+      "desc": "A command run as root when the distribution starts.",
+      "note": "Fire and forget: WSL does not wait for it and does not report its failure, so a mistake here looks like the distribution simply not working."
+    },
+    {
+      "section": "boot",
+      "key": "initTimeout",
+      "type": "int",
+      "default": "10000",
+      "documented": false,
+      "desc": "Milliseconds to wait for systemd to finish starting.",
+      "note": "Only meaningful with boot.systemd. A large value turns a distribution whose systemd never settles into an apparent hang on every wsl.exe call; zero skips the wait and hands you a half-started system."
+    },
+    {
+      "section": "boot",
+      "key": "protectBinfmt",
+      "type": "bool",
+      "default": "true",
+      "documented": false,
+      "desc": "Stop systemd's shutdown from clearing the interop handler for the whole VM.",
+      "note": "Only applied when boot.systemd is on. Turning it off can break running Windows executables from every distribution, not just this one."
+    },
+    {
+      "section": "general",
+      "key": "guiApplications",
+      "type": "bool",
+      "default": "true",
+      "documented": false,
+      "desc": "Opt this distribution in or out of WSLg.",
+      "note": "WSL 2 only, and the VM-wide wsl2.guiApplications in .wslconfig has to be on as well."
     }
   ]
 }

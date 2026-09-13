@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/wslkit/wslkit/internal/data"
 	"github.com/wslkit/wslkit/internal/env"
 	"github.com/wslkit/wslkit/internal/probe"
 )
@@ -38,8 +39,9 @@ func TestWslConfAbsentIsFine(t *testing.T) {
 	}
 }
 
-// A misspelled key is silently ignored by WSL, so it looks exactly like a
-// setting that did not take effect. Finding it is the whole point.
+// WSL warns about an unknown key once, on the console, the one time the
+// distribution starts. By the time anyone is puzzled, nothing is saying so.
+// Finding it, and saying what it should have been, is the whole point.
 func TestWslConfCatchesAMisspelledKey(t *testing.T) {
 	r := (WslConf{}).Run(envWithWslConf("[boot]\nsystmd=true\n"))
 	if r.Status != probe.Warn {
@@ -69,16 +71,18 @@ func TestWslConfCatchesAnUnknownSection(t *testing.T) {
 	}
 }
 
-// WSL reads only true and false. Anything else is treated as absent, so the
-// default silently applies and the file looks like it says otherwise.
+// A value WSL cannot parse is treated as absent, so the default applies while
+// the file appears to say otherwise.
 func TestWslConfCatchesANonBoolean(t *testing.T) {
-	for _, value := range []string{"yes", "1", "on", "enabled"} {
+	// WSL accepts true, false, 1 and 0. These are the spellings people reach
+	// for that it does not accept.
+	for _, value := range []string{"yes", "no", "on", "off", "enabled"} {
 		r := (WslConf{}).Run(envWithWslConf("[boot]\nsystemd=" + value + "\n"))
 		if r.Status != probe.Warn {
 			t.Errorf("%q should be flagged, got %s", value, r.Status)
 			continue
 		}
-		if !strings.Contains(r.Summary, "not true or false") {
+		if !strings.Contains(r.Summary, "not a boolean") {
 			t.Errorf("%q: summary %q", value, r.Summary)
 		}
 		if !strings.Contains(r.Detail, "the default (false) applies") {
@@ -102,8 +106,8 @@ func TestWslConfIsCaseInsensitive(t *testing.T) {
 	}
 }
 
-// A key set twice means WSL takes one of them, and which one is not something
-// to rely on.
+// WSL keeps the first of a repeated key, so the second line does nothing. People
+// usually expect the opposite.
 func TestWslConfCatchesADuplicateKey(t *testing.T) {
 	r := (WslConf{}).Run(envWithWslConf("[boot]\nsystemd=true\nsystemd=false\n"))
 	if r.Status != probe.Warn {
@@ -182,3 +186,82 @@ func TestWslConfFixHintMentionsTheRestart(t *testing.T) {
 type errString string
 
 func (e errString) Error() string { return string(e) }
+
+// The worst thing that can be wrong with this file. WSL stops reading at the
+// first line it cannot parse, so a typo halfway down silently reverts every
+// setting below it to its default. .wslconfig does not behave this way, which
+// is exactly why people do not expect it here.
+func TestWslConfMalformedLineDiscardsTheRestOfTheFile(t *testing.T) {
+	r := (WslConf{}).Run(envWithWslConf("[boot]\nsystemd=true\nthis is not a setting\n\n[interop]\nenabled=false\nappendWindowsPath=false\n"))
+	if r.Status != probe.Warn {
+		t.Fatalf("status %s", r.Status)
+	}
+	if !strings.Contains(r.Summary, "line 3 is malformed") {
+		t.Errorf("the summary should name the line: %q", r.Summary)
+	}
+	// The cost is the point: two settings below it are not applying.
+	if !strings.Contains(r.Summary, "2 setting(s) below it are being ignored") {
+		t.Errorf("the summary should say what it cost: %q", r.Summary)
+	}
+	if !strings.Contains(r.Detail, "stops reading wsl.conf at the first line it cannot parse") {
+		t.Errorf("the detail should explain why: %q", r.Detail)
+	}
+}
+
+// A malformed line with nothing after it costs nothing extra, and should not
+// claim it did.
+func TestWslConfMalformedLastLineClaimsNoLostSettings(t *testing.T) {
+	r := (WslConf{}).Run(envWithWslConf("[boot]\nsystemd=true\nthis is not a setting\n"))
+	if r.Status != probe.Warn {
+		t.Fatalf("status %s", r.Status)
+	}
+	if strings.Contains(r.Summary, "below it are being ignored") {
+		t.Errorf("nothing follows it, so nothing was lost: %q", r.Summary)
+	}
+}
+
+// Every key in the table has to be reachable by the lint, or a real setting
+// would be reported as unknown.
+func TestWslConfAcceptsEveryKeyInTheTable(t *testing.T) {
+	table, err := data.LoadWslConfKeys()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range table.Keys {
+		value := "true"
+		switch {
+		case strings.HasPrefix(k.Type, "enum:"):
+			value = k.EnumValues()[0]
+		case k.Type == "int":
+			value = "1"
+		case k.Type == "path":
+			value = "/x"
+		case k.Type == "string":
+			value = "x"
+		}
+		text := "[" + k.Section + "]\n" + k.Key + "=" + value + "\n"
+		if r := (WslConf{}).Run(envWithWslConf(text)); r.Status != probe.OK {
+			t.Errorf("%s.%s=%s was flagged: %s %q", k.Section, k.Key, value, r.Status, r.Summary)
+		}
+	}
+}
+
+// The table has to carry the keys that actually cause trouble, or the lint is
+// checking a file it only half understands.
+func TestWslConfTableHasTheKeysThatMatter(t *testing.T) {
+	table, err := data.LoadWslConfKeys()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"boot.systemd", "boot.command", "boot.initTimeout",
+		"automount.enabled", "automount.root", "automount.cgroups",
+		"network.generateResolvConf", "interop.appendWindowsPath",
+		"user.default", "fileServer.enabled", "general.guiApplications",
+	} {
+		section, key, _ := strings.Cut(want, ".")
+		if _, ok := table.Lookup(section, key); !ok {
+			t.Errorf("%s is missing from the table", want)
+		}
+	}
+}

@@ -14,8 +14,10 @@ import (
 // WSL006 lints /etc/wsl.conf inside each running distribution.
 //
 // This file is where a surprising share of confusing WSL behaviour comes from,
-// and nothing on the Windows side surfaces it: a typo in a key name is silently
-// ignored, so a setting someone believes is on has simply never applied.
+// and nothing on the Windows side surfaces it. WSL does warn about a key it does
+// not recognise, but that warning goes by on the console the one time the
+// distribution starts, so in practice a setting someone believes is on has
+// simply never applied and nothing is saying so now.
 //
 // It can only be read for a distribution that is already running. Reaching into
 // a stopped one over \\wsl.localhost starts it, which a read-only diagnosis
@@ -120,12 +122,24 @@ func reasonFor(f env.Field[string]) string {
 func lintWslConf(distro, text string, table *data.WslConfKeys, e *env.Env) (findings, details []string) {
 	cfg := wslconfig.Parse(text)
 
-	// Lines that are neither blank, comment, section nor key=value. WSL
-	// ignores them, so a setting written in the wrong shape does nothing and
-	// says nothing.
-	for _, pr := range cfg.Problems {
-		findings = append(findings, fmt.Sprintf("%s: wsl.conf line %d is not a setting", distro, pr.Line))
-		details = append(details, fmt.Sprintf("%s:%d  %s  (%s)", distro, pr.Line, strings.TrimSpace(pr.Raw), pr.Msg))
+	// A line WSL cannot parse does not just lose that line: it abandons the
+	// rest of the file, and every setting below it silently reverts to its
+	// default. That is the single most damaging thing wrong with this file
+	// and it is reported first, with what it cost.
+	//
+	// This is where wsl.conf differs from .wslconfig, which is parsed with
+	// the flag that skips a bad line and carries on.
+	if len(cfg.Problems) > 0 {
+		first := cfg.Problems[0]
+		lost := settingsAfter(cfg, first.Line)
+		finding := fmt.Sprintf("%s: wsl.conf line %d is malformed", distro, first.Line)
+		if lost > 0 {
+			finding += fmt.Sprintf(", and the %d setting(s) below it are being ignored", lost)
+		}
+		findings = append(findings, finding)
+		details = append(details, fmt.Sprintf(
+			"%s:%d  %s  (%s). WSL stops reading wsl.conf at the first line it cannot parse, so everything after this point reverts to its default. Unlike .wslconfig, it does not skip the bad line and carry on.",
+			distro, first.Line, strings.TrimSpace(first.Raw), first.Msg))
 	}
 
 	seen := map[string]int{}
@@ -138,7 +152,7 @@ func lintWslConf(distro, text string, table *data.WslConfKeys, e *env.Env) (find
 		// something to rely on.
 		if first, dup := seen[id]; dup {
 			findings = append(findings, fmt.Sprintf("%s: %s is set twice in wsl.conf", distro, id))
-			details = append(details, fmt.Sprintf("%s:%d  %s is already set on line %d; only one of them applies", distro, entry.Line, id, first))
+			details = append(details, fmt.Sprintf("%s:%d  %s was already set on line %d, and WSL keeps the first one, so this line does nothing.", distro, entry.Line, id, first))
 			continue
 		}
 		seen[id] = entry.Line
@@ -167,8 +181,9 @@ func lintWslConf(distro, text string, table *data.WslConfKeys, e *env.Env) (find
 
 // nearestHint suggests the key someone probably meant.
 //
-// A misspelled key is silently ignored by WSL, so the whole value of finding
-// one is telling the reader what it should have said.
+// WSL warns about an unknown key once, as the distribution starts, and then
+// never again. Telling the reader what it should have said is the whole value of
+// finding one now.
 func nearestHint(table *data.WslConfKeys, section, key string) string {
 	best, bestDist := "", 1<<30
 	for _, k := range table.Keys {
@@ -252,11 +267,14 @@ func checkValue(distro string, entry wslconfig.Entry, k data.WslConfKey, e *env.
 
 	switch {
 	case k.Type == "bool":
+		// WSL accepts true, false, 1 and 0, case-insensitively, and nothing
+		// else. In particular yes, no, on and off are not booleans to it,
+		// which is the mistake people actually make.
 		switch strings.ToLower(unquoted) {
-		case "true", "false":
+		case "true", "false", "1", "0":
 		default:
-			return fmt.Sprintf("%s: %s is not true or false", distro, id),
-				fmt.Sprintf("%s:%d  %s = %s. WSL reads only true or false here; anything else is treated as absent, so the default (%s) applies.",
+			return fmt.Sprintf("%s: %s is not a boolean", distro, id),
+				fmt.Sprintf("%s:%d  %s = %s. WSL reads true, false, 1 or 0 here and nothing else, so this is treated as absent and the default (%s) applies.",
 					distro, entry.Line, id, value, orUnset(k.Default))
 		}
 
@@ -319,4 +337,16 @@ func orUnset(s string) string {
 		return "unset"
 	}
 	return s
+}
+
+// settingsAfter counts the settings below a line, which is what a malformed
+// line costs: WSL stops reading there, so all of them revert to their defaults.
+func settingsAfter(cfg *wslconfig.Config, line int) int {
+	n := 0
+	for _, e := range cfg.Entries {
+		if e.Line > line {
+			n++
+		}
+	}
+	return n
 }
