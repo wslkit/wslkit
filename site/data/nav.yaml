@@ -1,0 +1,35 @@
+# The documentation index, grouped by the question a reader arrives with.
+#
+# `pages` lists docs/ filenames without .md, in the order they should appear.
+# Titles are not repeated here: each page's own `# heading` is its title, so
+# there is nothing to keep in sync.
+#
+# A page in docs/ that appears in no section fails the build. A page nothing
+# links to is a page nobody reads, and a pull request is where that is cheap to
+# fix. Generated reference pages are listed here like any other.
+sections:
+  - section: Start here
+    pages: [install, safety]
+
+  - section: Commands
+    pages: [doctor, disk, top, agent, sock]
+
+  - section: Guides
+    pages: [wsl-will-not-start, reclaim-disk-space, windows-keys-in-wsl, report-a-bug]
+
+  - section: Reference
+    pages: [errors, wslconfig, probes, fixes, compatibility, exit-codes, json]
+
+  - section: Project
+    pages: [architecture, decisions, contributing]
+
+# Sidebar labels, for pages whose own heading is a sentence and does not fit a
+# narrow column. An entry here is an exception, not the pattern.
+short:
+  wsl-will-not-start: WSL will not start
+  reclaim-disk-space: Reclaim disk space
+  windows-keys-in-wsl: Use your Windows keys
+  report-a-bug: Report a bug well
+  wslconfig: .wslconfig keys
+  exit-codes: Exit codes
+  json: JSON output

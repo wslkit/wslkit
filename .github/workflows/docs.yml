@@ -1,0 +1,105 @@
+# Build the documentation site and publish it to GitHub Pages.
+#
+# Every pull request builds it, so a broken template, a page in no nav section,
+# or a nav entry pointing at a deleted page fails in review rather than on the
+# live site. Only main deploys.
+name: docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'site/**'
+      - 'tools/gen-docs/**'
+      # The reference pages are generated from these, so a refreshed table has
+      # to reach the site the same way a prose edit does.
+      - 'internal/data/**'
+      - 'internal/probe/**'
+      - 'internal/fix/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'site/**'
+      - 'tools/gen-docs/**'
+      - 'internal/data/**'
+      - 'internal/probe/**'
+      - 'internal/fix/**'
+      - '.github/workflows/docs.yml'
+  # So the site can be republished without a docs change, when Pages itself
+  # needs a nudge.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned with its published checksum, for the same reason the module list is
+  # an allow-list: a build that silently changes under us is not reproducible.
+  # Bump both lines together from https://github.com/gohugoio/hugo/releases.
+  HUGO_VERSION: 0.166.0
+  HUGO_SHA256: 45228f5a52eb118b0ca168068f01d7df0447314a24056f1d29667ed9fc368308
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: install hugo
+        run: |
+          set -euo pipefail
+          tarball="hugo_${HUGO_VERSION}_linux-amd64.tar.gz"
+          curl -fsSL -o "$tarball" \
+            "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/${tarball}"
+          echo "${HUGO_SHA256}  ${tarball}" | sha256sum -c -
+          tar -xzf "$tarball" hugo
+          sudo install -m 0755 hugo /usr/local/bin/hugo
+          hugo version
+
+      # Stages docs/ and generates the reference pages from the data tables and
+      # registries the binary itself uses. It fails on a page that is in no nav
+      # section: a page nothing links to is a page nobody reads.
+      - name: generate
+        run: go run ./tools/gen-docs
+
+      # Again, checking nothing changed. A generator whose output depends on map
+      # iteration order would pass the first run and produce a different site
+      # every time.
+      - name: check the generator is deterministic
+        run: go run ./tools/gen-docs -check
+
+      - name: build
+        run: hugo --source site --destination public --minify --printPathWarnings
+
+      - name: upload
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/public
+
+  deploy:
+    name: deploy
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
