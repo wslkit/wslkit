@@ -243,6 +243,19 @@ func release(ctx context.Context, e Env, r Registration, o CompactOptions, path 
 	// The wait runs either way. Skipping it after a shutdown was worse: the
 	// compaction then failed at the open with a raw virtual disk error
 	// rather than a named, explainable refusal.
+	return WaitForDisk(ctx, e, r, path, o, pr)
+}
+
+// WaitForDisk waits for the utility VM to let go of a disk after the
+// distribution that owns it has stopped.
+//
+// Stopping a distribution does not free its disk. The utility VM keeps it open
+// for about a minute afterwards, so anything that wants the file to itself has
+// to wait for it, not just ask for the distribution to stop.
+func WaitForDisk(ctx context.Context, e Env, r Registration, path string, o CompactOptions, pr Progress) error {
+	if pr == nil {
+		pr = DiscardProgress{}
+	}
 	blockers, err := othersRunning(ctx, e, r.Name)
 	if err != nil {
 		blockers = nil

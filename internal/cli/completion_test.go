@@ -155,7 +155,7 @@ func TestCompletionOffersFlagsPerCommand(t *testing.T) {
 func TestDistroCompletionCoversTheCommandsThatTakeOne(t *testing.T) {
 	got := pathsTakingKind(argDistro)
 	sort.Strings(got)
-	want := []string{"disk compact", "disk info", "disk move", "disk relink", "disk trim", "disk usage"}
+	want := []string{"disk compact", "disk info", "disk move", "disk relink", "disk trash", "disk trim", "disk usage"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("got %v, want %v", got, want)
 	}

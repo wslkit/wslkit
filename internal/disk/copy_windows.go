@@ -5,6 +5,7 @@ package disk
 import (
 	"errors"
 	"fmt"
+	"os"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -292,4 +293,34 @@ func setLength(h windows.Handle, size int64) error {
 		return fmt.Errorf("disk: setting the length to %d: %w", size, err)
 	}
 	return seek(h, 0)
+}
+
+// RemoveDir deletes an empty directory.
+func (WindowsFS) RemoveDir(path string) error {
+	p, err := widePath(path)
+	if err != nil {
+		return err
+	}
+	if err := windows.RemoveDirectory(p); err != nil {
+		return fmt.Errorf("disk: removing the directory %s: %w", path, err)
+	}
+	return nil
+}
+
+// ReadFile reads a small file whole. Used for the trash manifest, never for a
+// disk.
+func (WindowsFS) ReadFile(path string) ([]byte, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("disk: reading %s: %w", path, err)
+	}
+	return b, nil
+}
+
+// WriteFile writes a small file, replacing what was there.
+func (WindowsFS) WriteFile(path string, b []byte) error {
+	if err := os.WriteFile(path, b, 0o600); err != nil {
+		return fmt.Errorf("disk: writing %s: %w", path, err)
+	}
+	return nil
 }

@@ -139,3 +139,35 @@ func decodeWSLOutput(b []byte) string {
 	}
 	return strings.TrimRight(string(utf16.Decode(u)), "\x00")
 }
+
+// Unregister removes a distribution from WSL.
+//
+// It deletes the disk along with the registration, and fires its notification
+// only afterwards, so nothing can intercept it. That is why `wslkit disk trash`
+// moves the disk out of the way first: by the time this runs there is nothing
+// left for it to delete.
+func (h *WindowsHost) Unregister(ctx context.Context, name string) error {
+	cctx, cancel := context.WithTimeout(ctx, controlTimeout)
+	defer cancel()
+	_, stderr, code, err := h.run(cctx, "--unregister", name)
+	if err != nil || code != 0 {
+		return fmt.Errorf("disk: unregistering %s: %w: %s", name, err, strings.TrimSpace(stderr))
+	}
+	return nil
+}
+
+// ImportInPlace registers an existing disk as a distribution without copying
+// it, which is how a trashed distribution comes back.
+func (h *WindowsHost) ImportInPlace(ctx context.Context, name, vhdPath string) error {
+	cctx, cancel := context.WithTimeout(ctx, importTimeout)
+	defer cancel()
+	_, stderr, code, err := h.run(cctx, "--import-in-place", name, vhdPath)
+	if err != nil || code != 0 {
+		return fmt.Errorf("disk: importing %s from %s: %w: %s", name, vhdPath, err, strings.TrimSpace(stderr))
+	}
+	return nil
+}
+
+// importTimeout is longer than the other control commands: an import registers
+// a disk and starts the utility VM to look at it.
+const importTimeout = 5 * time.Minute

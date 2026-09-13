@@ -162,3 +162,72 @@ func (r *WindowsRegistry) WriteString(guid, name, value string) error {
 	}
 	return nil
 }
+
+// ReadDWORD reads one numeric value from a distribution key.
+func (r *WindowsRegistry) ReadDWORD(guid, name string) (uint32, bool, error) {
+	k, err := registry.OpenKey(r.root(), RegistryKeyFor(guid), registry.READ)
+	if err != nil {
+		if errors.Is(err, registry.ErrNotExist) {
+			return 0, false, nil
+		}
+		return 0, false, fmt.Errorf("disk: opening the registration %s: %w", guid, err)
+	}
+	defer k.Close()
+	v, _, err := k.GetIntegerValue(name)
+	if err != nil {
+		if errors.Is(err, registry.ErrNotExist) {
+			return 0, false, nil
+		}
+		return 0, false, fmt.Errorf("disk: reading %s from %s: %w", name, guid, err)
+	}
+	return uint32(v), true, nil
+}
+
+// WriteDWORD writes one numeric value to a distribution key.
+func (r *WindowsRegistry) WriteDWORD(guid, name string, value uint32) error {
+	k, err := registry.OpenKey(r.root(), RegistryKeyFor(guid), registry.SET_VALUE)
+	if err != nil {
+		return fmt.Errorf("disk: opening the registration %s for writing: %w", guid, err)
+	}
+	defer k.Close()
+	if err := k.SetDWordValue(name, value); err != nil {
+		return fmt.Errorf("disk: writing %s to %s: %w", name, guid, err)
+	}
+	return nil
+}
+
+// DefaultDistribution reads the GUID of the default distribution.
+//
+// It lives on the Lxss key itself, not on any distribution, so a restored
+// distribution has to have it put back separately from its own values.
+func (r *WindowsRegistry) DefaultDistribution() (string, bool, error) {
+	k, err := registry.OpenKey(r.root(), r.path(), registry.READ)
+	if err != nil {
+		if errors.Is(err, registry.ErrNotExist) {
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("disk: opening %s: %w", r.path(), err)
+	}
+	defer k.Close()
+	v, _, err := k.GetStringValue("DefaultDistribution")
+	if err != nil {
+		if errors.Is(err, registry.ErrNotExist) {
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("disk: reading the default distribution: %w", err)
+	}
+	return v, true, nil
+}
+
+// SetDefaultDistribution makes one distribution the default.
+func (r *WindowsRegistry) SetDefaultDistribution(guid string) error {
+	k, err := registry.OpenKey(r.root(), r.path(), registry.SET_VALUE)
+	if err != nil {
+		return fmt.Errorf("disk: opening %s for writing: %w", r.path(), err)
+	}
+	defer k.Close()
+	if err := k.SetStringValue("DefaultDistribution", guid); err != nil {
+		return fmt.Errorf("disk: writing the default distribution: %w", err)
+	}
+	return nil
+}
