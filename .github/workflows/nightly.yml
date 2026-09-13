@@ -18,6 +18,7 @@ jobs:
           - { pkg: ./internal/wslconfig, fn: FuzzParse }
           - { pkg: ./internal/wslver, fn: FuzzParse }
           - { pkg: ./internal/wslerr, fn: FuzzParse }
+          - { pkg: ./internal/agent/proto, fn: FuzzReadFrame }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -27,6 +28,7 @@ jobs:
 
   runner-drift:
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, windows-11-arm]
     runs-on: ${{ matrix.os }}
@@ -35,6 +37,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      # arm64 is not in the per-PR matrix (too slow); build and test it here.
+      - run: go run ./tools/build-agent -version nightly
+      - run: go build ./... && go test -count=1 ./...
       - run: go run ./cmd/wslkit doctor check --json > env.json
         shell: pwsh
         continue-on-error: true

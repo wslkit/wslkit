@@ -50,6 +50,19 @@ commands across the event log, the registry, the VHDX header and the WSL system 
 - **Links out rather than reimplementing.** Where a mature tool owns a problem, it gets recommended.
 - **One kit.** Every subcommand shares the collectors, the `--json` contract, the exit codes and the undo journal.
 
+## Guest agent
+
+Some tools need a helper inside the distribution. `wslkit agent install -d <distro>` puts
+one there (a static binary plus a systemd unit) and `wslkit agent start` runs the
+Windows-side daemon it connects to over a Hyper-V socket. No admin rights on either side;
+the daemon only opens targets you have allowed. See
+[ADR 0009](docs/decisions/0009-guest-agent.md).
+
+```
+wslkit agent install -d Ubuntu --autostart
+wslkit agent status
+```
+
 ## Legacy name
 
 The binary is multi-call: a copy or shim named `wsldoctor.exe` behaves as `wslkit doctor`.

@@ -74,15 +74,16 @@ type Env struct {
 	UserProfile string    `json:"user_profile,omitempty"` // for redaction; scrubbed in --report
 	Hostname    string    `json:"hostname,omitempty"`
 
-	Host     Host            `json:"host"`
-	Net      Net             `json:"net"`
-	Runtime  Runtime         `json:"runtime"`
-	Distros  Field[[]Distro] `json:"distros"`
-	Config   Config          `json:"config"`
-	Defender Defender        `json:"defender"`
-	Events   Events          `json:"events"`
-	Procs    Procs           `json:"procs"`
-	Plugins  Field[[]Plugin] `json:"plugins"`
+	Host     Host             `json:"host"`
+	Net      Net              `json:"net"`
+	Runtime  Runtime          `json:"runtime"`
+	Distros  Field[[]Distro]  `json:"distros"`
+	Config   Config           `json:"config"`
+	Defender Defender         `json:"defender"`
+	Events   Events           `json:"events"`
+	Procs    Procs            `json:"procs"`
+	Plugins  Field[[]Plugin]  `json:"plugins"`
+	Agent    Field[AgentInfo] `json:"agent"`
 
 	// Collectors records how long each collector took and whether it errored,
 	// so a slow or broken machine is visible in the snapshot itself.
@@ -327,6 +328,20 @@ type Plugin struct {
 	// EntryPoint: true when the export table lists WSLPluginAPI_EntryPointV1; ExportsErr says why it could not be read.
 	EntryPoint bool   `json:"entry_point"`
 	ExportsErr string `json:"exports_err,omitempty"`
+}
+
+// AgentInfo summarises the wslkit guest-agent daemon on the Windows side, read
+// from its status file. Absent when the daemon has never run.
+type AgentInfo struct {
+	PID        int       `json:"pid"`
+	Alive      bool      `json:"alive"`
+	Version    string    `json:"version,omitempty"`
+	VMID       string    `json:"vm_id,omitempty"`
+	UpdatedAt  time.Time `json:"updated_at"`
+	Guests     []string  `json:"guests"` // connected distro names
+	LastError  string    `json:"last_error,omitempty"`
+	Autostart  bool      `json:"autostart"`
+	AllowedNum int       `json:"allowed_targets"`
 }
 
 // New returns an Env with schema and defaults set.

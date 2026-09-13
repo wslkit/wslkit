@@ -54,6 +54,8 @@ func (a *App) Run(args []string) int {
 	switch args[0] {
 	case "doctor":
 		return a.doctor(args[1:])
+	case "agent":
+		return a.agent(args[1:])
 	case "version", "--version", "-v":
 		fmt.Fprintf(a.Stdout, "%s %s\n", Product, a.Version)
 		return ExitOK
@@ -99,6 +101,7 @@ func (a *App) usage() {
   wslkit doctor explain [flags] <err>  decode a WSL error code and run the probes that explain it
   wslkit doctor fix <id> [--apply]     plan (default) or apply one remediation
   wslkit doctor undo [<journal-id>]    list journal entries, or replay one rollback
+  wslkit agent ...                     guest agent: install into a distro, run the Windows daemon (wslkit agent help)
   wslkit version
 
 check / explain flags:

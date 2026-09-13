@@ -16,6 +16,9 @@ import (
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 
+	agentconfig "github.com/wslkit/wslkit/internal/agent/config"
+	agenthost "github.com/wslkit/wslkit/internal/agent/host"
+	agentinstall "github.com/wslkit/wslkit/internal/agent/install"
 	"github.com/wslkit/wslkit/internal/data"
 	"github.com/wslkit/wslkit/internal/env"
 	"github.com/wslkit/wslkit/internal/peexport"
@@ -63,6 +66,7 @@ func Run(ctx context.Context, o Options) (*env.Env, error) {
 		{"firewall", collectFirewall},
 		{"hotfixes", collectHotfixes},
 		{"policy", collectPolicy},
+		{"agent", collectAgent},
 	})
 	return e, nil
 }
@@ -834,6 +838,35 @@ func collectPolicy(ctx context.Context, e *env.Env, o Options) error {
 		}
 	}
 	e.Net.Policy = env.Ok(m, src)
+	return nil
+}
+
+// ---------------------------------------------------------------- wslkit guest agent
+
+func collectAgent(ctx context.Context, e *env.Env, o Options) error {
+	src := agenthost.StatusPath()
+	st, ok, err := agenthost.ReadStatus()
+	if err != nil {
+		e.Agent = env.Fail[env.AgentInfo](kindOf(err), src, err)
+		return err
+	}
+	if !ok {
+		e.Agent = env.Absent[env.AgentInfo](src)
+		return nil
+	}
+	info := env.AgentInfo{PID: st.PID, Version: st.Version, VMID: st.VMID, UpdatedAt: st.UpdatedAt, LastError: st.LastError, Guests: []string{}}
+	if p, err := os.FindProcess(st.PID); err == nil {
+		_ = p.Release()
+		info.Alive = true
+	}
+	for _, s := range st.Sessions {
+		info.Guests = append(info.Guests, s.Distro)
+	}
+	_, info.Autostart = agentinstall.Autostart()
+	if cfg, err := agentconfig.LoadHost(filepath.Join(agentconfig.HostDir(), "host.json")); err == nil {
+		info.AllowedNum = len(cfg.Allow)
+	}
+	e.Agent = env.Ok(info, src)
 	return nil
 }
 
