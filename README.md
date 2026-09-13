@@ -63,6 +63,18 @@ wslkit agent install -d Ubuntu --autostart
 wslkit agent status
 ```
 
+## Bridged sockets
+
+`wslkit sock` gives a distribution the Windows SSH and GPG agents, so keys stay on
+Windows (including hardware-backed ones) and Linux tools use them unchanged.
+
+```
+wslkit sock list
+wslkit sock enable ssh-agent -d Ubuntu     # SSH_AUTH_SOCK, via the Windows OpenSSH or 1Password agent
+wslkit sock enable gpg-agent -d Ubuntu     # gpg4win, including its SSH support
+wslkit sock status -d Ubuntu
+```
+
 ## Legacy name
 
 The binary is multi-call: a copy or shim named `wsldoctor.exe` behaves as `wslkit doctor`.
