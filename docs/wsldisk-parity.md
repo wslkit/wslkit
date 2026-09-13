@@ -12,8 +12,8 @@ The reference is wsldisk at commit `a0d60c5`.
 |---|---|---|
 | `wsldisk list` | `wslkit disk list` | **done** |
 | `wsldisk info <distro>` | `wslkit disk info <distro>` | **done** |
-| `wsldisk trim <distro>` | `wslkit disk trim <distro>` | todo |
-| `wsldisk compact [distro]` | `wslkit disk compact [distro]` | todo |
+| `wsldisk trim <distro>` | `wslkit disk trim <distro>` | **done** |
+| `wsldisk compact [distro]` | `wslkit disk compact [distro]` | **done** |
 | `wsldisk usage <distro>` | `wslkit disk usage <distro>` | todo |
 | `wsldisk orphans` | `wslkit disk orphans` | todo |
 | `wsldisk move <distro> <dir>` | `wslkit disk move <distro> <dir>` | todo |
@@ -30,12 +30,12 @@ wired to a flag in wsldisk and which ADR 0003 rules out.
 |---|---|---|
 | `--json` | all but `completion` | **done** for list, info |
 | `--verbose`, `-v` | all | **done** for list, info |
-| `--dry-run` | all | **done** for list, info, which answer it rather than ignoring it |
+| `--dry-run` | all | **done** for list, info, trim, compact |
 | `--yes`, `-y` | all | todo, lands with `orphans --delete` |
 | `--log FILE` | all | todo |
 | `--probe` | `list`, `info` | **done** |
 | `--top`, `--by-directory`, `--depth` | `usage` | todo |
-| `--all`, `--file`, `--no-trim`, `--restart`, `--shutdown` | `compact` | todo |
+| `--all`, `--file`, `--no-trim`, `--restart`, `--shutdown` | `compact` | **done**, plus `--unlock-timeout` and `--trim-timeout` |
 | `--scan`, `--delete`, `--relink`, `--to` | `orphans` | todo |
 | `--keep-source` | `move` | todo |
 
@@ -70,16 +70,16 @@ reason in a comment next to the code.
       mask, so a wrong mask fails at open rather than mid-compaction.
 - [x] `wsl.exe` output is UTF-8 from the guest but UTF-16 for its own
       diagnostics; both are decoded.
-- [ ] `fstrim -v` falls back to `fstrim` when busybox rejects the flag.
-- [ ] The figure fstrim reports is the free extent, not space reclaimed, and is
+- [x] `fstrim -v` falls back to `fstrim` when busybox rejects the flag.
+- [x] The figure fstrim reports is the free extent, not space reclaimed, and is
       labelled as such.
-- [ ] Compaction waits for the utility VM to release the disk, and says which
+- [x] Compaction waits for the utility VM to release the disk, and says which
       of the three reasons it could not.
 - [ ] The smoke test after a move or relink is `/bin/sh -c :`, because NixOS-WSL
       has no `/bin/true`.
 - [ ] `move` deletes the source only after the distribution has booted from the
       copy.
-- [ ] A plan may not schedule an undoable change after an irreversible step.
+- [x] A plan may not schedule an undoable change after an irreversible step.
 - [ ] `orphans` re-checks the extension in code, because the filesystem matches
       `*.vhdx` against short names too.
 - [ ] `orphans --delete` asks once for the whole set, and end-of-input is a no.
