@@ -183,6 +183,47 @@ func TestSessionCloseFailsStreams(t *testing.T) {
 	}
 }
 
+// A peer whose application never calls Accept must not stall the read loop:
+// our own opens still get answered.
+func TestSlowAcceptorDoesNotBlockTheReadLoop(t *testing.T) {
+	host, guest := pair(t)
+	echo(t, guest) // only the guest serves; the host never calls Accept
+
+	// These opens are never answered, so they stay outstanding for the whole
+	// test; they must not stop either side's read loop.
+	pending, cancelPending := context.WithCancel(context.Background())
+	defer cancelPending()
+	var opened sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		opened.Add(1)
+		go func() { defer opened.Done(); _, _ = guest.Open(pending, "unanswered", nil) }()
+	}
+	// Give the host's read loop time to queue them all.
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		host.amu.Lock()
+		n := len(host.queue)
+		host.amu.Unlock()
+		if n == 50 || time.Now().After(deadline) {
+			if n != 50 {
+				t.Fatalf("host queued %d of 50 opens", n)
+			}
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	st, err := host.Open(ctx, "echo", nil)
+	if err != nil {
+		t.Fatalf("host open while 50 requests are unaccepted: %v", err)
+	}
+	_ = st.Close()
+	cancelPending()
+	opened.Wait()
+}
+
 func TestPing(t *testing.T) {
 	host, _ := pair(t)
 	if err := host.Ping(); err != nil {

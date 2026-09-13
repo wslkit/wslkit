@@ -36,11 +36,20 @@ type Session struct {
 	streams map[uint32]*Stream
 	pending map[uint32]chan proto.Frame // OPEN awaiting OPEN_OK / OPEN_ERR
 
-	accept    chan *OpenRequest
+	// Incoming opens are queued rather than handed over on a channel: the read
+	// loop must never block on application progress, or two peers opening
+	// streams at the same time deadlock each other.
+	amu       sync.Mutex
+	queue     []*OpenRequest
+	signal    chan struct{}
 	done      chan struct{}
 	closeErr  error
 	closeOnce sync.Once
 }
+
+// maxPendingOpens bounds the accept queue; a peer that floods us beyond this is
+// refused rather than allowed to consume memory without limit.
+const maxPendingOpens = 1024
 
 // Handshake exchanges HELLO frames and returns a Session. ours.Role decides the
 // stream id parity. deadline bounds the handshake only.
@@ -94,7 +103,7 @@ func Handshake(conn io.ReadWriteCloser, ours proto.Hello, deadline time.Duration
 		odd:     ours.Role == proto.RoleGuest,
 		streams: map[uint32]*Stream{},
 		pending: map[uint32]chan proto.Frame{},
-		accept:  make(chan *OpenRequest, 16),
+		signal:  make(chan struct{}, 1),
 		done:    make(chan struct{}),
 	}
 	if s.odd {
@@ -233,15 +242,57 @@ func (r *OpenRequest) Reject(msg string) error {
 	return err
 }
 
+// enqueue adds an open request without ever blocking the read loop. It returns
+// false when the queue is full.
+func (s *Session) enqueue(r *OpenRequest) bool {
+	s.amu.Lock()
+	if len(s.queue) >= maxPendingOpens {
+		s.amu.Unlock()
+		return false
+	}
+	s.queue = append(s.queue, r)
+	s.amu.Unlock()
+	select {
+	case s.signal <- struct{}{}:
+	default: // a wake-up is already pending
+	}
+	return true
+}
+
+func (s *Session) dequeue() *OpenRequest {
+	s.amu.Lock()
+	defer s.amu.Unlock()
+	if len(s.queue) == 0 {
+		return nil
+	}
+	r := s.queue[0]
+	s.queue = s.queue[1:]
+	if len(s.queue) > 0 {
+		select {
+		case s.signal <- struct{}{}:
+		default:
+		}
+	}
+	return r
+}
+
 // Accept blocks for the next open request from the peer.
 func (s *Session) Accept(ctx context.Context) (*OpenRequest, error) {
-	select {
-	case r := <-s.accept:
-		return r, nil
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-s.done:
-		return nil, ErrClosed
+	for {
+		if r := s.dequeue(); r != nil {
+			return r, nil
+		}
+		select {
+		case <-s.signal:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-s.done:
+			// Drain anything queued before the session ended.
+			if r := s.dequeue(); r != nil {
+				return r, nil
+			}
+			return nil, ErrClosed
+		}
 	}
 }
 
@@ -279,14 +330,9 @@ func (s *Session) readLoop() {
 				_ = s.write(proto.EncodeOpenErr(f.Stream, err.Error()))
 				continue
 			}
-			// Block until the application accepts: backpressure instead of
-			// refusing bursts. A session that never calls Accept stalls its own
-			// reader, which is the correct outcome for a misbehaving peer.
 			req := &OpenRequest{Target: o.Target, Meta: o.Meta, id: f.Stream, s: s}
-			select {
-			case s.accept <- req:
-			case <-s.done:
-				return
+			if !s.enqueue(req) {
+				_ = s.write(proto.EncodeOpenErr(f.Stream, "too many pending opens"))
 			}
 		case proto.TypeOpenOK, proto.TypeOpenErr:
 			s.smu.Lock()
