@@ -398,6 +398,7 @@ func collectDistros(ctx context.Context, e *env.Env, o Options) error {
 	// Read after the loop, so every distribution already knows whether it is
 	// running: that is what decides whether the file can be read at all.
 	readWslConfFor(ctx, out, o.Timeout)
+	scanZoneFilesFor(ctx, out, o.Timeout)
 	e.Distros = env.Ok(out, src)
 	return nil
 }

@@ -243,6 +243,23 @@ type Distro struct {
 	// into a stopped one would start it, which a read-only diagnosis must
 	// not do.
 	WslConf Field[string] `json:"wsl_conf,omitempty"`
+	// ZoneFiles counts the :Zone.Identifier files left behind when a
+	// download is saved into the distribution over \\wsl.localhost. Same
+	// rule as WslConf: running distributions only.
+	ZoneFiles Field[ZoneScan] `json:"zone_files,omitempty"`
+}
+
+// ZoneScan is the result of looking for :Zone.Identifier files in one
+// distribution. The walk is bounded, so Truncated says whether what it found is
+// all there is.
+type ZoneScan struct {
+	Count int `json:"count"`
+	// Paths are examples, as they appear inside the distribution, capped at
+	// a handful. The count is the finding; these make it actionable.
+	Paths []string `json:"paths,omitempty"`
+	// Truncated means the walk hit its own limit and stopped early, so Count
+	// is a floor rather than a total.
+	Truncated bool `json:"truncated,omitempty"`
 }
 
 type VhdInfo struct {

@@ -20,6 +20,7 @@ import (
 //   - "note": print Description only (manual step)
 //   - "file_copy": Args[0] source, Args[1] destination (overwrites)
 //   - "file_write": Args[0] path, Args[1] full new content
+//   - "file_delete": Args[0] path; a path that is already gone is not an error
 //   - "wmi_method": Args[0] namespace, Args[1] class, Args[2] static method,
 //     Args[3] JSON object of input parameters (string arrays allowed); see
 //     WMIMethod / DecodeWMIMethod
