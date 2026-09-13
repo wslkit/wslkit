@@ -1,7 +1,9 @@
 # wsldoctor — Development phases and feature research
 
 > **2026-09-12: wsldoctor is now `wslkit doctor`** (ADR 0008). Command names below read
-> with the `wslkit doctor` prefix; probe and fix IDs are unchanged.
+> with the `wslkit doctor` prefix; probe and fix IDs are unchanged. Research for the
+> other planned subcommands (`sock`, `limit`, `top`, `guard`, `disk`, `proxy`) lives in
+> `docs/research/2026-09-subcommands.md`.
 
 > Companion to [PLAN.md](PLAN.md) and [ARCHITECTURE.md](ARCHITECTURE.md). PLAN.md is the specification (what the probes are and
 > why). This document is the *how and when*: engineering phases, spikes that must land
