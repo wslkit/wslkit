@@ -40,7 +40,7 @@
       "known_bad_max": "2.4.13",
       "known_good_min": "2.7.13",
       "symptom": "Catastrophic failure / Error code: Wsl/Service/E_UNEXPECTED on every launch",
-      "cause": "Ubuntu 26.04 is cgroup v2 only (systemd 259; cgroup v1 legacy and hybrid hierarchies removed). Derived from source and release notes; VM confirmation pending (wslkit/wslkit#1).",
+      "cause": "Ubuntu 26.04 is cgroup v2 only (systemd 259; cgroup v1 legacy and hybrid hierarchies removed). Observed: given a cgroup v1 hierarchy the distro PID 1 exits at init and the launch fails with E_UNEXPECTED, and the same disk boots with systemd off (docs/research/2026-09-cgroup-v1-observed.md).",
       "refs": [
         "https://documentation.ubuntu.com/release-notes/26.04/summary-for-lts-users/"
       ]
