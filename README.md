@@ -1,7 +1,8 @@
 # wslkit
 
-> One binary of tools for WSL 2. Diagnose why it is broken or slow, reclaim the
-> space its disks are holding, and bridge Windows into a distribution.
+> A toolkit for WSL 2: troubleshooting and maintenance in one binary. Find out
+> why WSL is broken or slow, reclaim the space its disks are holding, cap what a
+> distribution may use, and bridge Windows into it.
 
 [![ci](https://github.com/wslkit/wslkit/actions/workflows/ci.yml/badge.svg)](https://github.com/wslkit/wslkit/actions/workflows/ci.yml)
 [![docs](https://github.com/wslkit/wslkit/actions/workflows/docs.yml/badge.svg)](https://wslkit.github.io/wslkit/)
@@ -16,6 +17,7 @@ wslkit doctor explain "Wsl/Service/E_UNEXPECTED"
 wslkit disk list                 what each distribution costs on disk
 wslkit disk compact Ubuntu       trim, stop, then shrink the file
 wslkit top                       what the utility VM is using, and which distribution
+wslkit limit set -d Ubuntu --high 3GB --cpus 2
 ```
 
 No installer, no PowerShell, no administrator for anything that only reads.
@@ -42,6 +44,9 @@ Windows 10 build 19041 or later, amd64 or arm64.
 | [`doctor`](https://wslkit.github.io/wslkit/doctor/) | why WSL is broken or slow, and fixes with journalled undo |
 | [`disk`](https://wslkit.github.io/wslkit/disk/) | inspect, compact, move and repair distribution disks |
 | [`top`](https://wslkit.github.io/wslkit/top/) | what the utility VM is using, and which distribution |
+| [`limit`](https://wslkit.github.io/wslkit/limit/) | cap the memory, CPUs and swap one distribution may use |
+| [`proxy`](https://wslkit.github.io/wslkit/proxy/) | get a Windows proxy, PAC script included, working inside a distribution |
+| [`guard`](https://wslkit.github.io/wslkit/guard/) | get WSL answering again after the machine has slept |
 | [`agent`](https://wslkit.github.io/wslkit/agent/) | a helper inside a distribution, and the Windows daemon it talks to |
 | [`sock`](https://wslkit.github.io/wslkit/sock/) | your Windows SSH and GPG keys, usable from inside WSL |
 

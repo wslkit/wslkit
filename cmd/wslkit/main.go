@@ -1,5 +1,5 @@
-// wslkit: tools for WSL 2. `wslkit doctor` diagnoses why WSL is broken or slow
-// and fixes it.
+// wslkit: a toolkit for WSL 2. Troubleshooting and maintenance commands —
+// doctor, disk, top, limit, proxy, guard, agent, sock — in one binary.
 //
 // The binary is multi-call: invoked through a copy or shim named wsldoctor.exe
 // it behaves as `wslkit doctor`, so older shortcuts keep working.
