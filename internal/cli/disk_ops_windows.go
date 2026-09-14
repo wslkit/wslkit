@@ -68,6 +68,8 @@ func (a *App) diskCompact(args []string) int {
 	all := fs.Bool("all", false, "compact every WSL 2 distribution")
 	file := fs.String("file", "", "compact a loose .vhdx instead of the disk of a distribution")
 	orphans := fs.Bool("orphans", false, "compact the loose disks that no distribution claims")
+	auto := fs.Bool("auto", false, "with --all, skip the disks not worth stopping a distribution for")
+	minReclaim := fs.String("min-reclaim", "", "with --auto, how much must be reclaimable to stop a distribution (default 1GiB)")
 	var scan stringList
 	fs.Var(&scan, "scan", "another directory to search for loose disks; may be given more than once")
 	noTrim := fs.Bool("no-trim", false, "skip the fstrim step")
@@ -109,6 +111,19 @@ func (a *App) diskCompact(args []string) int {
 		fmt.Fprintln(a.Stderr, "--scan only means something with --orphans, which is what searches for disks")
 		return ExitUsage
 	}
+	if (*auto || *minReclaim != "") && !*all {
+		fmt.Fprintln(a.Stderr, "--auto goes with --all: it is the rule for which of several disks are worth compacting")
+		return ExitUsage
+	}
+	var minBytes uint64
+	if *minReclaim != "" {
+		n, ok := disk.ParseSize(*minReclaim)
+		if !ok {
+			fmt.Fprintf(a.Stderr, "--min-reclaim %q is not a size: use 500MB, 2GiB, or a number of bytes\n", *minReclaim)
+			return ExitUsage
+		}
+		minBytes = n
+	}
 
 	ctx := context.Background()
 	e := diskEnv()
@@ -144,6 +159,15 @@ func (a *App) diskCompact(args []string) int {
 	targets, err := a.compactTargets(ctx, e, name, *all, *file, &o)
 	if err != nil {
 		return a.diskFail(f, err)
+	}
+	if *auto {
+		targets = a.autoFilter(ctx, f, e, targets, o, disk.AutoOptions{MinReclaim: minBytes, Shutdown: o.Shutdown})
+		if len(targets) == 0 {
+			// autoFilter has already said why, once per distribution.
+			// Nothing worth doing is a successful run, which is what a
+			// scheduled task needs it to be.
+			return ExitOK
+		}
 	}
 	if len(targets) == 0 {
 		if !f.jsonOut {
@@ -225,6 +249,58 @@ func (a *App) runCompaction(ctx context.Context, f diskFlags, e disk.Env, target
 		fmt.Fprintf(a.Stdout, "\n%s reclaimed in total\n", disk.FormatSize(total))
 	}
 	return exit
+}
+
+// autoFilter keeps the targets worth compacting, and says why it dropped the
+// rest.
+//
+// The rule is in the disk package; what is here is working out which targets
+// compacting would actually disrupt. A distribution that is running has to be
+// stopped. So does every distribution, if the utility VM is up and holding the
+// disk open on behalf of another one — which is the case that makes an
+// unattended run interrupt somebody who was not using the disk being compacted.
+func (a *App) autoFilter(ctx context.Context, f diskFlags, e disk.Env, targets []disk.CompactTarget, o disk.CompactOptions, ao disk.AutoOptions) []disk.CompactTarget {
+	vmUp := len(o.RunningBefore) > 0
+
+	var keep []disk.CompactTarget
+	for _, t := range targets {
+		if t.Reg.Name == "" {
+			// A loose file has no distribution to stop.
+			keep = append(keep, t)
+			continue
+		}
+		running := o.RunningBefore[t.Reg.Name]
+		// Stopping this one is enough when it is the only one up; otherwise
+		// the VM holds the disk and freeing it means stopping them all.
+		disrupts := running || vmUp
+
+		info := disk.Info{}
+		if running {
+			// Only readable for a distribution that is already running,
+			// which is exactly the case where the answer decides
+			// something.
+			info = disk.Measure(ctx, e, t.Reg, disk.MeasureOptions{Running: o.RunningBefore, Timeout: f.timeout})
+		}
+		d := disk.DecideAuto(info, disrupts, ao)
+		if !f.jsonOut {
+			fmt.Fprintf(a.Stdout, "%-24s %s\n", t.Reg.Name, d.Reason)
+		} else if !d.Compact {
+			// A skip leaves no other trace in the JSON stream, and a
+			// scheduled run wants a record of what it decided.
+			_ = disk.WriteJSONLine(a.Stdout, map[string]any{
+				"distribution": t.Reg.Name, "compacted": false, "skipped": true, "reason": d.Reason,
+			})
+		}
+		if d.Compact {
+			keep = append(keep, t)
+		}
+	}
+	if len(keep) == 0 && !f.jsonOut {
+		fmt.Fprintln(a.Stdout, "\nnothing was worth compacting")
+	} else if !f.jsonOut {
+		fmt.Fprintln(a.Stdout)
+	}
+	return keep
 }
 
 // orphanTargets scans for loose disks and turns them into compaction targets.
