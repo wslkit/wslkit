@@ -13,7 +13,7 @@ jobs:
   latest-stable:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: read latest stable and pre-release from the WSL releases API
         id: rel
         run: |
@@ -29,7 +29,7 @@ jobs:
           jq --arg s "${{ steps.rel.outputs.stable }}" --arg p "${{ steps.rel.outputs.pre }}" --arg d "$(date -u +%F)" \
              '.latest_stable=$s | .latest_prerelease=$p | .updated=$d' "$f" > tmp && mv tmp "$f"
           git diff --stat
-      - uses: peter-evans/create-pull-request@v7
+      - uses: peter-evans/create-pull-request@v8
         with:
           title: "data: WSL latest stable ${{ steps.rel.outputs.stable }}, pre-release ${{ steps.rel.outputs.pre }}"
           commit-message: "data: refresh compat.json from microsoft/WSL releases"
