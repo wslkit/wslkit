@@ -59,15 +59,37 @@ type Info struct {
 
 var ErrNotVHDX = errors.New("vhdx: file identifier is not 'vhdxfile'")
 
+// Reader reads the contents of the virtual disk, not just its shape. A dynamic
+// VHDX keeps payload blocks wherever they happened to land and never allocates
+// the blocks nothing was written to, so reading at a virtual offset means
+// walking the block allocation table; that table is what a Reader holds on to.
+type Reader struct {
+	r        io.ReaderAt
+	info     *Info
+	fileSize int64
+	// bat is one entry per payload block, in block order, with the
+	// sector-bitmap entries already dropped.
+	bat []uint64
+}
+
 // Parse reads from an io.ReaderAt. fileSize bounds reads; pass 0 if unknown.
 func Parse(r io.ReaderAt, fileSize int64) (*Info, error) {
+	d, err := Open(r, fileSize)
+	return d.Info(), err
+}
+
+// Open is Parse, keeping the block allocation table so the disk's contents can
+// be read afterwards. Like Parse it returns what it managed to learn even when
+// it fails, so a caller can report a half-readable file rather than nothing.
+func Open(r io.ReaderAt, fileSize int64) (*Reader, error) {
 	info := &Info{}
+	d := &Reader{r: r, info: info, fileSize: fileSize}
 	var id [8]byte
 	if _, err := r.ReadAt(id[:], fileIDOffset); err != nil {
-		return info, fmt.Errorf("vhdx: read file identifier: %w", err)
+		return d, fmt.Errorf("vhdx: read file identifier: %w", err)
 	}
 	if string(id[:]) != fileIDMagic {
-		return info, ErrNotVHDX
+		return d, ErrNotVHDX
 	}
 	info.MagicOK = true
 
@@ -86,7 +108,7 @@ func Parse(r io.ReaderAt, fileSize int64) (*Info, error) {
 	case err2 == nil:
 		h = h2
 	default:
-		return info, fmt.Errorf("vhdx: both headers invalid: %v / %v", err1, err2)
+		return d, fmt.Errorf("vhdx: both headers invalid: %v / %v", err1, err2)
 	}
 	info.HeaderOK = true
 	info.HeaderSeq = h.seq
@@ -95,7 +117,7 @@ func Parse(r io.ReaderAt, fileSize int64) (*Info, error) {
 	if err != nil {
 		regions, err = readRegionTable(r, regionTable2Off)
 		if err != nil {
-			return info, fmt.Errorf("vhdx: region tables: %w", err)
+			return d, fmt.Errorf("vhdx: region tables: %w", err)
 		}
 	}
 	var bat, meta *region
@@ -108,17 +130,69 @@ func Parse(r io.ReaderAt, fileSize int64) (*Info, error) {
 		}
 	}
 	if meta == nil {
-		return info, errors.New("vhdx: no metadata region")
+		return d, errors.New("vhdx: no metadata region")
 	}
 	if err := readMetadata(r, meta, info); err != nil {
-		return info, err
+		return d, err
 	}
 	if bat != nil && info.BlockSize > 0 && info.VirtualSize > 0 {
-		if err := readBAT(r, bat, info); err != nil {
-			return info, err
+		if err := readBAT(r, bat, info, &d.bat); err != nil {
+			return d, err
 		}
 	}
-	return info, nil
+	return d, nil
+}
+
+// Info is what the parse learned. It is never nil.
+func (d *Reader) Info() *Info { return d.info }
+
+// ReadAt reads at an offset in the virtual disk, which is not an offset in the
+// file: block 3 of the guest's filesystem may sit anywhere, or nowhere. A block
+// that was never written reads as zeros, which is exactly what the guest sees.
+//
+// Reading a differencing disk is refused rather than guessed at: a partially
+// present block means the rest lives in a parent file this does not open.
+func (d *Reader) ReadAt(p []byte, off int64) (int, error) {
+	if off < 0 {
+		return 0, errors.New("vhdx: negative offset")
+	}
+	if d.info.BlockSize == 0 || len(d.bat) == 0 {
+		return 0, errors.New("vhdx: no block allocation table was read")
+	}
+	blockSize := int64(d.info.BlockSize)
+	n := 0
+	for n < len(p) {
+		vo := off + int64(n)
+		if vo >= int64(d.info.VirtualSize) {
+			return n, io.EOF
+		}
+		block := vo / blockSize
+		if block >= int64(len(d.bat)) {
+			return n, io.EOF
+		}
+		within := vo % blockSize
+		want := len(p) - n
+		if int64(want) > blockSize-within {
+			want = int(blockSize - within)
+		}
+		entry := d.bat[block]
+		switch entry & 0x7 {
+		case payloadFullyPresent:
+			at := int64(entry>>20)<<20 + within
+			if at < 0 || (d.fileSize > 0 && at+int64(want) > d.fileSize) {
+				return n, fmt.Errorf("vhdx: block %d points outside the file", block)
+			}
+			if _, err := d.r.ReadAt(p[n:n+want], at); err != nil {
+				return n, fmt.Errorf("vhdx: read block %d: %w", block, err)
+			}
+		case payloadPartiallyPresent:
+			return n, fmt.Errorf("vhdx: block %d is only partially present (differencing disk)", block)
+		default:
+			clear(p[n : n+want])
+		}
+		n += want
+	}
+	return n, nil
 }
 
 type header struct {
@@ -245,7 +319,9 @@ const (
 	payloadPartiallyPresent = 7
 )
 
-func readBAT(r io.ReaderAt, b *region, info *Info) error {
+// readBAT walks the block allocation table. When keep is non-nil the payload
+// entries are kept, in block order, so the disk's contents can be read later.
+func readBAT(r io.ReaderAt, b *region, info *Info, keep *[]uint64) error {
 	if info.LogicalSector == 0 {
 		info.LogicalSector = 512
 	}
@@ -268,13 +344,20 @@ func readBAT(r io.ReaderAt, b *region, info *Info) error {
 	}
 	var full, partial uint64
 	var payloadIdx uint64
+	if keep != nil {
+		*keep = make([]uint64, 0, dataBlocks)
+	}
 	for i := uint64(0); i < totalEntries; i++ {
 		// Every (chunkRatio+1)-th entry is a sector bitmap entry; skip it.
 		if (i+1)%(chunkRatio+1) == 0 {
 			continue
 		}
 		payloadIdx++
-		state := buf[i*8] & 0x7
+		entry := binary.LittleEndian.Uint64(buf[i*8 : i*8+8])
+		if keep != nil {
+			*keep = append(*keep, entry)
+		}
+		state := entry & 0x7
 		switch state {
 		case payloadFullyPresent:
 			full++
