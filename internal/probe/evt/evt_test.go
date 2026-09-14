@@ -114,3 +114,46 @@ var errDenied = errStr("access denied")
 type errStr string
 
 func (e errStr) Error() string { return string(e) }
+
+// The shape a healthy machine actually logs, taken from a real elevated
+// capture: 23 Host-Network-Service events in a week, all id 1006 carrying
+// 0x80070002, on a desktop where WSL starts every time. Leading with those, and
+// telling the reader to restart HNS and delete their WSL network, is sending
+// them to fix nothing. This is that regression.
+func TestRoutineHostNetworkNoiseIsNotAFinding(t *testing.T) {
+	now := time.Now()
+	var evs []env.Event
+	for i := 0; i < 23; i++ {
+		evs = append(evs, env.Event{
+			Channel: "Microsoft-Windows-Host-Network-Service-Admin", ID: 1006,
+			Time:    now.Add(-time.Duration(i) * time.Hour),
+			Message: "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880",
+		})
+	}
+	r := (Crashes{}).Run(evtEnv(evs, false))
+	if r.Status != probe.OK {
+		t.Fatalf("status %s: %q", r.Status, r.Summary)
+	}
+	if r.FixHint != "" {
+		t.Errorf("a healthy machine should be given nothing to do: %q", r.FixHint)
+	}
+	// They are still counted, because somebody investigating a real problem
+	// wants to know they are there.
+	if !strings.Contains(r.Detail, "23 Hyper-V compute / host network error(s)") {
+		t.Errorf("the events should still be reported in the detail: %q", r.Detail)
+	}
+}
+
+// The same channel with the HRESULT that does stop WSL starting still leads.
+func TestFatalHostNetworkErrorStillLeads(t *testing.T) {
+	r := (Crashes{}).Run(evtEnv([]env.Event{{
+		Channel: "Microsoft-Windows-Host-Network-Service-Admin", ID: 1006, Time: time.Now(),
+		Message: "Failed to create network, error 0x8007054f",
+	}}, false))
+	if r.Status != probe.Warn {
+		t.Fatalf("status %s: %q", r.Status, r.Summary)
+	}
+	if r.FixHint == "" {
+		t.Error("this one has a known first thing to try")
+	}
+}

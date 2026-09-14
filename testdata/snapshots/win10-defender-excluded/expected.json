@@ -1,0 +1,18 @@
+{
+  "top": [
+    { "id": "WSL003", "status": "WARN", "fix_id": "update" }
+  ],
+  "require": [
+    { "id": "DEF001", "status": "OK" },
+    { "id": "EVT001", "status": "OK" },
+    { "id": "WSL001", "status": "OK" },
+    { "id": "WSL002", "status": "OK" },
+    { "id": "WSL004", "status": "OK" },
+    { "id": "HST001", "status": "OK" },
+    { "id": "HST002", "status": "OK" },
+    { "id": "HST003", "status": "OK" },
+    { "id": "DSK002", "status": "OK" },
+    { "id": "MEM001", "status": "OK" }
+  ],
+  "no_fail": true
+}

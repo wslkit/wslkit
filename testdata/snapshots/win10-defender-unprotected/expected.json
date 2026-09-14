@@ -1,0 +1,12 @@
+{
+  "top": [
+    { "id": "DEF001", "status": "WARN", "fix_id": "defender" }
+  ],
+  "require": [
+    { "id": "EVT001", "status": "OK" },
+    { "id": "WSL002", "status": "OK" },
+    { "id": "WSL004", "status": "OK" },
+    { "id": "HST003", "status": "OK" }
+  ],
+  "no_fail": true
+}
