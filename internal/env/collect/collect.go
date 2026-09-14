@@ -14,6 +14,10 @@ import (
 type Options struct {
 	Tool        string
 	AllowVMWake bool
+	// Online permits the one network request this tool makes: the published
+	// WSL release list. Off unless asked for, so an ordinary run touches
+	// nothing outside the machine.
+	Online      bool
 	Timeout     time.Duration // per collector
 	EventWindow time.Duration
 }

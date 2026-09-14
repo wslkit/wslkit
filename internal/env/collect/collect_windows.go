@@ -23,6 +23,7 @@ import (
 	"github.com/wslkit/wslkit/internal/data"
 	"github.com/wslkit/wslkit/internal/env"
 	"github.com/wslkit/wslkit/internal/peexport"
+	"github.com/wslkit/wslkit/internal/release"
 	"github.com/wslkit/wslkit/internal/vhdx"
 	"github.com/wslkit/wslkit/internal/winapi/authenticode"
 	"github.com/wslkit/wslkit/internal/winapi/evtlog"
@@ -321,7 +322,40 @@ func collectRuntime(ctx context.Context, e *env.Env, o Options) error {
 	} else {
 		e.Runtime.LatestStable = env.Fail[string](env.ErrOther, "embedded compat.json", err)
 	}
+	lookupLatest(ctx, e, o)
 	return nil
+}
+
+// lookupLatest replaces the embedded answer with a published one, when asked.
+//
+// The embedded version is refreshed weekly in the repository, which keeps it
+// right for anyone building from source and wrong for anyone running a binary
+// they downloaded months ago. Asking GitHub fixes that, and stays off by
+// default: a diagnostic tool that reaches the network without being told to is
+// not one that can be run on a locked-down machine.
+func lookupLatest(ctx context.Context, e *env.Env, o Options) {
+	if !o.Online {
+		return
+	}
+	info, err := release.Lookup(ctx, nil, release.DefaultCachePath(), time.Now())
+	if info.Stable == "" {
+		// Leave the embedded answer in place. A version number nobody could
+		// look up is not worth failing a whole collector over, but it is
+		// worth saying, because the report will otherwise look as though
+		// --online had worked.
+		if err != nil {
+			e.Runtime.LatestStableSource += " (--online failed: " + err.Error() + ")"
+		}
+		return
+	}
+	e.Runtime.LatestStable = env.Ok(info.Stable, info.Source())
+	e.Runtime.LatestStableSource = info.Source()
+	e.Runtime.LatestPrerelease = info.Prerelease
+	if err != nil {
+		// A stale cache used because the fetch failed: the answer is still
+		// better than the embedded one, and the reader should know its age.
+		e.Runtime.LatestStableSource += " (cached; refresh failed: " + err.Error() + ")"
+	}
 }
 
 // ---------------------------------------------------------------- distros

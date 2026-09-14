@@ -68,8 +68,16 @@ doctor runs: all of it works from an ordinary console.
 
 ## Nothing leaves your machine
 
-wslkit makes no network requests. It reads your registry, your filesystem and
-your event log, and it writes to your terminal.
+wslkit makes no network requests unless you ask for one. It reads your
+registry, your filesystem and your event log, and it writes to your terminal.
+
+There is exactly one request it can make, and only with `--online`:
+`GET https://api.github.com/repos/microsoft/WSL/releases`, to find out which
+version of WSL is current instead of trusting the list built into the binary.
+It sends no information about your machine — the request has no query, no body
+and no identifier beyond a user agent saying it is wslkit — and the answer is
+cached for a day in `%LOCALAPPDATA%\wslkit\cache`. Without the flag, nothing
+reaches the network at all.
 
 `--report` produces a block you can paste into a bug report, with your username,
 your hostname and machine identifiers scrubbed. See

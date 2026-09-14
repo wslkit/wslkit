@@ -120,4 +120,5 @@ subcommand, so a disk change and a doctor fix appear in the same place.
 | `--elevated` | require an elevated console and re-read admin-only facts |
 | `--allow-vm-wake` | permit checks that would start the WSL VM |
 | `--timeout DURATION` | per-collector deadline, default five seconds |
+| `--online` | check the published WSL releases instead of the built-in list |
 | `--no-redact` | leave usernames and paths in the output |

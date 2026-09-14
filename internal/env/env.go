@@ -215,6 +215,9 @@ type Runtime struct {
 	// LatestStable known to the tool (embedded data, or fetched with --online).
 	LatestStable       Field[string] `json:"latest_stable"`
 	LatestStableSource string        `json:"latest_stable_source,omitempty"`
+	// LatestPrerelease is the newest pre-release, when --online found one
+	// newer than the stable release. Empty otherwise.
+	LatestPrerelease string `json:"latest_prerelease,omitempty"`
 }
 
 // Distro mirrors one HKCU\...\Lxss\{guid} key plus VHDX facts.
