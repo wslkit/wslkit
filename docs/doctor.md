@@ -156,11 +156,17 @@ Lists what has been applied, and replays a rollback.
 
 ```
 wslkit doctor undo                 the journal
-wslkit doctor undo <id>            put that one back
+wslkit doctor undo <id> --dry-run  the rollback steps, changing nothing
+wslkit doctor undo <id>            put that one back, after one confirmation
 ```
 
 The journal lives in `%LOCALAPPDATA%\wslkit\undo` and is shared by every
 subcommand, so a disk change and a doctor fix appear in the same place.
+
+`undo` is the one command whose whole purpose is to change the machine back, so
+it prints what it would do and asks before doing it. `-y` skips the prompt for
+a script; `--dry-run` is the safe way to see what an entry from three weeks ago
+would actually undo.
 
 ## Flags
 

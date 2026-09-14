@@ -1,0 +1,1063 @@
+{
+  "schema": "wslkit/result/v1",
+  "tool": {
+    "name": "wslkit",
+    "version": "dev"
+  },
+  "env": {
+    "schema": "wslkit/env/v1",
+    "tool": "wslkit dev",
+    "collected_at": "2026-09-14T02:13:14.2269156Z",
+    "elevated": true,
+    "vm_wake_allowed": false,
+    "user_profile": "%USERPROFILE%",
+    "hostname": "<host>",
+    "host": {
+      "arch": "amd64",
+      "os": {
+        "value": {
+          "major": 10,
+          "minor": 0,
+          "build": 19045,
+          "ubr": 7725,
+          "product_name": "Windows 10 Pro",
+          "display_version": "22H2",
+          "edition_id": "Professional"
+        },
+        "source": "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"
+      },
+      "hypervisor_present": {
+        "value": true,
+        "source": "Win32_ComputerSystem"
+      },
+      "total_memory_bytes": {
+        "value": 16858693632,
+        "source": "Win32_ComputerSystem"
+      },
+      "features": {
+        "value": {
+          "HypervisorPlatform": 2,
+          "Microsoft-Hyper-V": 2,
+          "Microsoft-Hyper-V-All": 1,
+          "Microsoft-Windows-Subsystem-Linux": 1,
+          "VirtualMachinePlatform": 1
+        },
+        "source": "Win32_OptionalFeature"
+      },
+      "services": {
+        "value": {
+          "HvHost": {
+            "exists": true,
+            "state": "Running",
+            "start_type": "Manual",
+            "display": "HV Host Service"
+          },
+          "LxssManager": {
+            "exists": true,
+            "state": "Stopped",
+            "start_type": "Manual",
+            "display": "LxssManager"
+          },
+          "SharedAccess": {
+            "exists": true,
+            "state": "Running",
+            "start_type": "Manual",
+            "display": "Internet Connection Sharing (ICS)"
+          },
+          "VBoxSup": {
+            "exists": false
+          },
+          "WSLService": {
+            "exists": true,
+            "state": "Running",
+            "start_type": "Auto",
+            "display": "WSL Service"
+          },
+          "WslInstaller": {
+            "exists": false
+          },
+          "vmcompute": {
+            "exists": true,
+            "state": "Running",
+            "start_type": "Manual",
+            "display": "Hyper-V Host Compute Service"
+          },
+          "vmms": {
+            "exists": false
+          },
+          "vmx86": {
+            "exists": false
+          }
+        },
+        "source": "Service Control Manager"
+      },
+      "pending_reboot": {
+        "value": false,
+        "source": "HKLM CBS RebootPending / WU RebootRequired"
+      },
+      "ipv6_disabled_components": {
+        "value": 0,
+        "source": "HKLM\\SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters\\DisabledComponents (not set)"
+      }
+    },
+    "net": {
+      "adapters": {
+        "value": [
+          {
+            "name": "vEthernet (WSL)",
+            "description": "Hyper-V Virtual Ethernet Adapter",
+            "if_type": 6,
+            "up": true,
+            "vpn": false,
+            "dns_servers": [
+              "fec0:0:0:ffff::1",
+              "fec0:0:0:ffff::2",
+              "fec0:0:0:ffff::3"
+            ],
+            "has_ipv4": true,
+            "has_ipv6": true
+          },
+          {
+            "name": "Ethernet 4",
+            "description": "Realtek PCIe 2.5GbE Family Controller",
+            "if_type": 6,
+            "up": true,
+            "vpn": false,
+            "dns_servers": [
+              "2001:4860:4860::8888",
+              "2001:4860:4860::8844",
+              "192.168.1.1",
+              "2001:4860:4860::8888",
+              "2001:4860:4860::8844"
+            ],
+            "dns_suffix": "lan",
+            "has_ipv4": true,
+            "has_ipv6": true
+          },
+          {
+            "name": "Loopback Pseudo-Interface 1",
+            "description": "Software Loopback Interface 1",
+            "if_type": 24,
+            "up": true,
+            "vpn": false,
+            "loopback": true,
+            "dns_servers": [
+              "fec0:0:0:ffff::1",
+              "fec0:0:0:ffff::2",
+              "fec0:0:0:ffff::3"
+            ],
+            "has_ipv4": true,
+            "has_ipv6": true
+          }
+        ],
+        "source": "GetAdaptersAddresses"
+      },
+      "hyperv_firewall": {
+        "value": {
+          "disabled_by_registry": false,
+          "v1": false,
+          "v2": false
+        },
+        "source": "MpsSvc\\Parameters\\HyperVFirewallDisable + ROOT\\standardcimv2 MSFT_NetFirewallHyperV*"
+      },
+      "hotfixes": {
+        "value": null,
+        "source": "Win32_QuickFixEngineering (not queried: mirrored mode not configured)",
+        "err_kind": "not_present"
+      },
+      "policy": {
+        "value": null,
+        "source": "HKLM\\Software\\Policies\\WSL",
+        "err_kind": "not_present"
+      }
+    },
+    "runtime": {
+      "version": {
+        "value": "2.7.13.0",
+        "source": "C:\\Program Files\\WSL\\wslservice.exe file version"
+      },
+      "install_location": {
+        "value": "C:\\Program Files\\WSL\\",
+        "source": "HKLM\\...\\Lxss\\MSI\\InstallLocation"
+      },
+      "appx_full_name": {
+        "value": "MicrosoftCorporationII.WindowsSubsystemForLinux_2.7.13.0_x64__8wekyb3d8bbwe",
+        "source": "HKCU\\Software\\Classes\\Local Settings\\...\\AppModel\\Repository\\Packages"
+      },
+      "msi_version": {
+        "value": "2.7.13.0",
+        "source": "HKLM\\...\\Lxss\\MSI\\Version"
+      },
+      "inbox_wsl_version": {
+        "value": "10.0.19041.7663",
+        "source": "C:\\WINDOWS\\System32\\wsl.exe"
+      },
+      "kernel_version_hklm": {
+        "value": "5.10.102.1",
+        "source": "HKLM\\...\\Lxss\\KernelVersion"
+      },
+      "nat_network": {
+        "value": "172.20.240.0/20",
+        "source": "HKLM\\...\\Lxss\\NatNetwork"
+      },
+      "com_class_registered": {
+        "value": true,
+        "source": "HKCR\\CLSID\\{a9b7a1b9-0671-405c-95f1-e0612cb4ce7e}"
+      },
+      "latest_stable": {
+        "value": "2.7.14",
+        "source": "embedded compat.json 2026-09-12"
+      },
+      "latest_stable_source": "embedded data 2026-09-12"
+    },
+    "distros": {
+      "value": [
+        {
+          "guid": "{43779113-fde9-4901-bb74-93c6185643ea}",
+          "name": "Ubuntu",
+          "is_default": true,
+          "base_path": "%USERPROFILE%\\AppData\\Local\\wsl\\{43779113-fde9-4901-bb74-93c6185643ea}",
+          "vhd_file_name": "ext4.vhdx",
+          "version": 2,
+          "state": 1,
+          "flags": 15,
+          "default_uid": 1000,
+          "run_oobe": 0,
+          "modern": 1,
+          "flavor": "ubuntu",
+          "os_version": "26.04",
+          "value_names": [
+            "State",
+            "DistributionName",
+            "Version",
+            "BasePath",
+            "Flags",
+            "DefaultUid",
+            "RunOOBE",
+            "VhdFileName",
+            "Flavor",
+            "OsVersion",
+            "Modern",
+            "ShortcutPath",
+            "TerminalProfilePath"
+          ],
+          "vhd": {
+            "value": {
+              "path": "%USERPROFILE%\\AppData\\Local\\wsl\\{43779113-fde9-4901-bb74-93c6185643ea}\\ext4.vhdx",
+              "file_size": 3867148288,
+              "magic_ok": true,
+              "header_ok": true,
+              "virtual_size": 1099511627776,
+              "block_size": 1048576,
+              "allocated_bytes": 3814719488,
+              "sparse": false,
+              "compressed": false,
+              "encrypted": false,
+              "owner_sid": "S-1-5-21-<redacted>",
+              "owner": "current_user"
+            },
+            "source": "%USERPROFILE%\\AppData\\Local\\wsl\\{43779113-fde9-4901-bb74-93c6185643ea}\\ext4.vhdx"
+          },
+          "volume_free_bytes": {
+            "value": 176689041408,
+            "source": "GetDiskFreeSpaceEx C:"
+          },
+          "running": {
+            "value": false,
+            "source": "wsl --list --running --quiet"
+          },
+          "wsl_conf": {
+            "value": "",
+            "source": "\\\\wsl.localhost\\Ubuntu\\etc\\wsl.conf",
+            "err_kind": "vm_wake_refused",
+            "err": "not read: the distribution is stopped, and reading this path would start it"
+          },
+          "zone_files": {
+            "value": {
+              "count": 0
+            },
+            "source": "\\\\wsl.localhost\\Ubuntu",
+            "err_kind": "vm_wake_refused",
+            "err": "not scanned: the distribution is stopped, and reading this path would start it"
+          },
+          "watchers": {
+            "value": null,
+            "source": "\\\\wsl.localhost\\Ubuntu",
+            "err_kind": "vm_wake_refused",
+            "err": "not read: the distribution is stopped, and nothing is running in it to report"
+          }
+        },
+        {
+          "guid": "{aa835513-68e5-4f3b-a44b-997f1591a8ba}",
+          "name": "skrog-engine",
+          "is_default": false,
+          "base_path": "%USERPROFILE%\\AppData\\Local\\Skrog\\distro",
+          "vhd_file_name": "ext4.vhdx",
+          "version": 2,
+          "state": 1,
+          "flags": 15,
+          "default_uid": 0,
+          "run_oobe": 0,
+          "modern": 1,
+          "flavor": "alpine",
+          "os_version": "3.24.1",
+          "value_names": [
+            "State",
+            "DistributionName",
+            "Version",
+            "BasePath",
+            "Flags",
+            "DefaultUid",
+            "RunOOBE",
+            "VhdFileName",
+            "Flavor",
+            "OsVersion",
+            "Modern",
+            "ShortcutPath",
+            "TerminalProfilePath"
+          ],
+          "vhd": {
+            "value": {
+              "path": "%USERPROFILE%\\AppData\\Local\\Skrog\\distro\\ext4.vhdx",
+              "file_size": 660602880,
+              "magic_ok": true,
+              "header_ok": true,
+              "virtual_size": 1099511627776,
+              "block_size": 1048576,
+              "allocated_bytes": 613416960,
+              "sparse": false,
+              "compressed": false,
+              "encrypted": false,
+              "owner_sid": "S-1-5-21-<redacted>",
+              "owner": "current_user"
+            },
+            "source": "%USERPROFILE%\\AppData\\Local\\Skrog\\distro\\ext4.vhdx"
+          },
+          "volume_free_bytes": {
+            "value": 176689041408,
+            "source": "GetDiskFreeSpaceEx C:"
+          },
+          "running": {
+            "value": true,
+            "source": "wsl --list --running --quiet"
+          },
+          "wsl_conf": {
+            "value": "[boot]\nsystemd=false\n\n[automount]\nenabled=true\noptions=\"metadata\"\n\n[interop]\nenabled=true\nappendWindowsPath=false\n",
+            "source": "\\\\wsl.localhost\\skrog-engine\\etc\\wsl.conf"
+          },
+          "zone_files": {
+            "value": {
+              "count": 0
+            },
+            "source": "\\\\wsl.localhost\\skrog-engine"
+          },
+          "watchers": {
+            "value": null,
+            "source": "\\\\wsl.localhost\\skrog-engine\\proc"
+          }
+        }
+      ],
+      "source": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss"
+    },
+    "config": {
+      "wslconfig_path": "%USERPROFILE%\\.wslconfig",
+      "wslconfig": {
+        "value": "",
+        "source": "%USERPROFILE%\\.wslconfig",
+        "err_kind": "not_present"
+      }
+    },
+    "defender": {
+      "present": {
+        "value": true,
+        "source": "MSFT_MpComputerStatus"
+      },
+      "realtime_enabled": {
+        "value": true,
+        "source": "MSFT_MpComputerStatus.RealTimeProtectionEnabled"
+      },
+      "running_mode": {
+        "value": "Normal",
+        "source": "MSFT_MpComputerStatus.AMRunningMode"
+      },
+      "exclusions": {
+        "value": {
+          "paths": [
+            "C:\\OpenSource"
+          ],
+          "processes": null,
+          "extensions": null
+        },
+        "source": "MSFT_MpPreference"
+      }
+    },
+    "events": {
+      "window_ns": 604800000000000,
+      "channels": {
+        "Application": {
+          "value": {
+            "records": 257276
+          },
+          "source": "Application"
+        },
+        "Microsoft-Windows-Host-Network-Service-Admin": {
+          "value": {
+            "records": 61627
+          },
+          "source": "Microsoft-Windows-Host-Network-Service-Admin"
+        },
+        "Microsoft-Windows-Hyper-V-Compute-Admin": {
+          "value": {
+            "records": 1
+          },
+          "source": "Microsoft-Windows-Hyper-V-Compute-Admin"
+        },
+        "Microsoft-Windows-Hyper-V-VmSwitch-Operational": {
+          "value": {
+            "records": 4324939
+          },
+          "source": "Microsoft-Windows-Hyper-V-VmSwitch-Operational"
+        },
+        "System": {
+          "value": {
+            "records": 586238
+          },
+          "source": "System"
+        }
+      },
+      "recent": {
+        "value": [
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 107,
+            "level": 4,
+            "time": "2026-09-13T20:35:14.5190839Z",
+            "message": "TargetState=4 EffectiveState=4 WakeFromState=4 ProgrammedWakeTimeAc=1601-01-01T00:00:00.0000000Z ProgrammedWakeTimeDc=1601-01-01T00:00:00.0000000Z WakeRequesterTypeAc=0 WakeRequesterTypeDc=0"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 42,
+            "level": 4,
+            "time": "2026-09-13T20:35:13.5863991Z",
+            "message": "TargetState=4 EffectiveState=4 Reason=7 Flags=0 TransitionsToOn=23"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 107,
+            "level": 4,
+            "time": "2026-09-13T02:28:46.6245915Z",
+            "message": "TargetState=4 EffectiveState=4 WakeFromState=4 ProgrammedWakeTimeAc=1601-01-01T00:00:00.0000000Z ProgrammedWakeTimeDc=1601-01-01T00:00:00.0000000Z WakeRequesterTypeAc=0 WakeRequesterTypeDc=0"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 42,
+            "level": 4,
+            "time": "2026-09-13T02:28:45.6901314Z",
+            "message": "TargetState=4 EffectiveState=4 Reason=7 Flags=0 TransitionsToOn=21"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 107,
+            "level": 4,
+            "time": "2026-09-13T00:23:51.2689775Z",
+            "message": "TargetState=4 EffectiveState=4 WakeFromState=4 ProgrammedWakeTimeAc=1601-01-01T00:00:00.0000000Z ProgrammedWakeTimeDc=1601-01-01T00:00:00.0000000Z WakeRequesterTypeAc=0 WakeRequesterTypeDc=0"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 42,
+            "level": 4,
+            "time": "2026-09-13T00:23:50.3460943Z",
+            "message": "TargetState=4 EffectiveState=4 Reason=7 Flags=0 TransitionsToOn=19"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 107,
+            "level": 4,
+            "time": "2026-09-12T22:30:33.4868793Z",
+            "message": "TargetState=4 EffectiveState=4 WakeFromState=4 ProgrammedWakeTimeAc=1601-01-01T00:00:00.0000000Z ProgrammedWakeTimeDc=1601-01-01T00:00:00.0000000Z WakeRequesterTypeAc=0 WakeRequesterTypeDc=0"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 42,
+            "level": 4,
+            "time": "2026-09-12T22:30:32.5110836Z",
+            "message": "TargetState=4 EffectiveState=4 Reason=7 Flags=0 TransitionsToOn=17"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 107,
+            "level": 4,
+            "time": "2026-09-12T20:34:27.5858882Z",
+            "message": "TargetState=4 EffectiveState=4 WakeFromState=4 ProgrammedWakeTimeAc=1601-01-01T00:00:00.0000000Z ProgrammedWakeTimeDc=1601-01-01T00:00:00.0000000Z WakeRequesterTypeAc=0 WakeRequesterTypeDc=0"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 42,
+            "level": 4,
+            "time": "2026-09-12T20:34:26.5857499Z",
+            "message": "TargetState=4 EffectiveState=4 Reason=7 Flags=0 TransitionsToOn=15"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 107,
+            "level": 4,
+            "time": "2026-09-12T17:58:25.4060607Z",
+            "message": "TargetState=4 EffectiveState=4 WakeFromState=4 ProgrammedWakeTimeAc=1601-01-01T00:00:00.0000000Z ProgrammedWakeTimeDc=1601-01-01T00:00:00.0000000Z WakeRequesterTypeAc=0 WakeRequesterTypeDc=0"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 42,
+            "level": 4,
+            "time": "2026-09-12T17:58:24.4758098Z",
+            "message": "TargetState=4 EffectiveState=4 Reason=7 Flags=0 TransitionsToOn=13"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 107,
+            "level": 4,
+            "time": "2026-09-12T15:08:54.650468Z",
+            "message": "TargetState=4 EffectiveState=4 WakeFromState=4 ProgrammedWakeTimeAc=1601-01-01T00:00:00.0000000Z ProgrammedWakeTimeDc=1601-01-01T00:00:00.0000000Z WakeRequesterTypeAc=0 WakeRequesterTypeDc=0"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 42,
+            "level": 4,
+            "time": "2026-09-12T15:08:53.6253516Z",
+            "message": "TargetState=4 EffectiveState=4 Reason=7 Flags=0 TransitionsToOn=11"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 107,
+            "level": 4,
+            "time": "2026-09-12T04:37:39.5113239Z",
+            "message": "TargetState=4 EffectiveState=4 WakeFromState=4 ProgrammedWakeTimeAc=1601-01-01T00:00:00.0000000Z ProgrammedWakeTimeDc=1601-01-01T00:00:00.0000000Z WakeRequesterTypeAc=0 WakeRequesterTypeDc=0"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 42,
+            "level": 4,
+            "time": "2026-09-12T04:37:38.5927196Z",
+            "message": "TargetState=4 EffectiveState=4 Reason=7 Flags=0 TransitionsToOn=9"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 107,
+            "level": 4,
+            "time": "2026-09-12T00:34:34.4360778Z",
+            "message": "TargetState=4 EffectiveState=4 WakeFromState=4 ProgrammedWakeTimeAc=1601-01-01T00:00:00.0000000Z ProgrammedWakeTimeDc=1601-01-01T00:00:00.0000000Z WakeRequesterTypeAc=0 WakeRequesterTypeDc=0"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 42,
+            "level": 4,
+            "time": "2026-09-12T00:34:33.5107776Z",
+            "message": "TargetState=4 EffectiveState=4 Reason=7 Flags=0 TransitionsToOn=7"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 107,
+            "level": 4,
+            "time": "2026-09-11T22:38:24.1353229Z",
+            "message": "TargetState=4 EffectiveState=4 WakeFromState=4 ProgrammedWakeTimeAc=1601-01-01T00:00:00.0000000Z ProgrammedWakeTimeDc=1601-01-01T00:00:00.0000000Z WakeRequesterTypeAc=0 WakeRequesterTypeDc=0"
+          },
+          {
+            "channel": "System",
+            "provider": "Microsoft-Windows-Kernel-Power",
+            "id": 42,
+            "level": 4,
+            "time": "2026-09-11T22:38:22.4474731Z",
+            "message": "TargetState=4 EffectiveState=4 Reason=7 Flags=0 TransitionsToOn=5"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-13T21:29:06.935721Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=7C4F703F-AD8B-41BC-BD63-63287CA00962 Parameter4=145A9855-4370-4140-A449-C7B965253B6C--1C834868-9810-517E-B3FD-8286A7802A85"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-13T21:28:57.0801301Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=7C4F703F-AD8B-41BC-BD63-63287CA00962 Parameter4=145A9855-4370-4140-A449-C7B965253B6C--1C834868-9810-517E-B3FD-8286A7802A85"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-13T14:52:28.7884771Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=1130B403-6AC7-4FD0-9F3E-92D36EA57986 Parameter4=440371B8-EC9A-4297-B404-C5A6DB08616D--CF8931F2-6766-5514-8402-DD4925A12783"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-13T14:52:19.3011791Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=1130B403-6AC7-4FD0-9F3E-92D36EA57986 Parameter4=440371B8-EC9A-4297-B404-C5A6DB08616D--CF8931F2-6766-5514-8402-DD4925A12783"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-12T22:52:04.7929944Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-12T22:51:58.571292Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-12T21:13:17.6783266Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-12T21:13:08.0687462Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-12T18:57:41.7522706Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-12T18:57:32.0306664Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-12T16:55:09.649947Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-12T16:55:02.5349383Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-12T12:17:09.7820801Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-12T12:16:59.5097419Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-12T02:20:52.8882801Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-12T02:20:46.6060758Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-11T23:24:20.2329566Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-11T23:24:12.5226798Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-11T15:23:46.3336921Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-11T15:23:40.0301075Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-11T12:15:16.2536025Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1006,
+            "level": 2,
+            "time": "2026-09-11T12:15:09.0688025Z",
+            "message": "Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 Parameter4=180363F7-4885-4BB3-A178-F0E4B2FEC1AD--B8387D93-8B38-517E-9246-96ADDB6730C2"
+          },
+          {
+            "channel": "Microsoft-Windows-Host-Network-Service-Admin",
+            "provider": "Microsoft-Windows-Host-Network-Service",
+            "id": 1030,
+            "level": 2,
+            "time": "2026-09-10T21:54:24.8834777Z",
+            "message": "HResult=0x80070490 API=3"
+          }
+        ],
+        "source": "wevtapi Application/System/VmSwitch/HCS/HNS"
+      }
+    },
+    "procs": {
+      "vmmem_name": "vmmem",
+      "vmmem_working_set": {
+        "value": 545583104,
+        "source": "vmmem working set"
+      },
+      "wslservice_running": {
+        "value": true,
+        "source": "Toolhelp32"
+      }
+    },
+    "plugins": {
+      "value": [],
+      "source": "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Lxss\\Plugins"
+    },
+    "agent": {
+      "value": {
+        "pid": 0,
+        "alive": false,
+        "updated_at": "0001-01-01T00:00:00Z",
+        "guests": null,
+        "autostart": false,
+        "allowed_targets": 0
+      },
+      "source": "%USERPROFILE%\\AppData\\Local\\wslkit\\agent\\status.json",
+      "err_kind": "not_present"
+    },
+    "collectors": {
+      "adapters": {
+        "duration_ms": 34
+      },
+      "agent": {
+        "duration_ms": 0
+      },
+      "config": {
+        "duration_ms": 0
+      },
+      "defender": {
+        "duration_ms": 1132
+      },
+      "distros": {
+        "duration_ms": 557
+      },
+      "events": {
+        "duration_ms": 465
+      },
+      "features": {
+        "duration_ms": 903
+      },
+      "firewall": {
+        "duration_ms": 868
+      },
+      "hotfixes": {
+        "duration_ms": 0
+      },
+      "network_reg": {
+        "duration_ms": 0
+      },
+      "os": {
+        "duration_ms": 0
+      },
+      "plugins": {
+        "duration_ms": 0
+      },
+      "policy": {
+        "duration_ms": 0
+      },
+      "procs": {
+        "duration_ms": 17
+      },
+      "runtime": {
+        "duration_ms": 4
+      },
+      "services": {
+        "duration_ms": 47
+      },
+      "wmi_system": {
+        "duration_ms": 903
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "EVT001",
+      "title": "Recent WSL crashes and power events",
+      "status": "WARN",
+      "summary": "23 Hyper-V compute / host network error(s) in the last 7 days",
+      "detail": "  2026-09-13 16:29  Host-Network-Service-Admin id 1006  Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=7C4F703F-AD8B-41BC-BD63-63287CA00962 ...\n  2026-09-13 16:28  Host-Network-Service-Admin id 1006  Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=7C4F703F-AD8B-41BC-BD63-63287CA00962 ...\n  2026-09-13 09:52  Host-Network-Service-Admin id 1006  Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=1130B403-6AC7-4FD0-9F3E-92D36EA57986 ...\n  2026-09-13 09:52  Host-Network-Service-Admin id 1006  Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=1130B403-6AC7-4FD0-9F3E-92D36EA57986 ...\n  2026-09-12 17:52  Host-Network-Service-Admin id 1006  Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 ...\n  2026-09-12 17:51  Host-Network-Service-Admin id 1006  Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 ...\n  2026-09-12 16:13  Host-Network-Service-Admin id 1006  Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 ...\n  2026-09-12 16:13  Host-Network-Service-Admin id 1006  Parameter0=0x80070002 Parameter1=FB44A04A-2620-43B6-8EBD-4BBD20952880 Paramete3=11C8980E-08DF-4E2C-B053-771391B39B86 ...\n  ... and 15 more\nAn HNS error of this shape is the known 'WSL will not start after a network change' class: the VM's network cannot be built, and wsl.exe reports 0x8007054f without saying why.",
+      "confidence": 0.65,
+      "fix_hint": "wsl --shutdown, then restart the Host Network Service (net stop hns \u0026\u0026 net start hns, admin); if it persists, remove the WSL network: Get-HnsNetwork | Where-Object Name -eq WSL | Remove-HnsNetwork",
+      "refs": [
+        "https://github.com/microsoft/WSL/issues/13454"
+      ]
+    },
+    {
+      "id": "DEF001",
+      "title": "Windows Defender exclusions for WSL",
+      "status": "WARN",
+      "summary": "Defender scans 2 WSL disk(s) on every write",
+      "detail": "No exclusion for:\n  %USERPROFILE%\\AppData\\Local\\wsl\\{43779113-fde9-4901-bb74-93c6185643ea}\\ext4.vhdx\n  %USERPROFILE%\\AppData\\Local\\Skrog\\distro\\ext4.vhdx\nProcess exclusions not set for: vmmem, vmmemWSL, wslservice.exe, wsl.exe",
+      "confidence": 0.55,
+      "fix_id": "defender",
+      "fix_hint": "wslkit doctor fix defender --apply     (from an elevated terminal; dry run without --apply)",
+      "refs": [
+        "https://github.com/microsoft/WSL/issues/8995"
+      ]
+    },
+    {
+      "id": "WSL003",
+      "title": "WSL update available",
+      "status": "WARN",
+      "summary": "WSL 2.7.13 installed; 2.7.14 is the latest stable (embedded data 2026-09-12)",
+      "detail": "Not a root cause by itself, but most launch failures on old runtimes are fixed by updating.",
+      "confidence": 0.3,
+      "fix_id": "update",
+      "fix_hint": "wslkit doctor fix update      (runs wsl --update)"
+    },
+    {
+      "id": "AGT001",
+      "title": "wslkit guest agent daemon",
+      "status": "SKIPPED",
+      "summary": "skipped: the guest agent daemon has never run on this machine",
+      "confidence": 0
+    },
+    {
+      "id": "WSL002",
+      "title": "WSL runtime installed",
+      "status": "OK",
+      "summary": "WSL 2.7.13 installed",
+      "detail": "location C:\\Program Files\\WSL\\\npackage MicrosoftCorporationII.WindowsSubsystemForLinux_2.7.13.0_x64__8wekyb3d8bbwe",
+      "confidence": 1
+    },
+    {
+      "id": "HST001",
+      "title": "Windows optional features",
+      "status": "OK",
+      "summary": "VirtualMachinePlatform enabled",
+      "detail": "VirtualMachinePlatform: enabled\nMicrosoft-Windows-Subsystem-Linux: enabled\nMicrosoft-Hyper-V-All: enabled (optional)",
+      "confidence": 0.7
+    },
+    {
+      "id": "HST003",
+      "title": "Hardware virtualization / hypervisor",
+      "status": "OK",
+      "summary": "Windows hypervisor is running (HypervisorPresent=true)",
+      "confidence": 0.7
+    },
+    {
+      "id": "DSK002",
+      "title": "VHDX presence and header integrity",
+      "status": "OK",
+      "summary": "All distro VHDX files present with valid headers",
+      "detail": "Ubuntu: 3.6 GB on disk, virtual size 1024.0 GB, headers valid\nskrog-engine: 630 MB on disk, virtual size 1024.0 GB, headers valid",
+      "confidence": 0.6
+    },
+    {
+      "id": "HST002",
+      "title": "WSL and Hyper-V services",
+      "status": "OK",
+      "summary": "WSL and Hyper-V services present and not disabled",
+      "detail": "HvHost       Running  start=Manual\nLxssManager  Stopped  start=Manual\nWSLService   Running  start=Auto\nvmcompute    Running  start=Manual",
+      "confidence": 0.6
+    },
+    {
+      "id": "HST005",
+      "title": "WSL service COM registration",
+      "status": "OK",
+      "summary": "CLSID_LxssUserSession is registered for the installed runtime",
+      "confidence": 0.6
+    },
+    {
+      "id": "WSL001",
+      "title": "Runtime version vs distro version compatibility",
+      "status": "OK",
+      "summary": "Runtime 2.7.13 is compatible with all 2 registered distro(s)",
+      "detail": "Ubuntu (ubuntu 26.04)\nskrog-engine (alpine 3.24.1, no matrix row)",
+      "confidence": 0.6
+    },
+    {
+      "id": "HST004",
+      "title": "Windows build and pending reboot",
+      "status": "OK",
+      "summary": "Windows build 19045 supports WSL 2; no reboot pending",
+      "detail": "Windows 10.0.19045.7725 22H2 Professional\nWindows 10 left mainstream support on 2025-10-14. WSL 2.7.x still runs here, but mirrored networking, Hyper-V firewall and several [wsl2] keys need Windows 11.",
+      "confidence": 0.5
+    },
+    {
+      "id": "PLG001",
+      "title": "WSL host plugins",
+      "status": "OK",
+      "summary": "No WSL host plugins registered",
+      "confidence": 0.5
+    },
+    {
+      "id": "WSL004",
+      "title": "Distribution inventory and state",
+      "status": "OK",
+      "summary": "2 distro(s) registered, all in normal state",
+      "detail": "Ubuntu (default)  WSL2  modern  ubuntu 26.04  uid=1000  state=1 flags=15\nskrog-engine  WSL2  modern  alpine 3.24.1  uid=0  state=1 flags=15",
+      "confidence": 0.5
+    },
+    {
+      "id": "NET004",
+      "title": "Networking mode preconditions (mirrored, Hyper-V firewall)",
+      "status": "OK",
+      "summary": "networkingMode=nat and its host preconditions hold",
+      "detail": "networkingMode=nat (default)\nHyper-V firewall support: none",
+      "confidence": 0.45
+    },
+    {
+      "id": "DSK001",
+      "title": "VHDX space reclaimable",
+      "status": "OK",
+      "summary": "VHDX files are close to their allocated size",
+      "detail": "Ubuntu: 3.6 GB on disk, 3.6 GB allocated, compact\nskrog-engine: 630 MB on disk, 585 MB allocated, compact",
+      "confidence": 0.4
+    },
+    {
+      "id": "DSK003",
+      "title": "VHDX compressed / encrypted / sparse attributes",
+      "status": "OK",
+      "summary": "No compressed, encrypted or sparse VHDX attributes",
+      "confidence": 0.4
+    },
+    {
+      "id": "DSK005",
+      "title": "Free space on the volume holding each VHDX",
+      "status": "OK",
+      "summary": "Host volumes have headroom",
+      "detail": "Ubuntu: 164.6 GB free on its volume\nskrog-engine: 164.6 GB free on its volume",
+      "confidence": 0.4
+    },
+    {
+      "id": "DSK006",
+      "title": "VHDX file ownership",
+      "status": "OK",
+      "summary": "All distro VHDX files are owned by the current user",
+      "detail": "Ubuntu: owner current_user (S-1-5-21-<redacted>)\nskrog-engine: owner current_user (S-1-5-21-<redacted>)",
+      "confidence": 0.4
+    },
+    {
+      "id": "MEM001",
+      "title": "WSL VM memory cap vs host RAM",
+      "status": "OK",
+      "summary": "VM memory cap 7.9 GB",
+      "detail": "Cap: 7.9 GB (default (50% of host RAM))\nHost RAM: 15.7 GB\nvmmem working set now: 520 MB",
+      "confidence": 0.4
+    },
+    {
+      "id": "NET002",
+      "title": "DNS and VPN interplay",
+      "status": "OK",
+      "summary": "2 adapter(s) up, 0 VPN",
+      "detail": "vEthernet (WSL) (type 6) DNS fec0:0:0:ffff::1,fec0:0:0:ffff::2,fec0:0:0:ffff::3\nEthernet 4 (type 6) DNS 2001:4860:4860::8888,2001:4860:4860::8844,192.168.1.1,2001:4860:4860::8888,2001:4860:4860::8844\nnetworkingMode=nat, dnsTunneling off (default)",
+      "confidence": 0.4
+    },
+    {
+      "id": "WSL005",
+      "title": ".wslconfig lint",
+      "status": "OK",
+      "summary": "No .wslconfig; WSL uses defaults",
+      "confidence": 0.3
+    },
+    {
+      "id": "MNT001",
+      "title": "File watchers working on the Windows filesystem",
+      "status": "OK",
+      "summary": "No file watchers are working on a Windows drive in 1 distribution(s); 1 not running",
+      "confidence": 0
+    },
+    {
+      "id": "WSL006",
+      "title": "wsl.conf inside each running distribution",
+      "status": "OK",
+      "summary": "wsl.conf is clean in 1 distribution(s); 1 not running",
+      "confidence": 0
+    },
+    {
+      "id": "ZON001",
+      "title": "Zone.Identifier files left by saved downloads",
+      "status": "OK",
+      "summary": "No Zone.Identifier files under /home or /root in 1 distribution(s); 1 not running",
+      "confidence": 0
+    }
+  ]
+}

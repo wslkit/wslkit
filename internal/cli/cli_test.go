@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/wslkit/wslkit/internal/fix"
 )
 
 func fixture(name string) string {
@@ -84,5 +87,75 @@ func TestTopLevelRouting(t *testing.T) {
 	}
 	if code, _, _ := run(t); code != ExitUsage {
 		t.Fatalf("no args: %d", code)
+	}
+}
+
+// undo is the one command whose whole purpose is to change the machine back,
+// and an earlier version took the id from args[0] and ignored everything after
+// it. `doctor undo <id> --dry-run` therefore performed the rollback: an
+// instruction to change nothing, obeyed by changing something. This is that
+// bug, kept.
+func TestUndoDryRunDoesNotRollBack(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("LOCALAPPDATA", dir)
+
+	j := fix.Journal{Dir: fix.DefaultJournalDir()}
+	id, err := j.Save(fix.Plan{
+		FixID:     "test",
+		Title:     "a fix that would do something",
+		CreatedAt: time.Now(),
+		Steps:     []fix.Step{{Kind: "note", Description: "did a thing"}},
+		Rollback:  []fix.Step{{Kind: "exec", Args: []string{"cmd.exe", "/c", "echo undone"}, Description: "undo the thing"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var out, errb bytes.Buffer
+	app := &App{Version: "test", Stdout: &out, Stderr: &errb}
+	// No Stdin: a run with nothing to answer a prompt with must not roll back
+	// either, which is the other half of the same rule.
+	if code := app.Run([]string{"doctor", "undo", id, "--dry-run"}); code != ExitOK {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "nothing was rolled back") {
+		t.Errorf("a dry run must say it changed nothing: %q", out.String())
+	}
+	// fix/exec panics under WSLKIT_TEST rather than running anything, so
+	// reaching the executor at all would fail the test loudly. Belt and
+	// braces: the rollback step's text must not appear as something done.
+	if strings.Contains(out.String(), "Rolling back") {
+		t.Errorf("a dry run must not roll back: %q", out.String())
+	}
+}
+
+// Without --yes and with no way to answer, undo declines rather than proceeding.
+func TestUndoWithoutConfirmationDeclines(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("LOCALAPPDATA", dir)
+	j := fix.Journal{Dir: fix.DefaultJournalDir()}
+	id, err := j.Save(fix.Plan{
+		FixID: "test", Title: "t", CreatedAt: time.Now(),
+		Rollback: []fix.Step{{Kind: "exec", Args: []string{"cmd.exe"}, Description: "undo"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out, errb bytes.Buffer
+	app := &App{Version: "test", Stdout: &out, Stderr: &errb}
+	if code := app.Run([]string{"doctor", "undo", id}); code != ExitOK {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "nothing was rolled back") {
+		t.Errorf("out = %q", out.String())
+	}
+}
+
+// A second positional is a typo, not a second journal entry.
+func TestUndoRejectsTwoIds(t *testing.T) {
+	var out, errb bytes.Buffer
+	app := &App{Version: "test", Stdout: &out, Stderr: &errb}
+	if code := app.Run([]string{"doctor", "undo", "one", "two"}); code != ExitUsage {
+		t.Fatalf("exit %d, want a usage error", code)
 	}
 }
