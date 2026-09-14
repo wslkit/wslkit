@@ -153,7 +153,17 @@ func CPUPercent(before, after Sample, interval time.Duration) *float64 {
 //
 // Line endings matter: this is fed to a shell inside the guest, and a carriage
 // return turns a line into a command that does not exist.
-const SampleScript = `node=$(awk -F: '{print $3}' /proc/1/cgroup 2>/dev/null | head -1)
+const SampleScript = `# This shell's own cgroup, not pid 1's. Measured on WSL 2.9.11: a systemd
+# distribution puts pid 1 in /wsl-user/distro-N/systemd/init.scope, but a
+# distribution without systemd reports 0::/ for pid 1 and the distro node only
+# for its own processes. Reading pid 1 therefore finds nothing on exactly the
+# distributions that are cheapest to measure, and falls back to summing /proc
+# for no reason.
+node=$(awk -F: '{print $3}' /proc/self/cgroup 2>/dev/null | head -1)
+case "$node" in
+  /wsl-user/distro-*) ;;
+  *) node=$(awk -F: '{print $3}' /proc/1/cgroup 2>/dev/null | head -1) ;;
+esac
 case "$node" in
   /wsl-user/distro-*) ;;
   *) node="" ;;

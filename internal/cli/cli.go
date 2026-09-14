@@ -71,6 +71,8 @@ func (a *App) Run(args []string) int {
 		return a.proxy(args[1:])
 	case "guard":
 		return a.guard(args[1:])
+	case "limit":
+		return a.limit(args[1:])
 	case "completion":
 		return a.completion(args[1:])
 	case "version", "--version", "-v":
@@ -133,6 +135,7 @@ func (a *App) usage() {
   wslkit sock ...                      bridge Windows sockets into a distro: ssh-agent, gpg-agent (wslkit sock help)
   wslkit disk ...                      inspect and maintain distribution disks: list, info (wslkit disk help)
   wslkit top [--json] [--once]          what the utility VM is using, and which distro
+  wslkit limit ...                     cap what one distro may use (wslkit limit help)
   wslkit proxy ...                     get a Windows proxy working inside a distro (wslkit proxy help)
   wslkit guard ...                     get WSL answering again after the machine slept (wslkit guard help)
   wslkit completion <shell>            a completion script for powershell, bash or zsh

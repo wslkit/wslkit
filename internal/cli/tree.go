@@ -107,6 +107,15 @@ func CommandTree() []cmdNode {
 		},
 		{Name: "top", Desc: "What the utility VM is using, and which distribution is responsible", Flags: []string{"--json", "--interval", "--once", "--timeout"}, Positional: []argKind{argDistro}},
 		{
+			Name: "limit",
+			Desc: "Cap what one distribution may use",
+			Subs: []cmdNode{
+				{Name: "show", Desc: "What each distribution is capped at", Flags: []string{"-d", "--json", "--timeout"}},
+				{Name: "set", Desc: "Cap a distribution", Flags: []string{"-d", "--memory", "--high", "--cpus", "--swap", "--no-swap", "--dry-run", "--timeout"}},
+				{Name: "clear", Desc: "Remove the caps", Flags: []string{"-d", "--dry-run", "--timeout"}},
+			},
+		},
+		{
 			Name: "guard",
 			Desc: "Get WSL answering again after the machine has slept",
 			Subs: []cmdNode{
