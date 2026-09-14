@@ -88,7 +88,7 @@ correlation requires `--elevated`.
   Windows 10 22H2 in ~40 ms, matching WSL's own "no Hyper-V firewall support" branch
   (`spikes/qfe`).
 
-## S5 — answered from source and release notes (same day, VM confirmation pending)
+## S5 — mechanism observed, version boundary still from release notes
 
 Ubuntu 26.04 removed cgroup v1 (legacy and hybrid) and ships systemd 259; WSL 2.5.1
 (2025-03-12) "Remove cgroupv1 support", first stable 2.5.7 (2025-04-24). A 2.4.x runtime
@@ -98,5 +98,18 @@ mounts a hybrid v1 hierarchy that systemd 259 refuses, so the distro never boots
 cgroup-v2-only distro: `docs/research/2026-09-feature-research.md` §1. The earlier
 citation of issue #13484 was wrong: that is a corrupted-VHD case with the same error string.
 
-Still worth doing on a scratch VM: install 2.4.13 and 2.5.7 MSIs with the Ubuntu 26.04
-`.wsl` and confirm fail/boot, then mark the row as verified.
+**Observed 2026-09-13**, on this machine at WSL 2.9.11, without an old runtime: the
+`automount.cgroups=v1` opt-in added in 2.6.2 puts one distribution back on a v1 hierarchy,
+and a throwaway copy of Ubuntu 26.04 on it dies at init with `E_UNEXPECTED` while the same
+disk with `systemd=false` boots and reports `tmpfs` with v1 controllers at
+`/sys/fs/cgroup`. So the mechanism is confirmed: a cgroup-v2-only systemd cannot be PID 1
+on a v1 hierarchy, and the failure looks exactly like the founding bug.
+`docs/research/2026-09-cgroup-v1-observed.md` has the kernel log and the four runs.
+
+One more thing came out of it: on 2.9.11 `automount.cgroups=v1` also needs
+`isolateDistroCgroup=false` in `.wslconfig` or WSL's own init fails to mount the hierarchy
+first, which is a second route to the same error code and a rule for the `.wslconfig` lint.
+
+Still worth doing on a scratch VM, and all that is left of the issue: install 2.4.13 and
+2.5.7 MSIs with the Ubuntu 26.04 `.wsl` and confirm fail/boot, which pins the version
+boundary rather than the mechanism. Runbook in the research note.

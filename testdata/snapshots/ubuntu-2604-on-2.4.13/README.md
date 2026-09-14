@@ -8,9 +8,13 @@ Catastrophic failure
 Error code: Wsl/Service/E_UNEXPECTED
 ```
 
-`wsl --update` to 2.7.13 fixed it. Root cause, derived from source and release notes:
-Ubuntu 26.04 is cgroup v2 only and WSL runtimes before 2.5.1 mount a hybrid cgroup v1
-hierarchy, so systemd cannot start (see `docs/research/2026-09-feature-research.md`, §1).
+`wsl --update` to 2.7.13 fixed it. Root cause: Ubuntu 26.04 is cgroup v2 only and WSL
+runtimes before 2.5.1 mount a hybrid cgroup v1 hierarchy, so systemd cannot start (see
+`docs/research/2026-09-feature-research.md`, §1). The mechanism was reproduced on 2.9.11
+with `automount.cgroups=v1` and is written up in
+`docs/research/2026-09-cgroup-v1-observed.md`; the version boundary itself is still from
+release notes.
+
 Note: `microsoft/WSL#13484` shows the same error string from a *different* cause
 (corrupted VHD); it is not this bug.
 
