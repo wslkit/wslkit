@@ -172,12 +172,18 @@ NAT networking: the host is the WSL gateway 172.20.240.1
 Ubuntu: the distribution cannot open a connection to 172.20.240.1:18080
 
 Allow it through, from an elevated PowerShell:
-  New-NetFirewallRule -DisplayName "wslkit proxy" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 18080 -RemoteAddress 172.20.240.0/20
+  netsh advfirewall firewall add rule name="wslkit proxy" dir=in action=allow protocol=TCP localport=18080 remoteip=172.20.240.0/20
 ```
 
+Run that in an elevated window and `check` answers "can open a connection".
+`curl` from inside the distribution then returns `200` over plain HTTP and real
+content over an HTTPS tunnel, and with `proxy apply` pointing at it, both work
+with no `--proxy` flag anywhere.
+
 `check` asks from inside the distribution, because that is the only side whose
-answer matters. The rule it prints is scoped to the WSL subnet, so the port is
-not opened to whatever network you are on.
+answer matters: before the rule, the same proxy answered `HTTP 200` to Windows
+and refused the distribution outright. The rule is scoped to the WSL subnet, so
+the port is not opened to whatever network you are on.
 
 ### What it will not do
 

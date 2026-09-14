@@ -279,12 +279,18 @@ fi
 //
 // Measured on Windows 10 22H2: without it, a listener on the WSL gateway
 // answers Windows and refuses the distribution, which is the confusing way
-// round. The rule is scoped to the WSL subnet rather than opening the port to
-// the network the laptop is on.
+// round. With it, the same listener serves the distribution over both plain
+// HTTP and a CONNECT tunnel. The rule is scoped to the WSL subnet rather than
+// opening the port to the network the laptop is on.
+//
+// netsh rather than New-NetFirewallRule, which does the same thing: the
+// PowerShell form needs a line continuation to stay readable, and a backtick
+// that does not survive being pasted creates nothing and says nothing. Twice,
+// in this case, before anybody noticed.
 func FirewallRule(port int, subnet string) string {
 	if subnet == "" {
 		subnet = "172.16.0.0/12"
 	}
-	return fmt.Sprintf(`New-NetFirewallRule -DisplayName "wslkit proxy" -Direction Inbound `+
-		`-Action Allow -Protocol TCP -LocalPort %d -RemoteAddress %s`, port, subnet)
+	return fmt.Sprintf(`netsh advfirewall firewall add rule name="wslkit proxy" `+
+		`dir=in action=allow protocol=TCP localport=%d remoteip=%s`, port, subnet)
 }
