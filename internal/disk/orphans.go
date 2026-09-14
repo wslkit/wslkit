@@ -18,6 +18,10 @@ var DefaultScanPatterns = []string{
 // Orphan is a virtual disk no registration claims.
 type Orphan struct {
 	Path string
+	// Owner is the software the path says put it there, where the path
+	// says anything. It is what turns a list of unfamiliar paths into a
+	// list somebody can decide about.
+	Owner Owner
 	// SizeOnDisk is absent when it could not be measured. A file that went
 	// away between the listing and the query is still worth reporting,
 	// without a size.
@@ -63,7 +67,7 @@ func ScanOrphans(e Env, registrations []Registration, extra []string) ([]Orphan,
 					continue
 				}
 				seen[CanonicalPath(entry.Path)] = true
-				o := Orphan{Path: entry.Path}
+				o := Orphan{Path: entry.Path, Owner: IdentifyOwner(entry.Path)}
 				if n, err := e.FS.SizeOnDisk(entry.Path); err == nil {
 					o.SizeOnDisk = &n
 				}
@@ -142,9 +146,9 @@ func RenderOrphans(w io.Writer, orphans []Orphan) {
 		fmt.Fprintln(w, "no orphaned disks found")
 		return
 	}
-	t := Table{Headers: []string{"SIZE ON DISK", "PATH"}}
+	t := Table{Headers: []string{"SIZE ON DISK", "BELONGS TO", "PATH"}}
 	for _, o := range orphans {
-		t.Rows = append(t.Rows, []string{sizeCell(o.SizeOnDisk), o.Path})
+		t.Rows = append(t.Rows, []string{sizeCell(o.SizeOnDisk), o.Owner.Describe(), o.Path})
 	}
 	fmt.Fprint(w, t.String())
 	fmt.Fprintf(w, "\n%s in %d file(s) that no distribution claims\n", FormatSize(TotalSize(orphans)), len(orphans))
@@ -153,6 +157,12 @@ func RenderOrphans(w io.Writer, orphans []Orphan) {
 // OrphanJSON is the object printed per orphan.
 func OrphanJSON(o Orphan) map[string]any {
 	m := map[string]any{"path": o.Path}
+	if o.Owner.Name != "" {
+		m["owner"] = o.Owner.Name
+	}
+	if o.Owner.Holds != "" {
+		m["holds"] = o.Owner.Holds
+	}
 	putU64(m, "size_on_disk", o.SizeOnDisk)
 	return m
 }
