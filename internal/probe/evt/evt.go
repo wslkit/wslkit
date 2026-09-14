@@ -65,21 +65,34 @@ func (p Crashes) Run(e *env.Env) probe.Result {
 	locked := lockedChannels(e)
 	platformNote := ""
 	if len(platform) > 0 {
-		platformNote = "\n" + describePlatform(platform)
+		// Counted and shown, but not led with: see the rule below. Somebody
+		// investigating a real problem still wants to know these are here.
+		platformNote = fmt.Sprintf("\n%d Hyper-V compute / host network error(s) in the window, none of the shape that stops WSL starting:\n%s",
+			len(platform), describePlatform(platform))
 	} else if len(locked) > 0 {
 		platformNote = fmt.Sprintf("\nNot read (needs an elevated console): %s. These say why a VM refused to start and why its network could not be configured.", strings.Join(locked, ", "))
 	}
 
-	if len(platform) > 0 {
-		// An error from the compute or network service is a cause, where a
-		// crash report is a symptom, so it leads.
+	// A machine that works logs host network errors anyway. Measured on a
+	// healthy desktop: 23 Host-Network-Service events in a week, every one id
+	// 1006 carrying 0x80070002, on a machine where WSL starts every time.
+	// Leading with those, and attaching advice to restart HNS and delete the
+	// WSL network, would send somebody to fix nothing.
+	//
+	// The compute channel is different. It logs when a virtual machine failed
+	// to start, which is the thing this tool exists to explain, so it leads on
+	// its own. A network error leads when it carries an HRESULT known to stop
+	// WSL starting, or when something crashed in the same window that it might
+	// explain. Everything else is counted in the detail, where somebody
+	// investigating can still find it.
+	if len(platform) > 0 && (anyCompute(platform) || knownFatal(platform) || len(crashes) > 0) {
 		r := b.Res(probe.Warn, 0.65, fmt.Sprintf("%d Hyper-V compute / host network error(s) in the last %s", len(platform), humanDuration(window)))
 		r.Detail = describePlatform(platform)
 		if len(crashes) > 0 {
 			r.Detail += fmt.Sprintf("\n\n%d WSL process crash report(s) in the same window:\n%s", len(crashes), strings.Join(lines, "\n"))
 		}
-		if hnsError(platform) {
-			r.Detail += "\nAn HNS error of this shape is the known 'WSL will not start after a network change' class: the VM's network cannot be built, and wsl.exe reports 0x8007054f without saying why."
+		if knownFatal(platform) {
+			r.Detail += "\nAn error of this shape is the known 'WSL will not start after a network change' class: the VM's network cannot be built, and wsl.exe reports 0x8007054f without saying why."
 			r.Refs = append(r.Refs, "https://github.com/microsoft/WSL/issues/13454")
 			r.FixHint = "wsl --shutdown, then restart the Host Network Service (net stop hns && net start hns, admin); if it persists, remove the WSL network: Get-HnsNetwork | Where-Object Name -eq WSL | Remove-HnsNetwork"
 		}
@@ -163,19 +176,24 @@ func describePlatform(evs []env.Event) string {
 	return strings.Join(lines, "\n")
 }
 
-// hnsError reports whether any of these came from the host network service, or
-// carries the HRESULT that wsl.exe prints when the network cannot be built.
+// fatalCodes are the HRESULTs that mean the VM or its network could not be
+// built, rather than something the platform logged and recovered from.
 //
 // 0x8007054f is ERROR_INTERNAL_ERROR wrapped as an HRESULT, which tells nobody
-// anything on its own. In this company it means the network, and that is worth
-// saying outright.
-func hnsError(evs []env.Event) bool {
+// anything on its own; in this company it means the network. Being on the
+// Host-Network-Service channel is deliberately not enough on its own: a healthy
+// machine logs 0x80070002 there several times a week, and treating the channel
+// as the signal turns that into a finding with a remedy attached.
+var fatalCodes = []string{"0x8007054f", "0x80370102", "0x80070422"}
+
+// knownFatal reports whether any event carries one of them.
+func knownFatal(evs []env.Event) bool {
 	for _, ev := range evs {
-		if strings.Contains(ev.Channel, "Host-Network-Service") {
-			return true
-		}
-		if strings.Contains(strings.ToLower(ev.Message), "0x8007054f") {
-			return true
+		m := strings.ToLower(ev.Message)
+		for _, code := range fatalCodes {
+			if strings.Contains(m, code) {
+				return true
+			}
 		}
 	}
 	return false
@@ -211,4 +229,15 @@ func firstLine(s string) string {
 		s = s[:117] + "..."
 	}
 	return s
+}
+
+// anyCompute reports whether any event came from the Hyper-V compute service,
+// which is what logs a virtual machine failing to start.
+func anyCompute(evs []env.Event) bool {
+	for _, ev := range evs {
+		if strings.Contains(ev.Channel, "Hyper-V-Compute") {
+			return true
+		}
+	}
+	return false
 }

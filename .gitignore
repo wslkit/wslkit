@@ -13,3 +13,7 @@ internal/agent/payload/files/wslkit-agent-linux-*
 site/content/
 site/public/
 site/.hugo_build.lock
+
+# A machine capture belongs in testdata/snapshots as a named fixture, not
+# loose in the repository root. One got committed by a stray `git add -A`.
+/*.json
