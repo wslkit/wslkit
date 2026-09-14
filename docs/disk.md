@@ -137,6 +137,34 @@ than becoming the terabyte it is nominally allowed to reach.
 The original is deleted last, and only after the distribution has been proved to
 start from its new location. If it does not start, everything is put back.
 
+### rebuild
+
+```
+wslkit disk rebuild Ubuntu                  export, import, keep the registration
+wslkit disk rebuild Ubuntu --keep-archive   keep the archive as a backup
+wslkit disk rebuild Ubuntu --dry-run        the plan, in full
+```
+
+Compaction works in whole blocks of the virtual disk. Free space scattered
+through the filesystem in small holes leaves most of those blocks partly used,
+so a disk that is half empty inside can reclaim almost nothing — and the
+command that reclaims nothing is the one that makes people give up.
+
+Exporting and importing writes every file afresh into a new disk, in order, and
+the holes are gone. Measured on a test distribution that compaction could do
+little with: 684 MiB down to 204 MiB.
+
+Doing it by hand loses the registration. `wsl --import` makes a new GUID and
+drops the default user, the flags and the default-distribution marker, so the
+distribution comes back opening a root shell instead of yours. `rebuild` puts
+them back.
+
+The order is what makes it safe: the archive is written before anything is
+deleted, and it is kept wherever anything goes wrong, with the `wsl --import`
+line that recovers from it. The one thing it cannot put back is the GUID
+itself: anything that recorded the old one, such as a plugin registration,
+will not find it.
+
 ### orphans and relink
 
 ```

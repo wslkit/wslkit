@@ -162,6 +162,11 @@ type Host interface {
 	// ImportInPlace registers an existing disk as a distribution, without
 	// copying it.
 	ImportInPlace(ctx context.Context, name, vhdPath string) error
+	// Export writes a distribution to a tar archive, stopping it first.
+	Export(ctx context.Context, name, tarPath string, timeout time.Duration) error
+	// ImportTar registers a distribution from a tar archive, creating a
+	// new disk in dir.
+	ImportTar(ctx context.Context, name, dir, tarPath string, timeout time.Duration) error
 	// RunAsRoot executes a command inside a distribution as root. argv[0]
 	// must be an absolute path: wsl.exe does not search PATH for it.
 	RunAsRoot(ctx context.Context, distro string, argv []string, timeout time.Duration) (CommandResult, error)
