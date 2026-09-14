@@ -3,9 +3,37 @@
 wslkit is a single executable with no installer and no dependencies. Download
 it, put it somewhere on your path, and run it.
 
-There are no releases yet, so for now it is built from source. That needs Go
-1.27 or later and nothing else; there is no C compiler in the picture, because
-the binary uses no cgo.
+## Scoop
+
+```powershell
+scoop bucket add wslkit https://github.com/wslkit/scoop-wslkit
+scoop install wslkit
+```
+
+That puts both `wslkit` and `wsldoctor` on your path. They are the same binary:
+invoked as `wsldoctor` it runs `wslkit doctor`, so anything written against the
+older name keeps working.
+
+## By hand
+
+Download the zip for your architecture from the
+[releases page](https://github.com/wslkit/wslkit/releases), unpack it, and put
+`wslkit.exe` somewhere on your path. There is nothing else in the archive but
+the licence and the README.
+
+The binaries are **not Authenticode-signed yet**, so SmartScreen warns the first
+time you run one. Every release carries a build provenance attestation, which is
+the stronger check anyway — it ties the archive to the exact workflow run and
+commit that produced it:
+
+```powershell
+gh attestation verify wslkit_0.1.0_windows_amd64.zip --repo wslkit/wslkit
+```
+
+## From source
+
+Go 1.27 or later and nothing else; there is no C compiler in the picture,
+because the binary uses no cgo.
 
 ```
 git clone https://github.com/wslkit/wslkit

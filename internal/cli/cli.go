@@ -101,6 +101,13 @@ func (a *App) doctor(args []string) int {
 		return a.fix(args[1:])
 	case "undo":
 		return a.undo(args[1:])
+	case "version", "--version", "-v":
+		// Reached through the wsldoctor alias, which prefixes every argument
+		// with "doctor". Without this, `wsldoctor version` is an unknown
+		// subcommand followed by a page of usage, which is a poor greeting
+		// for somebody checking what they have just installed.
+		fmt.Fprintf(a.Stdout, "%s %s\n", Product, a.Version)
+		return ExitOK
 	case "help", "--help", "-h":
 		a.usage()
 		return ExitOK
