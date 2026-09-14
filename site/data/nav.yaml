@@ -12,7 +12,7 @@ sections:
     pages: [install, safety]
 
   - section: Commands
-    pages: [doctor, disk, top, proxy, agent, sock]
+    pages: [doctor, disk, top, proxy, guard, agent, sock]
 
   - section: Guides
     pages: [wsl-will-not-start, reclaim-disk-space, file-watchers, zone-identifier-files, windows-keys-in-wsl, report-a-bug]

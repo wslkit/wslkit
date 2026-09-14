@@ -107,6 +107,16 @@ func CommandTree() []cmdNode {
 		},
 		{Name: "top", Desc: "What the utility VM is using, and which distribution is responsible", Flags: []string{"--json", "--interval", "--once", "--timeout"}, Positional: []argKind{argDistro}},
 		{
+			Name: "guard",
+			Desc: "Get WSL answering again after the machine has slept",
+			Subs: []cmdNode{
+				{Name: "run-once", Desc: "Probe now, and recover if it is needed", Flags: []string{"--dry-run", "--elevated", "--max-step", "--quiet"}},
+				{Name: "install", Desc: "Run it on resume and at logon", Flags: []string{"--elevated", "--max-step"}},
+				{Name: "uninstall", Desc: "Remove the scheduled tasks"},
+				{Name: "status", Desc: "What is installed, and what the last run did"},
+			},
+		},
+		{
 			Name: "proxy",
 			Desc: "Get a Windows proxy configuration working inside a distribution",
 			Subs: []cmdNode{
