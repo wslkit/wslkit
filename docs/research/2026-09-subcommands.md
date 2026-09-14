@@ -194,13 +194,24 @@ both HTTP and HTTPS. All three firewall profiles are enabled with `DefaultInboun
 opening the port to whatever network the laptop is on:
 
 ```
-New-NetFirewallRule -DisplayName "wslkit proxy" -Direction Inbound -Action Allow `
-  -Protocol TCP -LocalPort 18080 -RemoteAddress 172.20.240.0/20
+netsh advfirewall firewall add rule name="wslkit proxy" dir=in action=allow ^
+  protocol=TCP localport=18080 remoteip=172.20.240.0/20
 ```
 
-That is what `wslkit proxy check -d <distro>` prints, and testing from the distribution
-rather than from Windows is the point: a proxy that answers perfectly when tested from the
-host is still refused from the side that has to use it.
+**Confirmed with the rule in place, same machine and session:** `proxy check` goes from
+"cannot open a connection" to "can", `curl` from inside Ubuntu returns `200` over plain HTTP
+and real content over an HTTPS `CONNECT` tunnel, and with `proxy apply` pointing the
+distribution at it, both work with no `--proxy` flag anywhere and `systemctl
+show-environment` carries all ten variables. The proxy logged each one, `via direct`,
+because this machine's WPAD finds no script.
+
+Testing from the distribution rather than from Windows is the whole point: before the rule,
+the same proxy answered `HTTP 200` to the host and `000` to the distribution. The
+`New-NetFirewallRule` form is equivalent, but the `netsh` one above survives being pasted:
+two attempts at the PowerShell version with a backtick continuation silently created
+nothing.
+
+That command is what `wslkit proxy check -d <distro>` prints.
 
 **Open:** gateway IP changes across reboots (watch the registry value).
 
