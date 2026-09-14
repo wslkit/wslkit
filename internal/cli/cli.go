@@ -1,10 +1,16 @@
 // Package cli implements the wslkit command tree. It is thin: parse flags, call
 // collect / probe / render / fix, map to exit codes.
 //
-//	wslkit doctor [check] [flags]     ranked diagnosis (default subcommand)
-//	wslkit doctor explain <error>     decode a WSL error, run the probes that explain it
-//	wslkit doctor fix <id> [--apply]  plan or apply one remediation
-//	wslkit doctor undo [<id>]         list or replay rollbacks
+// Each command group prints its own usage page, the doctor included:
+//
+//	wslkit doctor ...  diagnose why WSL is broken or slow, then fix it
+//	wslkit disk ...    inspect and maintain distribution disks
+//	wslkit top         what the utility VM is using, and which distribution
+//	wslkit limit ...   cap what one distribution may use
+//	wslkit proxy ...   get a Windows proxy working inside a distribution
+//	wslkit guard ...   get WSL answering again after the machine has slept
+//	wslkit agent ...   the guest agent and the Windows daemon it talks to
+//	wslkit sock ...    bridge Windows sockets into a distribution
 //	wslkit version
 package cli
 
@@ -89,8 +95,14 @@ func (a *App) Run(args []string) int {
 }
 
 // doctor dispatches the diagnosis subcommands. With no subcommand (or only
-// flags) it runs check, like `brew doctor`.
+// flags) it runs check, like `brew doctor`. `--help` is the exception: every
+// other group answers it with its own page, so this one does too, rather than
+// handing the flag to check and printing the flag package's bare list.
 func (a *App) doctor(args []string) int {
+	if len(args) > 0 && (args[0] == "--help" || args[0] == "-h") {
+		a.doctorUsage()
+		return ExitOK
+	}
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
 		return a.check(args)
 	}
@@ -112,18 +124,39 @@ func (a *App) doctor(args []string) int {
 		// for somebody checking what they have just installed.
 		fmt.Fprintf(a.Stdout, "%s %s\n", Product, a.Version)
 		return ExitOK
-	case "help", "--help", "-h":
-		a.usage()
+	case "help":
+		a.doctorUsage()
 		return ExitOK
 	default:
 		fmt.Fprintf(a.Stderr, "unknown doctor subcommand %q\n\n", args[0])
-		a.usage()
+		a.doctorUsage()
 		return ExitUsage
 	}
 }
 
 func (a *App) usage() {
-	fmt.Fprint(a.Stderr, `wslkit: tools for WSL 2. The doctor diagnoses why WSL is broken or slow, then fixes it.
+	fmt.Fprint(a.Stderr, `wslkit: a toolkit for WSL 2. Troubleshooting, diagnosis and maintenance,
+in one binary. Every group prints its own help: wslkit <command> help.
+
+  wslkit doctor ...                    diagnose why WSL is broken or slow, then fix it (wslkit doctor help)
+  wslkit agent ...                     guest agent: install into a distro, run the Windows daemon (wslkit agent help)
+  wslkit sock ...                      bridge Windows sockets into a distro: ssh-agent, gpg-agent (wslkit sock help)
+  wslkit disk ...                      inspect and maintain distribution disks: list, info (wslkit disk help)
+  wslkit top [--json] [--once]         what the utility VM is using, and which distro
+  wslkit limit ...                     cap what one distro may use (wslkit limit help)
+  wslkit proxy ...                     get a Windows proxy working inside a distro (wslkit proxy help)
+  wslkit guard ...                     get WSL answering again after the machine slept (wslkit guard help)
+  wslkit completion <shell>            a completion script for powershell, bash or zsh
+  wslkit version
+  wslkit help
+`)
+}
+
+// doctorUsage is the doctor's own page. It used to be the top-level usage: the
+// kit grew out of a single doctor command, and for a while the help still read
+// that way. Every other group prints its own, and so does this one.
+func (a *App) doctorUsage() {
+	fmt.Fprint(a.Stderr, `wslkit doctor: diagnose why WSL is broken or slow, then fix it.
 
   wslkit doctor [check] [flags]        read-only, no admin, ranked diagnosis
   wslkit doctor explain [flags] <err>  decode a WSL error code and run the probes that explain it
@@ -131,16 +164,6 @@ func (a *App) usage() {
   wslkit doctor fix <id> [--apply]     plan (default) or apply one remediation
   wslkit doctor undo [<journal-id>]    list journal entries, or replay one rollback
                                        (--dry-run to see it first; -y to skip the prompt)
-  wslkit agent ...                     guest agent: install into a distro, run the Windows daemon (wslkit agent help)
-  wslkit sock ...                      bridge Windows sockets into a distro: ssh-agent, gpg-agent (wslkit sock help)
-  wslkit disk ...                      inspect and maintain distribution disks: list, info (wslkit disk help)
-  wslkit top [--json] [--once]          what the utility VM is using, and which distro
-  wslkit limit ...                     cap what one distro may use (wslkit limit help)
-  wslkit proxy ...                     get a Windows proxy working inside a distro (wslkit proxy help)
-  wslkit guard ...                     get WSL answering again after the machine slept (wslkit guard help)
-  wslkit completion <shell>            a completion script for powershell, bash or zsh
-  wslkit version
-  wslkit help
 
 check / explain flags:
   --json                  machine-readable output (schema wslkit/result/v1)
