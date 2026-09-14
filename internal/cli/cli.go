@@ -129,6 +129,8 @@ check / explain flags:
   --from-snapshot FILE    run probes on a saved --json output instead of this machine
   --elevated              require an elevated terminal (re-checks admin-only data)
   --allow-vm-wake         permit probes that would start the WSL VM (none yet)
+  --online                check the published WSL releases (one request, cached
+                          for a day); off by default, nothing else uses the network
   --timeout DURATION      per-collector deadline (default 5s)
   --no-redact             do not scrub user paths from human/json output
 
@@ -149,9 +151,9 @@ func fixIDs() string {
 
 // runFlags are shared by check and explain.
 type runFlags struct {
-	jsonOut, report, verbose, elevated, vmWake, noRedact bool
-	only, snapshot                                       string
-	timeout                                              time.Duration
+	jsonOut, report, verbose, elevated, vmWake, noRedact, online bool
+	only, snapshot                                               string
+	timeout                                                      time.Duration
 }
 
 func (a *App) bind(fs *flag.FlagSet) *runFlags {
@@ -165,6 +167,9 @@ func (a *App) bind(fs *flag.FlagSet) *runFlags {
 	fs.BoolVar(&rf.vmWake, "allow-vm-wake", false, "")
 	fs.DurationVar(&rf.timeout, "timeout", 5*time.Second, "")
 	fs.BoolVar(&rf.noRedact, "no-redact", false, "")
+	fs.BoolVar(&rf.online, "online", false, "")
+	// --offline is the default and is accepted so a script can say so.
+	fs.Bool("offline", false, "")
 	return rf
 }
 
@@ -187,7 +192,7 @@ func (a *App) environment(rf *runFlags) (*env.Env, int) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), rf.timeout*4)
 	defer cancel()
-	e, err := collect.Run(ctx, collect.Options{Tool: a.toolName(), AllowVMWake: rf.vmWake, Timeout: rf.timeout})
+	e, err := collect.Run(ctx, collect.Options{Tool: a.toolName(), AllowVMWake: rf.vmWake, Online: rf.online, Timeout: rf.timeout})
 	if err != nil {
 		fmt.Fprintf(a.Stderr, "%v\n", err)
 		return nil, ExitCollector

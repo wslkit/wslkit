@@ -235,17 +235,30 @@ func (p UpdateAvailable) Run(e *env.Env) probe.Result {
 	if src == "" {
 		src = "embedded data"
 	}
+	// A pre-release is only worth mentioning when it is ahead of the stable
+	// release, and only as a footnote: it is where a fix for a bug someone
+	// is actually hitting turns up first, and it is not what to recommend to
+	// someone whose machine is working.
+	pre := ""
+	if v := e.Runtime.LatestPrerelease; v != "" {
+		if pv, err := wslver.Parse(v); err == nil && latest.Less(pv) {
+			pre = fmt.Sprintf("\nPre-release %s is also published (wsl --update --pre-release). Worth trying only for a bug fixed in it.", pv)
+		}
+	}
 	switch {
 	case cur.Less(latest):
 		r := b.Res(probe.Warn, 0.3, fmt.Sprintf("WSL %s installed; %s is the latest stable (%s)", cur, latest, src))
-		r.Detail = "Not a root cause by itself, but most launch failures on old runtimes are fixed by updating."
+		r.Detail = "Not a root cause by itself, but most launch failures on old runtimes are fixed by updating." + pre
 		r.FixID, r.FixHint = "update", "wslkit doctor fix update      (runs wsl --update)"
 		return r
 	case latest.Less(cur):
 		r := b.Res(probe.OK, 0.5, fmt.Sprintf("WSL %s is newer than the latest stable this tool knows (%s); pre-release channel or newer data needed", cur, latest))
+		r.Detail = strings.TrimPrefix(pre, "\n")
 		return r
 	default:
-		return b.Res(probe.OK, 0.7, fmt.Sprintf("WSL %s is the latest stable (%s)", cur, src))
+		r := b.Res(probe.OK, 0.7, fmt.Sprintf("WSL %s is the latest stable (%s)", cur, src))
+		r.Detail = strings.TrimPrefix(pre, "\n")
+		return r
 	}
 }
 
