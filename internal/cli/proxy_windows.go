@@ -19,6 +19,8 @@ func (a *App) proxyUsage() {
   wslkit proxy show [--for URL]           what Windows is configured to do, and what a distro would get
   wslkit proxy apply -d <distro>          write it into the distribution, everywhere that reads one
   wslkit proxy revert -d <distro>         take it out again
+  wslkit proxy serve                      run a local proxy that asks Windows per request
+  wslkit proxy check -d <distro>          can the distribution actually reach it?
 
 show flags:
   --for URL     evaluate a PAC script or WPAD against this URL instead of the
@@ -35,6 +37,19 @@ apply and revert flags:
   --dry-run     show what would be written and change nothing
   -y, --yes     do not prompt
   --timeout D   bound on each command run inside the distribution
+
+serve flags:
+  --port N          port to listen on (default 18080)
+  --upstream URL    send everything to this proxy instead of asking Windows
+  --direct          send everything direct instead of asking Windows
+  --pac URL         evaluate this PAC script instead of the configured one
+  --cache-ttl D     how long to reuse a resolution for one host (default 1m)
+  --loopback-only   do not listen on the WSL gateway address
+  --quiet           do not log each request
+
+serve is for the case apply cannot cover: a PAC script that answers differently
+per host. It listens on the WSL gateway, asks Windows where each request should
+go, and tunnels or forwards it there.
 
 apply writes five files, because each is read by something that reads none of
 the others: /etc/wslkit/proxy.env for a unit to watch, /etc/environment for
@@ -64,6 +79,10 @@ func (a *App) proxy(args []string) int {
 		return a.proxyApply(args[1:])
 	case "revert":
 		return a.proxyRevert(args[1:])
+	case "serve":
+		return a.proxyServe(args[1:])
+	case "check":
+		return a.proxyCheck(args[1:])
 	case "help", "--help", "-h":
 		a.proxyUsage()
 		return ExitOK

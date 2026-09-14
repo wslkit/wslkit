@@ -288,3 +288,15 @@ func splitHostPort(s string) (host, port string) {
 	}
 	return s, ""
 }
+
+// equalFold and hasSuffixFold are the two comparisons a host needs. Host names
+// are case-insensitive, and a bypass list written in one case must match a URL
+// written in another.
+func equalFold(a, b string) bool { return strings.EqualFold(a, b) }
+
+func hasSuffixFold(s, suffix string) bool {
+	if len(s) < len(suffix) {
+		return false
+	}
+	return strings.EqualFold(s[len(s)-len(suffix):], suffix)
+}

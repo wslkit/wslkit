@@ -185,8 +185,24 @@ rather than reimplementing. `wslkit proxy apply <distro>` writes `/etc/environme
 `wsl2.autoProxy=false` when the local proxy is in use. Doctor finding for a firewall
 blocking inbound on the vEthernet adapter (rule creation needs admin).
 
-**Open:** whether Defender Firewall blocks the vEthernet inbound path by default; gateway
-IP changes across reboots (watch the registry value).
+**Answered (2026-09-14, Windows 10 22H2, WSL 2.7.13):** the Windows firewall **does** block
+the inbound path from the WSL subnet by default. Measured with `wslkit proxy serve` bound to
+`172.20.240.1:18080`: an `Invoke-WebRequest` from Windows through that exact address returns
+`HTTP 200`, and `curl --proxy http://172.20.240.1:18080` from inside Ubuntu returns `000` for
+both HTTP and HTTPS. All three firewall profiles are enabled with `DefaultInboundAction`
+`NotConfigured`, which blocks. The remedy is one rule, scoped to the WSL subnet rather than
+opening the port to whatever network the laptop is on:
+
+```
+New-NetFirewallRule -DisplayName "wslkit proxy" -Direction Inbound -Action Allow `
+  -Protocol TCP -LocalPort 18080 -RemoteAddress 172.20.240.0/20
+```
+
+That is what `wslkit proxy check -d <distro>` prints, and testing from the distribution
+rather than from Windows is the point: a proxy that answers perfectly when tested from the
+host is still refused from the side that has to use it.
+
+**Open:** gateway IP changes across reboots (watch the registry value).
 
 ## 5. `disk`: snapshots, trash-on-unregister, and the wsldisk port
 
