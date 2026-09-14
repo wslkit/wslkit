@@ -130,6 +130,77 @@ injecting its own copy of variables that are now in files. Two mechanisms
 setting the same variable is how a stale proxy survives a change nobody can
 find.
 
+## When one answer is not enough: `proxy serve`
+
+`apply` writes one proxy address into the distribution. That is right until the
+right answer depends on the URL — which is exactly why PAC scripts exist. An
+internal host goes direct, a build server has its own proxy, the rule changes
+when the laptop moves. Nothing inside a distribution can evaluate a script.
+
+`serve` runs a small forward proxy on the Windows side and asks Windows, per
+request, the same question a browser would ask:
+
+```
+$ wslkit proxy serve
+listening on 127.0.0.1:18080, 172.20.240.1:18080
+upstream: asked per request, from Windows per-user Internet Settings
+
+Point a distribution at it:
+  wslkit proxy apply -d <distro> --http http://172.20.240.1:18080
+```
+
+Then point the distribution at it once, and never think about the proxy again:
+the address inside the distribution stays the same whether you are in the
+office, at home or on a train, because what changes is the answer the proxy
+gets from Windows.
+
+It handles both shapes a proxy sees: `CONNECT` tunnels for anything over TLS,
+which is nearly everything, and plain forwarding for HTTP. Resolutions are
+cached per host for a minute, so a build that downloads a thousand files
+evaluates the script once.
+
+### The firewall will be in the way
+
+Measured on Windows 10 22H2: the host firewall blocks inbound connections from
+the WSL subnet by default. A proxy listening on the gateway answers Windows
+perfectly and is refused from inside the distribution, which is the confusing
+way round.
+
+```
+$ wslkit proxy check -d Ubuntu
+NAT networking: the host is the WSL gateway 172.20.240.1
+Ubuntu: the distribution cannot open a connection to 172.20.240.1:18080
+
+Allow it through, from an elevated PowerShell:
+  New-NetFirewallRule -DisplayName "wslkit proxy" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 18080 -RemoteAddress 172.20.240.0/20
+```
+
+`check` asks from inside the distribution, because that is the only side whose
+answer matters. The rule it prints is scoped to the WSL subnet, so the port is
+not opened to whatever network you are on.
+
+### What it will not do
+
+**Authenticate to an upstream proxy with your Windows credentials.** If the
+corporate proxy answers `407` with NTLM or Kerberos, this says so and stops:
+
+```
+the upstream proxy demands authentication (HTTP/1.1 407 Proxy Authentication
+Required). wslkit cannot answer an NTLM or Kerberos challenge yet; a proxy that
+authenticates with Windows credentials, such as px, can sit in front of it
+```
+
+Doing it properly means SSPI, and getting it half right would be worse than
+saying plainly that it is not there.
+
+### Trying it without Windows in the loop
+
+```
+wslkit proxy serve --direct           ignore the settings, go direct
+wslkit proxy serve --upstream p:3128  send everything to one proxy
+wslkit proxy serve --pac http://...   evaluate a script that is not the configured one
+```
+
 ## Trying a configuration before you commit to it
 
 ```
@@ -141,13 +212,9 @@ wslkit proxy show --http proxy.corp.example:3128
 is how you check a PAC file before deploying it to a fleet. `--http` and
 `--https` name an address outright.
 
-## What it does not do yet
+## One last thing
 
-A local forward proxy that evaluates the PAC script per request, so a
-distribution behind a script-driven proxy gets the right upstream for each host
-rather than one answer for all of them, is the remaining piece.
-
-One thing to know either way: `no_proxy` matters as much as the proxy itself.
+`no_proxy` matters as much as the proxy itself.
 Without `localhost` in it, a distribution sends its own loopback traffic to the
 corporate proxy and everything local breaks in a way that takes an afternoon to
 understand. The list wslkit writes always carries it.

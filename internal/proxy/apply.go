@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"net"
 	"strings"
 	"time"
 )
@@ -225,4 +226,65 @@ func stripSpace(s string) string {
 		}
 		return r
 	}, s)
+}
+
+// CheckReachable asks a distribution whether it can open a TCP connection to an
+// address on the host.
+//
+// This is the check that matters for `proxy serve`, and it can only be made
+// from inside: measured on Windows 10, the host firewall blocks inbound
+// connections from the WSL subnet by default, so a proxy that works perfectly
+// when tested from Windows is unreachable from the distribution it is for.
+// Testing from the right side of the boundary is the difference between a
+// working setup and an afternoon.
+func CheckReachable(ctx context.Context, r Runner, distro, hostPort string, timeout time.Duration) (bool, string, error) {
+	if timeout <= 0 {
+		timeout = DefaultTimeout
+	}
+	host, port, err := net.SplitHostPort(hostPort)
+	if err != nil {
+		return false, "", fmt.Errorf("proxy: %q is not an address: %w", hostPort, err)
+	}
+	// /dev/tcp is a bash feature and not every distribution has bash, so the
+	// script tries the tools in the order they are likely to exist. Each one
+	// answers the same question: can a TCP connection be opened at all.
+	script := fmt.Sprintf(`
+if command -v nc >/dev/null 2>&1; then
+  nc -z -w 3 %s %s >/dev/null 2>&1 && echo reachable || echo blocked
+elif command -v curl >/dev/null 2>&1; then
+  curl -s -m 3 -o /dev/null telnet://%s:%s && echo reachable || echo blocked
+elif [ -n "$BASH_VERSION" ] || command -v bash >/dev/null 2>&1; then
+  bash -c 'exec 3<>/dev/tcp/%s/%s' >/dev/null 2>&1 && echo reachable || echo blocked
+else
+  echo unknown
+fi
+`, shellQuote(host), shellQuote(port), host, port, host, port)
+
+	out, err := r.Run(ctx, distro, script, timeout)
+	if err != nil {
+		return false, "", fmt.Errorf("proxy: testing the connection from %s: %w: %s", distro, err, strings.TrimSpace(out))
+	}
+	switch answer := strings.TrimSpace(out); answer {
+	case "reachable":
+		return true, "the distribution can open a connection to " + hostPort, nil
+	case "blocked":
+		return false, "the distribution cannot open a connection to " + hostPort, nil
+	default:
+		return false, "the distribution has none of nc, curl or bash, so this could not be tested", nil
+	}
+}
+
+// FirewallRule is the command that lets a distribution reach a port on the
+// host.
+//
+// Measured on Windows 10 22H2: without it, a listener on the WSL gateway
+// answers Windows and refuses the distribution, which is the confusing way
+// round. The rule is scoped to the WSL subnet rather than opening the port to
+// the network the laptop is on.
+func FirewallRule(port int, subnet string) string {
+	if subnet == "" {
+		subnet = "172.16.0.0/12"
+	}
+	return fmt.Sprintf(`New-NetFirewallRule -DisplayName "wslkit proxy" -Direction Inbound `+
+		`-Action Allow -Protocol TCP -LocalPort %d -RemoteAddress %s`, port, subnet)
 }
