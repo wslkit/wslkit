@@ -71,6 +71,65 @@ source  ...; the loopback address was rewritten to 172.20.240.1
         (NAT networking: the host is the WSL gateway 172.20.240.1)
 ```
 
+## Writing it into a distribution
+
+```
+wslkit proxy apply -d Ubuntu --dry-run     what it would write
+wslkit proxy apply -d Ubuntu               after one confirmation
+wslkit proxy revert -d Ubuntu              take it all out again
+```
+
+`apply` writes five files, because each is read by something that reads none of
+the others:
+
+| File | What reads it |
+|---|---|
+| `/etc/wslkit/proxy.env` | the one file the others point at, and the one a systemd unit can watch |
+| `/etc/environment` | PAM, so every login session and every `su` |
+| `/etc/profile.d/99-wslkit-proxy.sh` | every login shell |
+| `/etc/apt/apt.conf.d/99wslkit-proxy` | apt, which does not read the environment when it runs from a timer |
+| `/etc/systemd/system.conf.d/wslkit-proxy.conf` | systemd, which builds its own environment for every unit |
+
+The last one is the gap that costs the most. A machine where `curl` works in
+your terminal and the systemd unit calling `curl` does not is the normal shape
+of this problem.
+
+Both spellings of every variable are written — `http_proxy` and `HTTP_PROXY`
+and the rest. Which one a program reads is down to its library, and writing
+only one is how a proxy ends up working for apt and not for pip.
+
+### Reverting is exact
+
+Everything written into a file that already existed goes inside a marked block:
+
+```
+# >>> wslkit proxy >>>
+...
+# <<< wslkit proxy <<<
+```
+
+`revert` removes the block and leaves the rest of `/etc/environment` exactly as
+it was. Files that belong to wslkit entirely are deleted, and `/etc/wslkit`
+goes too when nothing else is left in it. Applying twice changes nothing the
+second time, rather than leaving two copies of every variable in a file where
+nobody can tell which one is live.
+
+### After applying
+
+New shells have it immediately. Already-running processes keep the environment
+they started with — that is true of every environment variable on every
+operating system, and it is why `wsl --terminate <distro>` is the reliable way
+to be sure.
+
+For systemd units specifically, either terminate the distribution or run
+`systemctl daemon-reexec` inside it. Verified: `systemctl show-environment`
+then lists the proxy, so every unit started afterwards is proxied.
+
+You probably also want `wsl2.autoProxy=false` in `.wslconfig`, so WSL stops
+injecting its own copy of variables that are now in files. Two mechanisms
+setting the same variable is how a stale proxy survives a change nobody can
+find.
+
 ## Trying a configuration before you commit to it
 
 ```
@@ -84,11 +143,11 @@ is how you check a PAC file before deploying it to a fleet. `--http` and
 
 ## What it does not do yet
 
-Report only, for now. Writing the settings into a distribution so that systemd
-units and apt see them, and running a local forward proxy that evaluates the PAC
-per request, are the next two pieces.
+A local forward proxy that evaluates the PAC script per request, so a
+distribution behind a script-driven proxy gets the right upstream for each host
+rather than one answer for all of them, is the remaining piece.
 
-In the meantime, `no_proxy` matters as much as the proxy itself: without
-`localhost` in it, a distribution sends its own loopback traffic to the
+One thing to know either way: `no_proxy` matters as much as the proxy itself.
+Without `localhost` in it, a distribution sends its own loopback traffic to the
 corporate proxy and everything local breaks in a way that takes an afternoon to
-understand. The list `proxy show` prints always carries it.
+understand. The list wslkit writes always carries it.
