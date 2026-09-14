@@ -52,6 +52,60 @@ That is how a bug report becomes something reproducible. It is also how the
 checks are tested: the test suite runs them against saved snapshots rather than
 against whatever the build agent happens to look like.
 
+## preflight
+
+Reads a `.wsl` distribution file and says what installing it would run into,
+before you install it.
+
+```
+wslkit doctor preflight Ubuntu-26.04.wsl
+```
+
+A `.wsl` file is a tar archive holding a whole root filesystem plus a few small
+configuration files that decide how WSL sets it up. `wsl --install --from-file`
+unpacks several gigabytes and only then reports a mistake in one of those
+200-byte files, as an HRESULT. And a distribution that installs perfectly can
+still fail to start on the runtime you have.
+
+All of that is readable from the archive's headers beforehand. Nothing is
+extracted, nothing is written, nothing is installed; a 400 MiB archive takes
+about a second.
+
+```
+Ubuntu-26.04.wsl: gzip archive, 24184 entries, 1.2 GiB
+
+OK      PRE001  wsl-distribution.conf is valid (5 settings)
+OK      PRE002  Default user is uid 1000 (ubuntu), which exists in /etc/passwd
+OK      PRE003  wsl.conf is valid (2 settings)
+WARN    PRE004  1 enabled unit(s) known to misbehave under WSL: systemd-resolved.service
+FAIL    PRE006  systemd 258 needs WSL 2.5.7 or newer; this machine has 2.4.13
+```
+
+| Check | What it looks at |
+|---|---|
+| `PRE001` | `/etc/wsl-distribution.conf`: only the keys WSL's init actually reads, and their values |
+| `PRE002` | the default uid exists in `/etc/passwd`, or a first-run command creates it; uid 0 is `root` |
+| `PRE003` | the `/etc/wsl.conf` the archive ships, against the same key table the live check uses |
+| `PRE004` | enabled systemd units known to misbehave under WSL |
+| `PRE005` | extended attributes a WSL 1 install would silently drop |
+| `PRE006` | whether **this machine's** runtime can install and start it |
+
+The last one is the one no distribution validator can make for you. The case
+that catches people: a distribution whose systemd is cgroup v2 only installs
+fine on an older runtime and then never boots, with an error that says nothing
+about cgroups.
+
+Exit codes follow the usual contract: `0` clean, `1` warnings, `3` something
+that would stop the install. So a build script can gate on it:
+
+```
+wslkit doctor preflight dist.wsl || exit 1
+wsl --install --from-file dist.wsl
+```
+
+xz- and zstd-compressed archives are named as unreadable rather than failing
+with a confusing tar error. Unpack them first and check the tar.
+
 ## explain
 
 Takes an error WSL printed and tells you what it means and which checks bear on

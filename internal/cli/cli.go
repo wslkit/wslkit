@@ -92,6 +92,8 @@ func (a *App) doctor(args []string) int {
 		return a.check(args[1:])
 	case "explain":
 		return a.explain(args[1:])
+	case "preflight":
+		return a.preflight(args[1:])
 	case "fix":
 		return a.fix(args[1:])
 	case "undo":
@@ -111,6 +113,7 @@ func (a *App) usage() {
 
   wslkit doctor [check] [flags]        read-only, no admin, ranked diagnosis
   wslkit doctor explain [flags] <err>  decode a WSL error code and run the probes that explain it
+  wslkit doctor preflight <file.wsl>   check a distribution file before installing it
   wslkit doctor fix <id> [--apply]     plan (default) or apply one remediation
   wslkit doctor undo [<journal-id>]    list journal entries, or replay one rollback
   wslkit agent ...                     guest agent: install into a distro, run the Windows daemon (wslkit agent help)
