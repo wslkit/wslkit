@@ -151,6 +151,27 @@ have, and no distribution claims it. `orphans` says so before it deletes
 anything, refuses any file that is open, and leaves alone any file whose state
 it cannot determine.
 
+The listing names the software each disk belongs to where the path says:
+
+```
+SIZE ON DISK  BELONGS TO      PATH
+28.4 GiB      Docker Desktop  C:\Users\you\AppData\Local\Docker\wsl\disk\docker_data.vhdx
+1.9 GiB       unknown         D:\backups\old-ubuntu.vhdx
+```
+
+Those disks can be compacted without being deleted, and without copying a path
+from one command into another:
+
+```
+wslkit disk compact --orphans               after one confirmation
+wslkit disk compact --orphans --dry-run     what it would do
+```
+
+Compacting rewrites the file and frees the unused blocks inside it; nothing in
+it is lost. A disk another application is using is still in use, though, so it
+may have to be stopped first — Docker Desktop's disk will refuse while Docker
+is running.
+
 `relink` writes registry values and touches no file. It starts the distribution
 to check the new path works, and puts the registry back if it does not.
 

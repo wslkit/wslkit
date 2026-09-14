@@ -66,6 +66,9 @@ usage flags:
 compact flags:
   --all               every WSL 2 distribution
   --file PATH         a loose .vhdx, such as the one Docker Desktop keeps
+  --orphans           every loose disk the orphan scan finds, after one
+                      confirmation. Says whose disk each one is first
+  --scan DIR          with --orphans, another directory to search
   --no-trim           skip the fstrim step. Compaction then reclaims almost
                       nothing, because the disk still holds the stale data
   --restart           start the distribution again afterwards if it was running
