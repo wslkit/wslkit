@@ -89,11 +89,12 @@ func CommandTree() []cmdNode {
 				{Name: "list", Desc: "Every distribution and what its disk costs", Flags: withDiskFlags("--probe")},
 				{Name: "info", Desc: "Everything known about one distribution", Flags: withDiskFlags("--probe"), Positional: []argKind{argDistro}},
 				{Name: "trim", Desc: "Ask the guest to release the blocks it no longer uses", Flags: withDiskFlags("--trim-timeout"), Positional: []argKind{argDistro}},
-				{Name: "compact", Desc: "Trim, stop, then shrink the disk file", Flags: withDiskFlags("--all", "--file", "--no-trim", "--restart", "--shutdown", "--unlock-timeout", "--trim-timeout"), Positional: []argKind{argDistro}},
+				{Name: "compact", Desc: "Trim, stop, then shrink the disk file", Flags: withDiskFlags("--all", "--file", "--orphans", "--auto", "--min-reclaim", "--scan", "--no-trim", "--restart", "--shutdown", "--unlock-timeout", "--trim-timeout"), Positional: []argKind{argDistro}},
 				{Name: "usage", Desc: "Where the space inside a distribution went", Flags: withDiskFlags("--top", "--by-directory", "--depth"), Positional: []argKind{argDistro}},
 				{Name: "orphans", Desc: "Virtual disks that no distribution claims", Flags: withDiskFlags("--scan", "--delete", "--relink", "--to")},
 				{Name: "relink", Desc: "Point a distribution at a disk that has moved", Flags: withDiskFlags(), Positional: []argKind{argDistro, argPath}},
 				{Name: "move", Desc: "Move a distribution disk, then check it still boots", Flags: withDiskFlags("--keep-source"), Positional: []argKind{argDistro, argDir}},
+				{Name: "rebuild", Desc: "Export and import a distribution into a fresh disk", Flags: withDiskFlags("--work-dir", "--keep-archive", "--restart", "--transfer-timeout"), Positional: []argKind{argDistro}},
 				{Name: "trash", Desc: "Unregister a distribution but keep its disk", Flags: withDiskFlags("--list", "--purge", "--older-than", "--shutdown"), Positional: []argKind{argDistro}},
 				{Name: "undelete", Desc: "Register a trashed distribution again", Flags: withDiskFlags(), Positional: []argKind{argOther}},
 				{Name: "config", Desc: "Show or change the disk settings", Flags: withDiskFlags(), Subs: []cmdNode{
@@ -105,6 +106,13 @@ func CommandTree() []cmdNode {
 			},
 		},
 		{Name: "top", Desc: "What the utility VM is using, and which distribution is responsible", Flags: []string{"--json", "--interval", "--once", "--timeout"}, Positional: []argKind{argDistro}},
+		{
+			Name: "proxy",
+			Desc: "Get a Windows proxy configuration working inside a distribution",
+			Subs: []cmdNode{
+				{Name: "show", Desc: "What Windows is configured to do, and what a distribution would get", Flags: []string{"--for", "--pac", "--http", "--https", "--json"}},
+			},
+		},
 		{Name: "completion", Desc: "Print a shell completion script", Positional: []argKind{argShell}},
 		{Name: "version", Desc: "Print the version"},
 		{Name: "help", Desc: "Print usage"},

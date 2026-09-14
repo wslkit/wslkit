@@ -18,21 +18,15 @@ func All() []probe.Probe { return []probe.Probe{Mirrored{}, DNS{}} }
 // Mode returns the configured networking mode (lower-case) and whether it was
 // set explicitly. Policy DefaultNetworkingMode wins over .wslconfig.
 func Mode(e *env.Env) (mode string, explicit bool, fromPolicy bool) {
-	mode = "nat"
+	cfgText := ""
 	if e.Config.WslConfig.OK() {
-		cfg := wslconfig.Parse(e.Config.WslConfig.Value)
-		if v, ok := cfg.Get("wsl2", "networkingMode"); ok {
-			mode, explicit = strings.ToLower(v), true
-		} else if v, ok := cfg.Get("experimental", "networkingMode"); ok {
-			mode, explicit = strings.ToLower(v), true
-		}
+		cfgText = e.Config.WslConfig.Value
 	}
+	policy := ""
 	if e.Net.Policy.OK() {
-		if v, ok := e.Net.Policy.Value["DefaultNetworkingMode"]; ok && v != "" {
-			return strings.ToLower(v), true, true
-		}
+		policy = e.Net.Policy.Value["DefaultNetworkingMode"]
 	}
-	return mode, explicit, false
+	return wslconfig.NetworkingMode(cfgText, policy)
 }
 
 func configBool(e *env.Env, key string) (val bool, set bool) {
