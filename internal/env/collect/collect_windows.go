@@ -642,6 +642,34 @@ func collectEvents(ctx context.Context, e *env.Env, o Options) error {
 	}
 	add("Microsoft-Windows-Hyper-V-VmSwitch-Operational", evs, nil)
 
+	// The channels that say why a VM refused to start, and why its network
+	// could not be configured, are the two most useful logs there are for
+	// this tool and both are readable only by an administrator (measured:
+	// all four answer "Access is denied" unelevated, ADR 0007). They are
+	// still attempted, because the refusal is itself worth recording: it is
+	// what lets a check say that --elevated would have more to go on rather
+	// than reporting a quiet machine.
+	for _, ch := range []string{
+		"Microsoft-Windows-Hyper-V-Compute-Admin",
+		"Microsoft-Windows-Hyper-V-Compute-Operational",
+		"Microsoft-Windows-Host-Network-Service-Admin",
+		"Microsoft-Windows-Host-Network-Service-Operational",
+	} {
+		if f, ok := e.Events.Channels[ch]; ok && f.ErrKind == env.ErrNeedsElevation {
+			// Already known to be out of reach; asking again only costs
+			// time in a collector that has a deadline.
+			continue
+		}
+		evs, err = evtlog.Query(ch, `*[System[Level<=2 and `+since+`]]`, 40)
+		if err != nil {
+			if _, seen := e.Events.Channels[ch]; !seen {
+				e.Events.Channels[ch] = env.Fail[env.ChannelInfo](kindOf(err), ch, err)
+			}
+			continue
+		}
+		add(ch, evs, nil)
+	}
+
 	if firstErr != nil && len(recent) == 0 {
 		e.Events.Recent = env.Fail[[]env.Event](kindOf(firstErr), "wevtapi", firstErr)
 		return firstErr
@@ -649,7 +677,7 @@ func collectEvents(ctx context.Context, e *env.Env, o Options) error {
 	if recent == nil {
 		recent = []env.Event{}
 	}
-	e.Events.Recent = env.Ok(recent, "wevtapi Application/System/VmSwitch")
+	e.Events.Recent = env.Ok(recent, "wevtapi Application/System/VmSwitch/HCS/HNS")
 	return nil
 }
 
