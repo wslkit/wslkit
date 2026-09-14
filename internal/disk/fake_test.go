@@ -155,6 +155,13 @@ type fakeHost struct {
 	// onImport stands in for what wsl.exe would do: create a new
 	// registration, with a fresh GUID, for the imported disk.
 	onImport func(name, vhdPath string)
+	// exportErr and onImportTar drive the rebuild tests: the export and the
+	// import are the two steps that can fail either side of the point of no
+	// return.
+	exportErr   error
+	onImportTar func(name, dir, tarPath string)
+	// fs is the filesystem the fake export writes its archive into.
+	fs *fakeFS
 }
 
 func (f *fakeHost) Running(ctx context.Context) ([]string, error) {
@@ -438,6 +445,34 @@ func (f *fakeHost) ImportInPlace(ctx context.Context, name, vhdPath string) erro
 	}
 	if f.onImport != nil {
 		f.onImport(name, vhdPath)
+	}
+	return nil
+}
+
+func (f *fakeHost) Export(ctx context.Context, name, tarPath string, timeout time.Duration) error {
+	f.calls = append(f.calls, "export "+name+" "+tarPath)
+	if f.exportErr != nil {
+		return f.exportErr
+	}
+	// Stands in for wsl.exe writing the archive, so the code that checks it
+	// landed has something to find.
+	if f.fs != nil {
+		if f.fs.files == nil {
+			f.fs.files = map[string]fakeFile{}
+		}
+		f.fs.files[tarPath] = fakeFile{size: 1 << 20, onDisk: 1 << 20}
+		f.fs.addToDir(tarPath)
+	}
+	return nil
+}
+
+func (f *fakeHost) ImportTar(ctx context.Context, name, dir, tarPath string, timeout time.Duration) error {
+	f.calls = append(f.calls, "import "+name+" "+dir+" "+tarPath)
+	if f.importErr != nil {
+		return f.importErr
+	}
+	if f.onImportTar != nil {
+		f.onImportTar(name, dir, tarPath)
 	}
 	return nil
 }

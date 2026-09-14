@@ -171,3 +171,35 @@ func (h *WindowsHost) ImportInPlace(ctx context.Context, name, vhdPath string) e
 // importTimeout is longer than the other control commands: an import registers
 // a disk and starts the utility VM to look at it.
 const importTimeout = 5 * time.Minute
+
+// Export writes a distribution's filesystem to a tar archive.
+//
+// The distribution is stopped by wsl.exe first if it is running, so the archive
+// is consistent. It is a plain tar, not a disk image, which is exactly the
+// point: rebuilding from it lays every file down afresh.
+func (h *WindowsHost) Export(ctx context.Context, name, tarPath string, timeout time.Duration) error {
+	cctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	_, stderr, code, err := h.run(cctx, "--export", name, tarPath)
+	if err != nil || code != 0 {
+		return fmt.Errorf("disk: exporting %s to %s: %w: %s", name, tarPath, err, strings.TrimSpace(stderr))
+	}
+	return nil
+}
+
+// ImportTar registers a distribution from a tar archive, creating a new disk in
+// the given directory.
+//
+// --version 2 is passed explicitly rather than relying on the machine's default
+// version, which a user can set to 1 and forget: importing a WSL 2
+// distribution as WSL 1 would put its files on NTFS and quietly change how
+// everything about it behaves.
+func (h *WindowsHost) ImportTar(ctx context.Context, name, dir, tarPath string, timeout time.Duration) error {
+	cctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	_, stderr, code, err := h.run(cctx, "--import", name, dir, tarPath, "--version", "2")
+	if err != nil || code != 0 {
+		return fmt.Errorf("disk: importing %s from %s: %w: %s", name, tarPath, err, strings.TrimSpace(stderr))
+	}
+	return nil
+}

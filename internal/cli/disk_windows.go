@@ -26,6 +26,7 @@ func (a *App) diskUsage() {
   wslkit disk orphans                     virtual disks that no distribution claims
   wslkit disk relink <distro> <path>      point a distribution at a disk that has moved
   wslkit disk move <distro> <directory>   move a distribution disk, then check it still boots
+  wslkit disk rebuild <distro>            export and import it again into a fresh disk
   wslkit disk config [path|get|set|edit]   show or change the settings
   wslkit disk trash <distro>              unregister a distribution but keep its disk
   wslkit disk undelete <distro>           register a trashed distribution again
@@ -54,6 +55,13 @@ trash flags:
   --older-than AGE    with --purge, only entries at least this old: 30d, 12h, 90m
   --shutdown          permit stopping every distribution to free the disk. The
                       utility VM keeps every disk open while any one runs
+
+rebuild flags:
+  --work-dir DIR      where to write the intermediate archive (default: beside
+                      the disk, which is the volume most likely to have room)
+  --keep-archive      keep the archive afterwards, as a backup
+  --restart           start the distribution again afterwards if it was running
+  --transfer-timeout D  how long to allow for the export and for the import
 
 move flags:
   --keep-source       leave the original file where it is
@@ -119,6 +127,8 @@ func (a *App) disk(args []string) int {
 		return a.diskRelink(args[1:])
 	case "move":
 		return a.diskMove(args[1:])
+	case "rebuild":
+		return a.diskRebuild(args[1:])
 	case "config":
 		return a.diskConfig(args[1:])
 	case "trash":
