@@ -178,3 +178,55 @@ figure was 110.7%.
 - Whether `limit` is worth building for 2.8+ only, given it writes limits WSL
   itself does not, and they vanish when the distribution restarts because the
   cgroup is recreated under a new PID.
+
+## Re-measured, on WSL 2.9.11 (2026-09-14)
+
+The machine was updated with `wsl --update --pre-release`, from 2.7.13 to
+**2.9.11**. There is no 2.8: Microsoft publishes 2.7.x as stable and 2.9.x as
+pre-release, and nothing in between was ever released, so the "arrived in about
+2.8" above should be read as "arrived between 2.7.13 and 2.9.11".
+
+Everything the design assumed is now true.
+
+**`/sys/fs/cgroup/wsl-user` exists**, holding one `distro-<pid>` per running
+distribution plus a `non-distro` sibling.
+
+**The accounting is genuinely per distribution.** The same experiment that
+disproved it on 2.7.13, run again: with two distributions up, 500 MB was
+allocated inside Ubuntu and both counters read from outside it.
+
+| | before | after |
+|---|---|---|
+| skrog-engine (`distro-108`) | 234,299,392 | 233,652,224 |
+| Ubuntu | 1,138,135,040 | 1,680,900,096 |
+
+Only the distribution doing the work moved, by the size of the allocation. On
+2.7.13 both counters moved together, which is what made the whole approach
+unusable there.
+
+### Read `/proc/self/cgroup`, not `/proc/1/cgroup`
+
+The node has to be found from the measuring process, not from pid 1:
+
+| distribution | `/proc/1/cgroup` | `/proc/self/cgroup` |
+|---|---|---|
+| Ubuntu (systemd) | `0::/wsl-user/distro-N/systemd/init.scope` | `0::/wsl-user/distro-N/non-systemd` |
+| skrog-engine (no systemd) | `0::/` | `0::/wsl-user/distro-N` |
+
+A distribution without systemd reports the **root** for pid 1 while its own
+processes sit in the distro node. Reading pid 1 therefore finds nothing on
+exactly the distributions that are cheapest to measure, and falls back to
+summing `/proc` for no reason. `top` did that until this was measured; it now
+reads its own cgroup and falls back to pid 1.
+
+### The number changes when the distribution restarts
+
+`distro-N` is named for the distribution's init pid inside the VM, so it is
+different after every restart. Observed within a few minutes: Ubuntu was
+`distro-1090`, then `1675`, `2288`, `2921`, because WSL stops a distribution
+shortly after its last process exits and starts it afresh for the next command.
+skrog-engine kept `distro-108` throughout, because dockerd holds it up.
+
+Nothing may cache the mapping. It has to be resolved from inside the
+distribution each time, which is what makes `/proc/self/cgroup` the right source
+rather than a convenience.
