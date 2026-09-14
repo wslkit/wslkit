@@ -73,6 +73,10 @@ usage flags:
 
 compact flags:
   --all               every WSL 2 distribution
+  --auto              with --all, compact only what is worth it: anything that
+                      needs nothing stopped, plus any running distribution with
+                      enough to reclaim. For a scheduled task
+  --min-reclaim SIZE  what --auto counts as enough (default 1GiB)
   --file PATH         a loose .vhdx, such as the one Docker Desktop keeps
   --orphans           every loose disk the orphan scan finds, after one
                       confirmation. Says whose disk each one is first

@@ -122,6 +122,36 @@ result of zero is a real answer, not a failure.
 
 ## Moving and repairing
 
+### Compacting on a schedule
+
+```
+wslkit disk compact --all --auto -y
+```
+
+Compaction has to stop the distribution, so an unattended run in its plain form
+interrupts someone's work to reclaim a few megabytes nobody would have chosen
+to be interrupted for. `--auto` is the rule that makes it safe to schedule:
+
+- a disk that needs nothing stopped is compacted — there is nothing to weigh
+  against it;
+- a running distribution is stopped only when at least `--min-reclaim` (1 GiB
+  by default) can actually be reclaimed;
+- a stopped distribution whose disk the utility VM is holding open for another
+  one is skipped, because freeing it means stopping everything.
+
+Either way it says what it decided, which is what you want to read in a log the
+next morning:
+
+```
+Ubuntu                   skipped: how much is reclaimable cannot be read without starting it
+skrog-engine             skipped: 222.2 MiB reclaimable is below the 1.0 GiB worth stopping it for
+
+nothing was worth compacting
+```
+
+Nothing worth doing exits 0, so a scheduled task does not report a failure for a
+quiet week. With `--json` each skip is a line of its own, with its reason.
+
 ### move
 
 Moves a disk to another directory or drive and repoints the registration.
