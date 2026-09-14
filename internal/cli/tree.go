@@ -55,7 +55,7 @@ func CommandTree() []cmdNode {
 				{Name: "check", Desc: "Read-only ranked diagnosis", Flags: runFlagNames},
 				{Name: "explain", Desc: "Decode a WSL error code and run the probes that explain it", Flags: runFlagNames, Positional: []argKind{argOther}},
 				{Name: "fix", Desc: "Plan or apply one remediation", Flags: []string{"--apply", "--json"}, Positional: []argKind{argOther}},
-				{Name: "undo", Desc: "List journal entries, or replay one rollback", Flags: []string{"--json"}, Positional: []argKind{argOther}},
+				{Name: "undo", Desc: "List journal entries, or replay one rollback", Flags: []string{"--dry-run", "-y", "--yes"}, Positional: []argKind{argOther}},
 			},
 		},
 		{

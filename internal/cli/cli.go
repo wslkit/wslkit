@@ -9,6 +9,7 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -118,6 +119,7 @@ func (a *App) usage() {
   wslkit doctor preflight <file.wsl>   check a distribution file before installing it
   wslkit doctor fix <id> [--apply]     plan (default) or apply one remediation
   wslkit doctor undo [<journal-id>]    list journal entries, or replay one rollback
+                                       (--dry-run to see it first; -y to skip the prompt)
   wslkit agent ...                     guest agent: install into a distro, run the Windows daemon (wslkit agent help)
   wslkit sock ...                      bridge Windows sockets into a distro: ssh-agent, gpg-agent (wslkit sock help)
   wslkit disk ...                      inspect and maintain distribution disks: list, info (wslkit disk help)
@@ -406,7 +408,39 @@ func (a *App) fix(args []string) int {
 	return ExitOK
 }
 
+// undo lists the journal, or replays one rollback.
+//
+// The flags are parsed rather than ignored, and that is not a detail. An
+// earlier version took args[0] as the id and dropped everything after it, so
+// `doctor undo <id> --dry-run` silently performed the rollback: the one command
+// in the tool whose whole purpose is to change the machine back, taking an
+// instruction not to change anything and doing it anyway. It is the only
+// destructive command here that had no dry run and no confirmation.
 func (a *App) undo(args []string) int {
+	fs := flag.NewFlagSet("doctor undo", flag.ContinueOnError)
+	fs.SetOutput(a.Stderr)
+	dryRun := fs.Bool("dry-run", false, "show the rollback steps and change nothing")
+	yes := fs.Bool("y", false, "do not prompt for confirmation")
+	fs.BoolVar(yes, "yes", false, "do not prompt for confirmation")
+	// The id may come before the flags, which is how anybody would type it.
+	id := ""
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id, args = args[0], args[1:]
+	}
+	if err := fs.Parse(args); err != nil {
+		return ExitUsage
+	}
+	if id == "" && fs.NArg() > 0 {
+		id = fs.Arg(0)
+	} else if fs.NArg() > 0 {
+		fmt.Fprintf(a.Stderr, "doctor undo takes one journal id, got %q as well\n", fs.Arg(0))
+		return ExitUsage
+	}
+	args = nil
+	if id != "" {
+		args = []string{id}
+	}
+
 	j := fix.Journal{Dir: fix.DefaultJournalDir()}
 	if len(args) == 0 {
 		ids, err := j.List()
@@ -432,11 +466,43 @@ func (a *App) undo(args []string) int {
 		fmt.Fprintln(a.Stdout, "this fix recorded no rollback steps")
 		return ExitOK
 	}
-	fmt.Fprintf(a.Stdout, "Rolling back %s (%s)\n", plan.FixID, plan.Title)
 	rb := fix.Plan{FixID: plan.FixID, Title: "rollback of " + plan.Title, Steps: plan.Rollback}
+	if *dryRun {
+		fmt.Fprint(a.Stdout, fix.Describe(rb))
+		fmt.Fprintln(a.Stdout, "\n--dry-run: nothing was rolled back.")
+		return ExitOK
+	}
+	fmt.Fprint(a.Stdout, fix.Describe(rb))
+	if !*yes && !a.confirmUndo(plan.FixID) {
+		fmt.Fprintln(a.Stdout, "nothing was rolled back")
+		return ExitOK
+	}
+	fmt.Fprintf(a.Stdout, "Rolling back %s (%s)\n", plan.FixID, plan.Title)
 	if err := fix.Apply(rb, fixexec.Real{Out: a.Stdout}); err != nil {
 		fmt.Fprintf(a.Stderr, "%v\n", err)
 		return ExitFindings
 	}
 	return ExitOK
+}
+
+// confirmUndo asks before replaying a rollback.
+//
+// It lives here rather than reusing the disk command's prompt because that one
+// is behind a Windows build tag, and undo is not.
+func (a *App) confirmUndo(fixID string) bool {
+	if a.Stdin == nil {
+		return false
+	}
+	fmt.Fprintf(a.Stdout, "\nRoll back %s? [y/N] ", fixID)
+	r := bufio.NewReader(a.Stdin)
+	line, err := r.ReadString('\n')
+	if err != nil && line == "" {
+		fmt.Fprintln(a.Stdout)
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(line)) {
+	case "y", "yes":
+		return true
+	}
+	return false
 }
