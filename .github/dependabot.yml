@@ -1,0 +1,46 @@
+# Dependabot keeps the two things this repository actually depends on current:
+# a three-module Go graph, and the actions every workflow pins.
+#
+# Weekly rather than daily. Three modules and a handful of actions do not change
+# often enough to be worth a pull request every morning, and a bot that opens
+# noise is a bot whose pull requests stop being read.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 3
+    commit-message:
+      # Matching the repository's own style: lower case, no scope prefix, and
+      # the subject says what changed rather than which tool changed it.
+      prefix: "deps:"
+    groups:
+      # One pull request for the lot. These are updated together in practice,
+      # and three separate ones would each need the same full CI run.
+      go:
+        patterns: ["*"]
+    labels: [dependencies]
+    # ADR 0001 holds the dependency list to golang.org/x/sys, go-ole and
+    # go-winio deliberately. Dependabot can raise their versions; adding a
+    # module is a decision for a person and an ADR, so a pull request that
+    # introduces one should be closed rather than merged.
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci:"
+    groups:
+      actions:
+        patterns: ["*"]
+    labels: [ci, dependencies]
