@@ -17,6 +17,8 @@ func (a *App) proxyUsage() {
 	fmt.Fprint(a.Stderr, `wslkit proxy: get a Windows proxy configuration working inside a distribution.
 
   wslkit proxy show [--for URL]           what Windows is configured to do, and what a distro would get
+  wslkit proxy apply -d <distro>          write it into the distribution, everywhere that reads one
+  wslkit proxy revert -d <distro>         take it out again
 
 show flags:
   --for URL     evaluate a PAC script or WPAD against this URL instead of the
@@ -27,6 +29,19 @@ show flags:
   --http URL    use this proxy instead of what Windows says
   --https URL   the same, for HTTPS
   --json        machine-readable output
+
+apply and revert flags:
+  -d DISTRO     the distribution to write into (required)
+  --dry-run     show what would be written and change nothing
+  -y, --yes     do not prompt
+  --timeout D   bound on each command run inside the distribution
+
+apply writes five files, because each is read by something that reads none of
+the others: /etc/wslkit/proxy.env for a unit to watch, /etc/environment for
+every login session, a profile.d script for login shells, an apt.conf.d file
+because apt does not read the environment from a timer, and a systemd drop-in
+because systemd builds its own environment. Each carries a marked block, so
+revert removes exactly what was written and leaves your own lines alone.
 
 WSL has its own proxy support, and it stops short in three places this reports
 on: it injects the variables per process and writes them to no file, so systemd
@@ -45,6 +60,10 @@ func (a *App) proxy(args []string) int {
 	switch args[0] {
 	case "show":
 		return a.proxyShow(args[1:])
+	case "apply":
+		return a.proxyApply(args[1:])
+	case "revert":
+		return a.proxyRevert(args[1:])
 	case "help", "--help", "-h":
 		a.proxyUsage()
 		return ExitOK

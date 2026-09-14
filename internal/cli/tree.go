@@ -111,6 +111,8 @@ func CommandTree() []cmdNode {
 			Desc: "Get a Windows proxy configuration working inside a distribution",
 			Subs: []cmdNode{
 				{Name: "show", Desc: "What Windows is configured to do, and what a distribution would get", Flags: []string{"--for", "--pac", "--http", "--https", "--json"}},
+				{Name: "apply", Desc: "Write the proxy into a distribution, everywhere that reads one", Flags: []string{"-d", "--dry-run", "-y", "--yes", "--for", "--pac", "--http", "--https", "--timeout"}},
+				{Name: "revert", Desc: "Take the proxy configuration out again", Flags: []string{"-d", "--dry-run", "-y", "--yes", "--timeout"}},
 			},
 		},
 		{Name: "completion", Desc: "Print a shell completion script", Positional: []argKind{argShell}},
