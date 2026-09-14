@@ -30,6 +30,31 @@ jobs:
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: dist/*.zip
+
+      # The winget manifests carry the release's URLs and hashes, so they can
+      # only be written once the release exists: generating them before the tag
+      # would mean inventing checksums for archives nobody had built. They are
+      # regenerated here and committed to main, which is also why nothing has
+      # to remember to do it.
+      #
+      # Submitting them to microsoft/winget-pkgs stays manual. That opens a
+      # pull request against a repository this project does not own, and it is
+      # not something a tag push should do on somebody's behalf.
+      - name: refresh the winget manifests
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          git fetch origin main
+          git checkout main
+          go run ./tools/gen-winget -version "$version"
+          if git diff --quiet; then
+            echo "manifests already current"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packaging/winget
+          git commit -m "winget: manifests for ${version}"
+          git push origin main
       # Authenticode signing (ADR 0005) is added here once the SignPath project exists:
       # signing happens on the unpacked .exe before archiving, so this job will move to
       # a two-stage build/sign/package flow at that point.
