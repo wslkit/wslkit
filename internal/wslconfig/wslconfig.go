@@ -128,3 +128,29 @@ func ParseBool(s string) (bool, bool) {
 	}
 	return false, false
 }
+
+// NetworkingMode works out which networking mode WSL will use.
+//
+// The rule is WSL's own, and the order matters: a group policy value beats
+// whatever .wslconfig says, and [experimental] is where the key lived before it
+// was promoted to [wsl2], so a machine configured a year ago still has it
+// there. Absent everything, NAT is the default.
+//
+// It lives here, in the parser, because both the doctor's networking check and
+// the proxy command have to answer the same question and must not answer it
+// differently.
+func NetworkingMode(cfgText, policy string) (mode string, explicit bool, fromPolicy bool) {
+	mode = "nat"
+	if cfgText != "" {
+		cfg := Parse(cfgText)
+		if v, ok := cfg.Get("wsl2", "networkingMode"); ok {
+			mode, explicit = strings.ToLower(strings.TrimSpace(v)), true
+		} else if v, ok := cfg.Get("experimental", "networkingMode"); ok {
+			mode, explicit = strings.ToLower(strings.TrimSpace(v)), true
+		}
+	}
+	if p := strings.TrimSpace(policy); p != "" {
+		return strings.ToLower(p), true, true
+	}
+	return mode, explicit, false
+}

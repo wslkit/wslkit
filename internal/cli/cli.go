@@ -66,6 +66,8 @@ func (a *App) Run(args []string) int {
 		return a.disk(args[1:])
 	case "top":
 		return a.top(args[1:])
+	case "proxy":
+		return a.proxy(args[1:])
 	case "completion":
 		return a.completion(args[1:])
 	case "version", "--version", "-v":
@@ -120,6 +122,7 @@ func (a *App) usage() {
   wslkit sock ...                      bridge Windows sockets into a distro: ssh-agent, gpg-agent (wslkit sock help)
   wslkit disk ...                      inspect and maintain distribution disks: list, info (wslkit disk help)
   wslkit top [--json] [--once]          what the utility VM is using, and which distro
+  wslkit proxy ...                     get a Windows proxy working inside a distro (wslkit proxy help)
   wslkit completion <shell>            a completion script for powershell, bash or zsh
   wslkit version
   wslkit help
