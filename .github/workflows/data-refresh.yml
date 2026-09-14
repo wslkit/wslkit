@@ -5,35 +5,122 @@ on:
     - cron: "23 6 * * 1"
   workflow_dispatch:
 
+# This job may not open a pull request: the organisation forbids GitHub Actions
+# from creating or approving them, which is a sound policy and not worth
+# relaxing org-wide for one weekly refresh. So it pushes a branch and opens an
+# issue pointing at it, and a person opens the pull request. Restoring the
+# pull-request behaviour would mean a fine-grained PAT (contents + pull
+# requests, this repository only) in a secret, which is a credential to rotate
+# in exchange for one click.
 permissions:
   contents: write
-  pull-requests: write
+  issues: write
 
 jobs:
   latest-stable:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
       - name: read latest stable and pre-release from the WSL releases API
         id: rel
         run: |
+          set -euo pipefail
           curl -fsSL -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/microsoft/WSL/releases?per_page=30" > releases.json
           stable=$(jq -r '[.[] | select(.prerelease==false and .draft==false)][0].tag_name' releases.json)
           pre=$(jq -r '[.[] | select(.prerelease==true and .draft==false)][0].tag_name' releases.json)
+          # A malformed answer must stop here. Writing junk into the compat
+          # table would make every version comparison in the binary wrong.
+          for v in "$stable" "$pre"; do
+            case "$v" in
+              [0-9]*.[0-9]*.[0-9]*) ;;
+              *) echo "::error::unexpected release tag from the API: '$v'"; exit 1 ;;
+            esac
+          done
           echo "stable=$stable" >> "$GITHUB_OUTPUT"
           echo "pre=$pre" >> "$GITHUB_OUTPUT"
-      - name: update compat.json
+
+      - name: update compat.json when a version moved
+        id: edit
         run: |
+          set -euo pipefail
           f=internal/data/files/compat.json
-          jq --arg s "${{ steps.rel.outputs.stable }}" --arg p "${{ steps.rel.outputs.pre }}" --arg d "$(date -u +%F)" \
-             '.latest_stable=$s | .latest_prerelease=$p | .updated=$d' "$f" > tmp && mv tmp "$f"
+          stable='${{ steps.rel.outputs.stable }}'
+          pre='${{ steps.rel.outputs.pre }}'
+          was_stable=$(jq -r .latest_stable "$f")
+          was_pre=$(jq -r .latest_prerelease "$f")
+          if [ "$was_stable" = "$stable" ] && [ "$was_pre" = "$pre" ]; then
+            echo "nothing moved: stable $stable, pre-release $pre"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Edited in place rather than rewritten through jq: the file is
+          # hand-curated and a reformat would bury two changed characters in a
+          # diff nobody can read.
+          sed -i -E \
+            -e "s/^(  \"latest_stable\": \")[^\"]*(\",)$/\1$stable\2/" \
+            -e "s/^(  \"latest_prerelease\": \")[^\"]*(\",)$/\1$pre\2/" \
+            -e "s/^(  \"updated\": \")[^\"]*(\",)$/\1$(date -u +%F)\2/" \
+            "$f"
+          jq empty "$f"
+          test "$(jq -r .latest_stable "$f")" = "$stable"
+          test "$(jq -r .latest_prerelease "$f")" = "$pre"
+          {
+            echo "changed=true"
+            echo "was_stable=$was_stable"
+            echo "was_pre=$was_pre"
+          } >> "$GITHUB_OUTPUT"
           git diff --stat
-      - uses: peter-evans/create-pull-request@v8
+
+      - uses: actions/setup-go@v7
+        if: steps.edit.outputs.changed == 'true'
         with:
-          title: "data: WSL latest stable ${{ steps.rel.outputs.stable }}, pre-release ${{ steps.rel.outputs.pre }}"
-          commit-message: "data: refresh compat.json from microsoft/WSL releases"
-          branch: data/refresh
-          body: |
-            Automated refresh of `internal/data/files/compat.json` from the microsoft/WSL releases API.
-            Review the diff; the distro rows are not touched by this job.
+          go-version-file: go.mod
+          cache: true
+
+      - name: the data still has to be valid
+        if: steps.edit.outputs.changed == 'true'
+        run: go test ./internal/data/...
+
+      - name: push the branch
+        if: steps.edit.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # The branch may already exist from an earlier run that nobody turned
+          # into a pull request. Fetch it into its tracking ref first, or
+          # --force-with-lease refuses on stale info and the job fails for a
+          # reason that has nothing to do with the data.
+          git fetch origin data/refresh:refs/remotes/origin/data/refresh || true
+          git checkout -B data/refresh
+          git commit -am "data: WSL ${{ steps.rel.outputs.stable }} stable, ${{ steps.rel.outputs.pre }} pre-release"
+          git push --force-with-lease origin data/refresh
+
+      - name: say so
+        if: steps.edit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STABLE: ${{ steps.rel.outputs.stable }}
+          PRE: ${{ steps.rel.outputs.pre }}
+          WAS_STABLE: ${{ steps.edit.outputs.was_stable }}
+          WAS_PRE: ${{ steps.edit.outputs.was_pre }}
+        run: |
+          set -euo pipefail
+          title="data: WSL $STABLE stable, $PRE pre-release"
+          compare="${{ github.server_url }}/${{ github.repository }}/compare/main...data/refresh"
+          existing=$(gh issue list --search "\"$title\" in:title" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            echo "issue #$existing already says this"
+            exit 0
+          fi
+          {
+            printf 'microsoft/WSL has published a version this table did not know about.\n\n'
+            printf '| | was | now |\n|---|---|---|\n'
+            printf '| stable | `%s` | `%s` |\n' "$WAS_STABLE" "$STABLE"
+            printf '| pre-release | `%s` | `%s` |\n\n' "$WAS_PRE" "$PRE"
+            printf 'The edit is on [`data/refresh`](%s) and needs a pull request opened by a person: this organisation does not allow GitHub Actions to create them.\n\n' "$compare"
+            printf 'Only `latest_stable`, `latest_prerelease` and `updated` are touched. The distribution rows, the capability gates and the key table are not: that is a person reading the changelog, and #83.\n'
+          } > body.md
+          gh issue create --title "$title" --label data --body-file body.md
