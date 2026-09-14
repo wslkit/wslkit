@@ -13,8 +13,8 @@ jobs:
     name: lint, pure tests, cross-compile (linux runner)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -33,7 +33,7 @@ jobs:
       - name: snapshot corpus
         run: GOOS=linux go test -count=1 ./internal/snapshottest/...
       - name: golangci-lint (windows view, so collectors and winapi are linted too)
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         env:
           GOOS: windows
         with:
@@ -44,7 +44,7 @@ jobs:
         run: |
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/wslkit_amd64.exe ./cmd/wslkit
           GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o dist/wslkit_arm64.exe ./cmd/wslkit
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wslkit-dev
           path: dist/*.exe
