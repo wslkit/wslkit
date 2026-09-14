@@ -66,7 +66,7 @@ func (p Filesystem) Run(e *env.Env) probe.Result {
 		r.Detail = strings.Join(append(bad[1:], lines...), "\n") +
 			"\nThis presents as: Wsl/Service/E_UNEXPECTED at launch, /sbin/init failing to load a shared library, or a distribution that mounts read-only." +
 			"\nThe count is only cleared by fsck, so it can describe damage the kernel has already worked around; the times say how recent it is."
-		r.FixHint = "export the distribution first (wsl --export <distro> backup.tar), then check its filesystem read-only from the system distro: wsl --system -- e2fsck -n <device>"
+		r.FixHint = "export the distribution first (wsl --export <distro> backup.tar), then check its filesystem read-only from the system distro: wsl --system -u root -- e2fsck -n <device>"
 		r.Refs = []string{"https://github.com/microsoft/WSL/issues/13484"}
 		return r
 	case read > 0:

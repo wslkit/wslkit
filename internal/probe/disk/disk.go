@@ -121,7 +121,7 @@ func (p Reclaimable) Run(e *env.Env) probe.Result {
 	if total >= 1*gib {
 		r := b.Res(probe.Warn, 0.35, fmt.Sprintf("~%s of host disk is held by VHDX files that no longer back allocated blocks", human(total)))
 		r.Detail = strings.Join(lines, "\n") + "\nNote: allocated blocks can still contain deleted-file space inside ext4; the true reclaimable amount is usually larger."
-		r.FixHint = "wsldisk compact <distro>    (https://github.com/wslkit/wsldisk)   or: wsl --manage <distro> --set-sparse true"
+		r.FixHint = "wslkit disk compact <distro>   (or: wsl --manage <distro> --set-sparse true)"
 		r.Refs = []string{"https://github.com/microsoft/WSL/issues/4699"}
 		return r
 	}
@@ -211,7 +211,7 @@ func (p HostFree) Run(e *env.Env) probe.Result {
 	if len(low) > 0 {
 		r := b.Res(probe.Warn, 0.6, low[0])
 		r.Detail = strings.Join(lines, "\n") + "\nSymptoms: distro hangs, ext4 goes read-only, 'No space left on device' inside Linux while df shows space."
-		r.FixHint = "free host disk space, then: wsldisk compact <distro>"
+		r.FixHint = "free host disk space, then: wslkit disk compact <distro>"
 		return r
 	}
 	r := b.Res(probe.OK, 0.4, "Host volumes have headroom")

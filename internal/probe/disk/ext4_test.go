@@ -54,7 +54,7 @@ func TestFilesystemErrors(t *testing.T) {
 			t.Errorf("detail missing %q:\n%s", want, r.Detail)
 		}
 	}
-	if !strings.Contains(r.FixHint, "e2fsck -n") || !strings.Contains(r.FixHint, "wsl --export") {
+	if !strings.Contains(r.FixHint, "wsl --system -u root -- e2fsck -n") || !strings.Contains(r.FixHint, "wsl --export") {
 		t.Errorf("fix hint should back up before it checks: %q", r.FixHint)
 	}
 }
