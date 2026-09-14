@@ -22,6 +22,7 @@ import (
 	agentinstall "github.com/wslkit/wslkit/internal/agent/install"
 	"github.com/wslkit/wslkit/internal/data"
 	"github.com/wslkit/wslkit/internal/env"
+	"github.com/wslkit/wslkit/internal/ext4"
 	"github.com/wslkit/wslkit/internal/peexport"
 	"github.com/wslkit/wslkit/internal/release"
 	"github.com/wslkit/wslkit/internal/vhdx"
@@ -417,7 +418,7 @@ func collectDistros(ctx context.Context, e *env.Env, o Options) error {
 				vhdName = "ext4.vhdx"
 			}
 			base := strings.TrimPrefix(d.BasePath, `\\?\`)
-			d.Vhd = inspectVhd(filepath.Join(base, vhdName))
+			d.Vhd, d.Ext4 = inspectVhd(filepath.Join(base, vhdName))
 			if free, err := fileinfo.VolumeFree(base); err == nil {
 				d.VolumeFree = env.Ok(free, "GetDiskFreeSpaceEx "+filepath.VolumeName(base))
 			} else {
@@ -469,11 +470,16 @@ func intValue(k registry.Key, name string) int {
 	return int(v)
 }
 
-func inspectVhd(path string) env.Field[env.VhdInfo] {
+// inspectVhd reads the file's shape and, from inside it, the guest
+// filesystem's own account of itself. Both come from one shared-read handle:
+// the VHDX of a running distribution is open in the VM, and a second handle
+// that asks for exclusive access would simply fail.
+func inspectVhd(path string) (env.Field[env.VhdInfo], env.Field[ext4.Super]) {
 	info := env.VhdInfo{Path: path}
+	var fs env.Field[ext4.Super]
 	fi, err := os.Stat(path)
 	if err != nil {
-		return env.Fail[env.VhdInfo](kindOf(err), path, err)
+		return env.Fail[env.VhdInfo](kindOf(err), path, err), fs
 	}
 	info.FileSize = uint64(fi.Size())
 	if a, err := fileinfo.Attributes(path); err == nil {
@@ -487,24 +493,47 @@ func inspectVhd(path string) env.Field[env.VhdInfo] {
 	if err != nil {
 		info.ParseErr = "open: " + err.Error()
 		if kindOf(err) == env.ErrNeedsElevation {
-			return env.Fail[env.VhdInfo](env.ErrNeedsElevation, path, err)
+			return env.Fail[env.VhdInfo](env.ErrNeedsElevation, path, err), fs
 		}
-		return env.Ok(info, path) // stat worked; parse did not
+		return env.Ok(info, path), fs // stat worked; parse did not
 	}
 	f := os.NewFile(uintptr(h), path)
 	defer f.Close()
-	parsed, perr := vhdx.Parse(f, fi.Size())
-	if parsed != nil {
-		info.MagicOK = parsed.MagicOK
-		info.HeaderOK = parsed.HeaderOK
-		info.VirtualSize = parsed.VirtualSize
-		info.BlockSize = parsed.BlockSize
-		info.AllocatedBytes = parsed.AllocatedBytes
-	}
+	disk, perr := vhdx.Open(f, fi.Size())
+	parsed := disk.Info()
+	info.MagicOK = parsed.MagicOK
+	info.HeaderOK = parsed.HeaderOK
+	info.VirtualSize = parsed.VirtualSize
+	info.BlockSize = parsed.BlockSize
+	info.AllocatedBytes = parsed.AllocatedBytes
 	if perr != nil {
 		info.ParseErr = perr.Error()
+		return env.Ok(info, path), fs
 	}
-	return env.Ok(info, path)
+	fs = readSuperblock(disk, path)
+	return env.Ok(info, path), fs
+}
+
+// readSuperblock reads the ext4 superblock out of the virtual disk. WSL formats
+// the whole disk, with no partition table, so the filesystem starts at virtual
+// offset 0 and its superblock 1024 bytes in.
+func readSuperblock(disk *vhdx.Reader, path string) env.Field[ext4.Super] {
+	src := path + " (ext4 superblock)"
+	buf := make([]byte, ext4.SuperSize)
+	if _, err := disk.ReadAt(buf, ext4.SuperOffset); err != nil {
+		return env.Fail[ext4.Super](env.ErrOther, src, err)
+	}
+	s, err := ext4.ParseSuper(buf)
+	if err != nil {
+		kind := env.ErrOther
+		if errors.Is(err, ext4.ErrNotExt4) {
+			// Not ext4 at all: a disk this tool has no business
+			// judging, not a disk in trouble.
+			kind = env.ErrNotPresent
+		}
+		return env.Fail[ext4.Super](kind, src, err)
+	}
+	return env.Ok(s, src)
 }
 
 // ---------------------------------------------------------------- config

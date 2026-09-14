@@ -700,12 +700,14 @@
         },
         {
           "probes": [
-            "DSK002"
+            "DSK002",
+            "DSK004"
           ],
           "refs": [
-            "https://github.com/microsoft/WSL/issues/13484"
+            "https://github.com/microsoft/WSL/issues/13484",
+            "https://github.com/microsoft/WSL/releases/tag/2.6.0"
           ],
-          "summary": "corrupted root filesystem: dmesg shows EXT4-fs checksum errors and /sbin/init cannot load libc"
+          "summary": "corrupted root filesystem: dmesg shows EXT4-fs checksum errors and /sbin/init cannot load libc. WSL 2.6.0 and later report the corrupt disk when the mount fails with EUCLEAN; older runtimes only say E_UNEXPECTED"
         },
         {
           "probes": [

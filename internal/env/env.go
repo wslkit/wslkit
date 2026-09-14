@@ -6,6 +6,8 @@ package env
 import (
 	"errors"
 	"time"
+
+	"github.com/wslkit/wslkit/internal/ext4"
 )
 
 const Schema = "wslkit/env/v1"
@@ -237,7 +239,13 @@ type Distro struct {
 	OsVersion   string         `json:"os_version,omitempty"`
 	ValueNames  []string       `json:"value_names,omitempty"`
 	Vhd         Field[VhdInfo] `json:"vhd"`
-	VolumeFree  Field[uint64]  `json:"volume_free_bytes"`
+	// Ext4 is the guest filesystem's own account of itself, read out of the
+	// VHDX at a fixed offset. It is the one thing a stopped distribution
+	// still answers: the kernel writes its errors into the superblock, and
+	// they are still there after the boot that failed. The parser's type is
+	// used as it stands, so the JSON and the parser cannot drift apart.
+	Ext4       Field[ext4.Super] `json:"ext4,omitzero"`
+	VolumeFree Field[uint64]     `json:"volume_free_bytes"`
 	// Running comes from `wsl --list --running`, which is a passive query:
 	// measured against a stopped VM it does not start one.
 	Running Field[bool] `json:"running"`

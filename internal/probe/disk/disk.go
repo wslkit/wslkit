@@ -10,7 +10,7 @@ import (
 )
 
 func All() []probe.Probe {
-	return []probe.Probe{Integrity{}, Reclaimable{}, Attributes{}, HostFree{}, Ownership{}}
+	return []probe.Probe{Integrity{}, Reclaimable{}, Attributes{}, Filesystem{}, HostFree{}, Ownership{}}
 }
 
 const gib = 1 << 30
