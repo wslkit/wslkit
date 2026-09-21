@@ -1,8 +1,8 @@
 {
   "schema": "wslkit/compat/v1",
-  "updated": "2026-09-12",
+  "updated": "2026-09-21",
   "latest_stable": "2.7.14",
-  "latest_prerelease": "2.9.11",
+  "latest_prerelease": "2.9.12",
   "modern_format_min": "2.4.4",
   "modern_format_recommended": "2.4.8",
   "capabilities": {
