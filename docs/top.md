@@ -1,13 +1,16 @@
 # top
 
-`wslkit top` shows what the WSL utility VM is using and which distribution is
-responsible. It is the answer to "why is vmmem so large".
+`wslkit top` shows what the WSL utility VM is using and what inside it is
+responsible. It is the answer to "why is vmmem so large", and the `docker stats`
+WSL does not have: one row for everything using the VM, with the same columns
+for each.
 
 It reads only, and it measures nothing that is not already running.
 
 ```
-wslkit top             memory and CPU per distribution
-wslkit top --once      one sample, and no CPU rate
+wslkit top             memory, CPU, disk and pressure per distribution
+wslkit top --watch     the same, redrawn every interval until Ctrl+C
+wslkit top --once      one sample, and no rates
 wslkit top --json      integer bytes
 wslkit top Ubuntu      only these distributions
 ```
@@ -15,12 +18,16 @@ wslkit top Ubuntu      only these distributions
 ## What it tells you
 
 ```
-utility VM: 1.6 GiB of 7.6 GiB in use, 5.9 GiB free, 4 processor(s)
-            1.1 GiB page cache, which Windows can reclaim; 141.3 MiB anonymous, which it cannot
+utility VM: 1.2 GiB of 7.6 GiB in use, 6.3 GiB free, 4 processor(s), CPU 22.0%
+            616.5 MiB page cache, which Windows can reclaim; 179.3 MiB anonymous, which it cannot
+            stalled on memory 0.0%, I/O 15.2%, CPU 3.4% of the last ten seconds
+            network 691 B/s in, 696 B/s out, for the whole VM
 
-DISTRIBUTION  MEMORY     CPU     PROCESSES  INIT
-Ubuntu        438.3 MiB  110.7%  56         systemd
-skrog-engine  126.5 MiB  0.3%    14         init
+NAME          KIND    MEMORY     ANON       CPU    READ       WRITE      PIDS  STALL MEM/IO  INIT
+Ubuntu        distro  469.6 MiB  105.4 MiB  15.3%  1.6 KiB/s  1.6 KiB/s  88    0.0% / 6.8%   systemd
+skrog-engine  distro  199.2 MiB  66.6 MiB   6.2%   0 B/s      0 B/s      90    0.0% / 4.5%   init(skrog-engi
+docker        cgroup  16.7 MiB   4.9 MiB    0.0%   0 B/s      0 B/s      6     0.0% / 0.0%
+wsl           wsl     696.0 KiB  116.0 KiB  0.6%   0 B/s      0 B/s      1     0.0% / 0.0%
 ```
 
 The first line is what Task Manager shows against `vmmem`. The split underneath
@@ -28,8 +35,51 @@ is the useful part: **page cache** is memory the VM is holding that Windows can
 take back under pressure, and **anonymous** memory is what it cannot. A VM that
 looks enormous but is mostly page cache is not a problem.
 
-CPU is a share of one processor, measured across the interval between two
-samples, so 110% means rather more than one core's worth.
+None of this is visible from `top` or `free` inside a distribution. They see
+their own processes. They do not see the other distributions, WSL's own
+processes, or the VM's page cache, and they cannot tell you whether anything is
+waiting.
+
+### The columns
+
+| Column | What it is |
+|---|---|
+| `MEMORY` | everything charged to the row, including the page cache its reads and writes pulled in |
+| `ANON` | the part of that Windows can never reclaim |
+| `SWAP` | swapped-out memory; shown only when something has swapped |
+| `CPU` | a share of one processor, so 110% means rather more than one core's worth |
+| `READ`, `WRITE` | disk bytes per second |
+| `PIDS` | processes and threads, as `docker stats` counts them |
+| `STALL MEM/IO` | pressure: the share of the last ten seconds in which something in the row was stalled waiting for memory or for disk |
+
+Usage says a resource is used. Pressure says it is short. A distribution at
+80% of the VM's memory with no memory stall is fine. One at 30% with a
+persistent stall is the thing to look at.
+
+The kernel's OOM kills are counted too, and a row that has had any gets a note
+under the table.
+
+### The rows that are not distributions
+
+- **`wsl`** is WSL's own processes inside the VM (`wsl-user/non-distro`).
+- **A `cgroup` row** is a cgroup at the VM's root that belongs to no
+  distribution. `/docker` is where Docker Engine without systemd puts its
+  containers, and those containers are **not** inside the distribution that
+  runs dockerd. Without this row that memory would be in no row at all. For
+  one row per container, use the engine's own tooling.
+
+Docker Engine using the systemd cgroup driver should put its containers under
+the distribution's own systemd slice instead, so they would count towards the
+distribution. That follows from how the driver works and has not been measured
+here.
+
+### Network
+
+Network traffic is for the whole VM only. All distributions share one network
+namespace: on WSL 2.9.12 two distributions report the same namespace and the
+same `eth0` counters. So there is no honest per-distribution number, and top
+does not print one. It counts the `eth` interfaces only, because `docker0`,
+bridges and `veth` pairs carry the same packets again on their way out.
 
 ## The numbers do not add up, on purpose
 
@@ -40,36 +90,52 @@ rather than to any distribution.
 How a distribution is measured depends on your WSL version, and the report tells
 you which was used:
 
-- From about WSL 2.8, each distribution gets its own cgroup, which accounts for
-  it alone. That is true attribution, and it can also report anonymous memory
-  per distribution.
-- Before that, every distribution's processes share the VM's root cgroup, so
-  cgroup accounting read from inside one returns VM-wide numbers. wslkit sums
-  the resident set of each distribution's own processes instead. That is real
-  attribution of process memory, but it counts a shared page once per process
-  that maps it, and it cannot see page cache at all.
+- On WSL 2.9, each distribution gets its own cgroup, which accounts for it
+  alone. That is true attribution, and it carries everything in the table.
+- Before that, on WSL 2.7, every distribution's processes share the VM's root
+  cgroup, so cgroup accounting read from inside one returns VM-wide numbers.
+  wslkit sums the resident set of each distribution's own processes instead.
+  That is real attribution of process memory, but it counts a shared page once
+  per process that maps it, and it cannot see page cache at all. Disk I/O,
+  PIDs, pressure and the extra rows need the per-distribution cgroup, so on 2.7
+  they are left out, and the report says so, rather than approximated.
+  VM-wide pressure is shown on both.
+
+At the time of writing WSL 2.9 is a pre-release and 2.7 is the current stable
+release. top decides which method to use by looking for the per-distribution
+cgroup, not by reading the version number.
 
 That difference was measured rather than assumed. Burning five seconds of CPU in
 one distribution on the older arrangement moves every other distribution's
 counter by the same five seconds. The measurements are in
 [the research note](https://github.com/wslkit/wslkit/blob/main/docs/research/2026-09-cgroups.md).
 
+## Rates
+
+A rate needs two samples separated by time. Asked for one with `--once`, the
+report omits the rate columns rather than printing a number that means
+something else.
+
+Rates divide by the VM's own clock between the two samples, not by `--interval`.
+Measuring every distribution takes time too, about 190 ms a sweep on the machine
+this was written on. Dividing by the interval alone made a two-second CPU rate
+read about 9% high.
+
+`--watch` measures once per interval and compares each sample with the one
+before it. On a console it redraws in place. Piped or redirected, it writes one
+report after another, or with `--json` one object per line.
+
 ## Flags
 
 | Flag | What it does |
 |---|---|
 | `--json` | machine-readable output, sizes in bytes |
-| `--interval D` | gap between the two samples a CPU rate is measured over, default two seconds |
-| `--once` | take one sample and report no CPU, rather than waiting |
+| `--interval D` | gap between the samples a rate is measured over, default two seconds |
+| `--once` | take one sample and report no rates, rather than waiting |
+| `--watch` | keep measuring and redraw every interval, until Ctrl+C |
 | `--timeout D` | bound on each measurement inside a distribution |
-
-A CPU rate needs two samples separated by time. Asked for one with `--once`, the
-report omits the column rather than printing a number that means something else.
 
 ## Limits
 
-There is no `wslkit limit`. WSL has no per-distribution memory or CPU cap: it
-writes one VM-wide limit and never gives a distribution one of its own, so
-`.wslconfig` `memory=` and `processors=` remain the only supported controls.
-Anything finer would be wslkit writing limits WSL itself does not, and it is
-tracked as an open question rather than shipped.
+top shows what is used. To cap one distribution, see [limit](limit.md).
+`.wslconfig` `memory=` and `processors=` remain the VM-wide controls.

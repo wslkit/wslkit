@@ -66,7 +66,11 @@ can legitimately exceed what the file costs.
 
 ## top
 
-One object, with a `vm` block and a list of distributions.
+One object, with a `vm` block, a list of distributions, and a list of `groups`:
+the cgroups that belong to no distribution, such as WSL's own processes and
+`/docker`. Counters a distribution could not report are left out rather than
+written as zero. With `--watch --json`, one such object per line, one per
+interval.
 
 It carries a `method` field saying how memory was attributed and a `note`
 explaining what that method leaves out, because the per-distribution figures do
