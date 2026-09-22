@@ -63,14 +63,16 @@ func (a *App) top(args []string) int {
 
 // topPrint writes one report.
 func (a *App) topPrint(report top.Report, jsonOut bool) int {
-	if len(report.Samples) == 0 {
-		if jsonOut {
-			if err := writeJSON(a, map[string]any{"distributions": []any{}, "note": "no distributions are running"}); err != nil {
-				return ExitFindings
-			}
-			return ExitOK
+	if len(report.Samples) == 0 && jsonOut {
+		o := map[string]any{"distributions": []any{}, "note": "no distributions are running"}
+		// Another VM, a wslc session say, can be holding memory with no
+		// distribution up at all.
+		if h := top.HostJSON(report.Host); h != nil {
+			o["host"] = h
 		}
-		fmt.Fprintln(a.Stdout, "no distributions are running, so the utility VM is not up")
+		if err := writeJSON(a, o); err != nil {
+			return ExitFindings
+		}
 		return ExitOK
 	}
 	if jsonOut {

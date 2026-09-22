@@ -69,7 +69,10 @@ can legitimately exceed what the file costs.
 One object, with a `vm` block, a list of distributions, and a list of `groups`:
 the cgroups that belong to no distribution, such as WSL's own processes and
 `/docker`. Counters a distribution could not report are left out rather than
-written as zero. With `--watch --json`, one such object per line, one per
+written as zero. A `host` block carries what Windows charges: `utility_vm`
+(the matched `vmmem`) and `other_vms`, each with `pid`, `working_set_bytes` and
+`created`; it is present even when no distribution is running. With
+`--watch --json`, one such object per line, one per
 interval.
 
 It carries a `method` field saying how memory was attributed and a `note`

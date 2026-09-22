@@ -184,6 +184,12 @@ type Report struct {
 	Groups   []Sample
 	Interval time.Duration
 	Notes    []string
+	// SampledAt is when the sweep finished, by the Windows clock. With the
+	// guest's uptime it gives the VM's boot time, which is how its vmmem is
+	// found.
+	SampledAt time.Time
+	// Host is the Windows side, when it was read.
+	Host *Host
 }
 
 // Attributed is the memory the distributions account for.
@@ -671,6 +677,11 @@ func MethodNote(m Method) string {
 
 // Render writes the human-readable report.
 func Render(w io.Writer, r Report) {
+	if len(r.Samples) == 0 {
+		fmt.Fprintln(w, "no distributions are running, so the utility VM is not up")
+		renderOthers(w, r.Host, "")
+		return
+	}
 	vm := r.VM
 	head := fmt.Sprintf("utility VM: %s of %s in use, %s free, %d processor(s)",
 		FormatSize(vm.UsedBytes()), FormatSize(vm.TotalBytes), FormatSize(vm.FreeBytes), vm.CPUs)
@@ -688,13 +699,13 @@ func Render(w io.Writer, r Report) {
 	if vm.Rates.NetRx != nil && vm.Rates.NetTx != nil {
 		fmt.Fprintf(w, "            network %s in, %s out, for the whole VM\n", formatRate(vm.Rates.NetRx), formatRate(vm.Rates.NetTx))
 	}
+	if h := r.Host; h != nil && h.Utility != nil {
+		fmt.Fprintf(w, "            Windows charges it %s, the working set of vmmem (pid %d)\n", FormatSize(h.Utility.WorkingSetBytes), h.Utility.PID)
+	}
+	renderOthers(w, r.Host, "            ")
 	fmt.Fprintln(w)
 
 	samples := Sorted(r.Samples)
-	if len(samples) == 0 {
-		fmt.Fprintln(w, "no distributions are running")
-		return
-	}
 
 	rows := append(append([]Sample(nil), samples...), Sorted(r.Groups)...)
 	withCgroup := r.Method() == MethodCgroup
@@ -797,9 +808,25 @@ func Render(w io.Writer, r Report) {
 			fmt.Fprintf(w, "note: %s: the kernel has killed %d process(es) for running out of memory\n", s.Distro, *s.OOMKills)
 		}
 	}
+	if r.Host != nil && r.Host.Err != nil {
+		fmt.Fprintf(w, "note: what Windows charges each VM could not be read: %v\n", r.Host.Err)
+	}
 	for _, n := range r.Notes {
 		fmt.Fprintf(w, "note: %s\n", n)
 	}
+}
+
+// renderOthers names the VMs that are not the utility VM. Which VM each one is
+// cannot be told without elevation, so it says what they could be.
+func renderOthers(w io.Writer, h *Host, indent string) {
+	if h == nil || len(h.Others) == 0 {
+		return
+	}
+	var total uint64
+	for _, v := range h.Others {
+		total += v.WorkingSetBytes
+	}
+	fmt.Fprintf(w, "%s%d other VM(s) hold %s more: a wslc session, or any other Hyper-V VM\n", indent, len(h.Others), FormatSize(total))
 }
 
 func optSize(p *uint64) string {
@@ -847,6 +874,28 @@ func sampleJSON(s Sample, nameKey string) map[string]any {
 	}
 	if p := s.Rates.Write; p != nil {
 		o["write_bytes_per_second"] = *p
+	}
+	return o
+}
+
+// HostJSON is the Windows side of --json, or nil when it was not read.
+func HostJSON(h *Host) map[string]any {
+	if h == nil {
+		return nil
+	}
+	if h.Err != nil {
+		return map[string]any{"error": h.Err.Error()}
+	}
+	vm := func(v HostVM) map[string]any {
+		return map[string]any{"pid": v.PID, "working_set_bytes": v.WorkingSetBytes, "created": v.Created.UTC().Format(time.RFC3339)}
+	}
+	others := make([]map[string]any, 0, len(h.Others))
+	for _, v := range h.Others {
+		others = append(others, vm(v))
+	}
+	o := map[string]any{"other_vms": others}
+	if h.Utility != nil {
+		o["utility_vm"] = vm(*h.Utility)
 	}
 	return o
 }
@@ -907,6 +956,9 @@ func JSON(r Report) map[string]any {
 	}
 	if r.Interval > 0 {
 		o["interval_seconds"] = r.Interval.Seconds()
+	}
+	if h := HostJSON(r.Host); h != nil {
+		o["host"] = h
 	}
 	if m := r.Method(); m != "" {
 		o["method"] = string(m)

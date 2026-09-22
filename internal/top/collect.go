@@ -73,7 +73,9 @@ func Sweep(ctx context.Context, r Runner, o Options) (Report, error) {
 		names = intersect(names, o.Only)
 	}
 	if len(names) == 0 {
-		return Report{}, nil
+		report := Report{SampledAt: time.Now()}
+		readHost(ctx, r, &report)
+		return report, nil
 	}
 
 	type result struct {
@@ -103,7 +105,7 @@ func Sweep(ctx context.Context, r Runner, o Options) (Report, error) {
 	}
 	wg.Wait()
 
-	var report Report
+	report := Report{SampledAt: time.Now()}
 	for _, res := range results {
 		report.Samples = append(report.Samples, res.sample)
 		// Every distribution reports the same VM and the same groups, since
@@ -113,6 +115,7 @@ func Sweep(ctx context.Context, r Runner, o Options) (Report, error) {
 			report.Groups = res.groups
 		}
 	}
+	readHost(ctx, r, &report)
 	return report, nil
 }
 

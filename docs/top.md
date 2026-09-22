@@ -35,6 +35,29 @@ is the useful part: **page cache** is memory the VM is holding that Windows can
 take back under pressure, and **anonymous** memory is what it cannot. A VM that
 looks enormous but is mostly page cache is not a problem.
 
+### What Windows charges
+
+```
+            Windows charges it 681.5 MiB, the working set of vmmem (pid 23688)
+            1 other VM(s) hold 696.0 MiB more: a wslc session, or any other Hyper-V VM
+```
+
+Every Hyper-V VM on the machine has a `vmmem` process, and its working set is
+what Windows is holding for that VM. The gap between it and the kernel's own
+figure is memory the VM has let go of but Windows has not reclaimed yet.
+
+top finds the utility VM's `vmmem` by when it started: a `vmmem` is created
+when its VM boots, and the guest reports how long ago that was. Nothing else
+identifies one without elevation. Its owner is the VM's own account, which a
+normal user cannot read, and `hcsdiag` needs Hyper-V administrator rights. Two
+VMs booted within three seconds of each other cannot be told apart, and then
+neither is claimed.
+
+Every other `vmmem` is reported as another VM, without a name. A wslc session
+runs its containers in a VM of its own, and that is usually what it is, but
+Windows Sandbox or any Hyper-V guest looks the same. Those VMs are reported
+even when no distribution is running.
+
 None of this is visible from `top` or `free` inside a distribution. They see
 their own processes. They do not see the other distributions, WSL's own
 processes, or the VM's page cache, and they cannot tell you whether anything is
