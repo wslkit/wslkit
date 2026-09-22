@@ -264,7 +264,7 @@ func TestRenderSaysHowItMeasuredAndWhatIsMissing(t *testing.T) {
 	Render(&b, Report{VM: vm, Samples: []Sample{s}})
 	out := b.String()
 
-	if !strings.Contains(out, "utility VM:") {
+	if !strings.Contains(out, "── utility VM") {
 		t.Errorf("the VM total is the headline and is missing:\n%s", out)
 	}
 	// The distinction that explains why vmmem stays large.
@@ -272,7 +272,7 @@ func TestRenderSaysHowItMeasuredAndWhatIsMissing(t *testing.T) {
 		t.Errorf("the reclaimable split is missing:\n%s", out)
 	}
 	// The columns do not add up, and the report has to say why.
-	if !strings.Contains(out, processesNote) {
+	if !strings.Contains(out, upperFirst(processesNote)) {
 		t.Errorf("the method note is missing:\n%s", out)
 	}
 	if !strings.Contains(out, "attributed to distributions") {
@@ -284,7 +284,7 @@ func TestRenderUsesTheCgroupNoteWhenThatIsWhatHappened(t *testing.T) {
 	s, vm, _ := ParseSample("Ubuntu", cgroupOut)
 	var b bytes.Buffer
 	Render(&b, Report{VM: vm, Samples: []Sample{s}})
-	if !strings.Contains(b.String(), cgroupNote) {
+	if !strings.Contains(b.String(), upperFirst(cgroupNote)) {
 		t.Errorf("got:\n%s", b.String())
 	}
 }

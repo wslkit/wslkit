@@ -182,35 +182,27 @@ func sessionRates(before, after []Session, interval time.Duration) []Session {
 }
 
 // renderSessions writes one section per wslc session.
+//
+// Its notes, a VM this measurement started or one that failed, are written
+// with every other note at the end, by renderNotes.
 func renderSessions(w io.Writer, r Report) {
 	for _, s := range r.Sessions {
-		fmt.Fprintln(w)
+		fmt.Fprintf(w, "\n%s\n", rule("wslc session "+s.Name+" (preview)"))
 		if s.Err != nil {
-			fmt.Fprintf(w, "wslc session %s: could not be measured: %v\n", s.Name, s.Err)
+			fmt.Fprintln(w, "could not be measured; see the notes")
 			continue
 		}
 		var host *Host
 		if s.Host != nil {
 			host = &Host{Utility: s.Host}
 		}
-		renderVM(w, "wslc session "+s.Name, s.VM, host)
+		renderVM(w, s.VM, host)
 		fmt.Fprintln(w)
 		if len(s.Containers) == 0 {
 			fmt.Fprintln(w, "no containers are running")
 		} else {
 			fmt.Fprint(w, rowsTable(Sorted(s.Containers), true, r.HasRates()).String())
 		}
-		if s.Started {
-			fmt.Fprintf(w, "note: the session VM was not running, and asking wslc started it. It stops again once idle.\n")
-		}
-		for _, c := range s.Containers {
-			if c.OOMKills != nil && *c.OOMKills > 0 {
-				fmt.Fprintf(w, "note: %s: the kernel has killed %d process(es) for running out of memory\n", c.Distro, *c.OOMKills)
-			}
-		}
-	}
-	if len(r.Sessions) > 0 {
-		fmt.Fprintln(w, "\n"+sessionsNote)
 	}
 }
 

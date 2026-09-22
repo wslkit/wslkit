@@ -20,10 +20,11 @@ wslkit top Ubuntu      only these distributions
 ## What it tells you
 
 ```
-utility VM: 1.2 GiB of 7.6 GiB in use, 6.3 GiB free, 4 processor(s), CPU 22.0%
-            616.5 MiB page cache, which Windows can reclaim; 179.3 MiB anonymous, which it cannot
-            stalled on memory 0.0%, I/O 15.2%, CPU 3.4% of the last ten seconds
-            network 691 B/s in, 696 B/s out, for the whole VM
+── utility VM ────────────────────────────────────────────────────────────────
+1.2 GiB of 7.6 GiB in use, 6.3 GiB free, 4 CPUs, CPU 22.0%
+616.5 MiB page cache, which Windows can reclaim; 179.3 MiB anonymous, which it cannot
+stalled over the last 10 s: memory 0.0%, I/O 15.2%, CPU 3.4%
+network: 691 B/s in, 696 B/s out
 
 NAME          KIND    MEMORY     ANON       CPU    READ       WRITE      PIDS  STALL MEM/IO  INIT
 Ubuntu        distro  469.6 MiB  105.4 MiB  15.3%  1.6 KiB/s  1.6 KiB/s  88    0.0% / 6.8%   systemd
@@ -40,8 +41,8 @@ looks enormous but is mostly page cache is not a problem.
 ### What Windows charges
 
 ```
-            Windows charges it 681.5 MiB, the working set of vmmem (pid 23688)
-            1 other VM(s) hold 696.0 MiB more: a wslc session, or any other Hyper-V VM
+Windows charges it 681.5 MiB (vmmem pid 23688)
+1 other VM(s) hold 696.0 MiB more: a wslc session, or any other Hyper-V VM
 ```
 
 Every Hyper-V VM on the machine has a `vmmem` process, and its working set is
@@ -63,11 +64,12 @@ even when no distribution is running.
 ### wslc containers, with `--wslc`
 
 ```
-wslc session wslc-cli-user: 548.4 MiB of 7.6 GiB in use, 7.0 GiB free, 4 processor(s), CPU 103.2%
-            238.3 MiB page cache, which Windows can reclaim; 55.4 MiB anonymous, which it cannot
-            stalled on memory 0.0%, I/O 2.5%, CPU 0.6% of the last ten seconds
-            network 24 B/s in, 24 B/s out, for the whole VM
-            Windows charges it 786.0 MiB, the working set of vmmem (pid 39264)
+── wslc session wslc-cli-user (preview) ──────────────────────────────────────
+548.4 MiB of 7.6 GiB in use, 7.0 GiB free, 4 CPUs, CPU 103.2%
+238.3 MiB page cache, which Windows can reclaim; 55.4 MiB anonymous, which it cannot
+stalled over the last 10 s: memory 0.0%, I/O 2.5%, CPU 0.6%
+network: 24 B/s in, 24 B/s out
+Windows charges it 786.0 MiB (vmmem pid 39264)
 
 NAME           KIND  MEMORY     ANON       CPU    READ   WRITE  PIDS  STALL MEM/IO
 wk-spike-busy  wslc  4.8 MiB    136.0 KiB  99.9%  0 B/s  0 B/s  1     0.0% / 0.1%
@@ -113,8 +115,9 @@ Usage says a resource is used. Pressure says it is short. A distribution at
 80% of the VM's memory with no memory stall is fine. One at 30% with a
 persistent stall is the thing to look at.
 
-The kernel's OOM kills are counted too, and a row that has had any gets a note
-under the table.
+The kernel's OOM kills are counted too, and a row that has had any gets a
+note. Each VM is a section of its own under a rule naming it, and every
+explanation and note comes once, in a notes section after the last one.
 
 ### The rows that are not distributions
 

@@ -150,13 +150,37 @@ func TestSessionsWithNoDistributionRunning(t *testing.T) {
 	}
 	var b bytes.Buffer
 	Render(&b, report)
-	for _, want := range []string{"no distributions are running", "wslc session s:", "wk-spike-busy"} {
+	for _, want := range []string{"no distributions are running", "wslc session s (preview)", "wk-spike-busy"} {
 		if !strings.Contains(b.String(), want) {
 			t.Errorf("missing %q:\n%s", want, b.String())
 		}
 	}
 	if JSON(report)["wslc_sessions"] == nil {
 		t.Error("the empty-distribution JSON dropped the sessions")
+	}
+}
+
+// With two VMs on screen, explanations printed between them made one run into
+// the next. Each VM is its own section under a rule, and everything that
+// explains comes once, after the last section.
+func TestEachVMIsASectionAndTheNotesComeLast(t *testing.T) {
+	out, list := sessionFixture(t)
+	s, _ := ParseSession("s", out, list)
+	d, vm, _ := ParseSample("skrog-engine", realOutput(t))
+	var b bytes.Buffer
+	Render(&b, Report{VM: vm, Samples: []Sample{d}, Groups: ParseGroups(realOutput(t)), Sessions: []Session{s}})
+	got := b.String()
+
+	utility := strings.Index(got, rule("utility VM"))
+	session := strings.Index(got, rule("wslc session s (preview)"))
+	notes := strings.Index(got, rule("notes"))
+	if utility != 0 || session <= utility || notes <= session {
+		t.Fatalf("sections out of order (utility %d, session %d, notes %d):\n%s", utility, session, notes, got)
+	}
+	for _, explanation := range []string{groupsNote, sessionsNote, upperFirst(cgroupNote)} {
+		if i := strings.Index(got, explanation); i < notes {
+			t.Errorf("%q is not in the notes at the end:\n%s", explanation, got)
+		}
 	}
 }
 

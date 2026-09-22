@@ -171,7 +171,7 @@ func TestRenderShowsGroupsAndCgroupColumns(t *testing.T) {
 	var b bytes.Buffer
 	Render(&b, Report{VM: vm, Samples: []Sample{s}, Groups: ParseGroups(out)})
 	got := b.String()
-	for _, want := range []string{"docker", "cgroup", "wsl", "PIDS", "STALL", groupsNote, "stalled on memory"} {
+	for _, want := range []string{"docker", "cgroup", "wsl", "PIDS", "STALL", groupsNote, "stalled over the last 10 s"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q:\n%s", want, got)
 		}
@@ -202,7 +202,7 @@ func TestRenderWithoutCgroupsSaysWhatIsMissing(t *testing.T) {
 	if h := header(got); strings.Contains(h, "READ") || strings.Contains(h, "PIDS") || strings.Contains(h, "STALL") {
 		t.Errorf("cgroup columns without a cgroup:\n%s", got)
 	}
-	if !strings.Contains(got, cgroupOnlyNote) {
+	if !strings.Contains(got, upperFirst(cgroupOnlyNote)) {
 		t.Errorf("the report does not say why:\n%s", got)
 	}
 }

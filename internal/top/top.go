@@ -715,81 +715,139 @@ func MethodNote(m Method) string {
 }
 
 // Render writes the human-readable report.
+//
+// Each VM gets a section of its own under a rule naming it, holding only its
+// totals and its table. What explains the numbers comes once, at the end:
+// with two VMs on screen, explanations between them made one section run into
+// the next.
 func Render(w io.Writer, r Report) {
+	fmt.Fprintln(w, rule("utility VM"))
 	if len(r.Samples) == 0 {
-		fmt.Fprintln(w, "no distributions are running, so the utility VM is not up")
-		renderOthers(w, r.Host, "")
-		renderNotes(w, r)
-		renderSessions(w, r)
-		return
-	}
-	renderVM(w, "utility VM", r.VM, r.Host)
-	fmt.Fprintln(w)
-
-	rows := append(Sorted(r.Samples), Sorted(r.Groups)...)
-	fmt.Fprint(w, rowsTable(rows, r.Method() == MethodCgroup, r.HasRates()).String())
-
-	line := fmt.Sprintf("%s attributed to distributions", FormatSize(r.Attributed()))
-	if len(r.Groups) > 0 {
-		line += fmt.Sprintf(", %s to groups that belong to none", FormatSize(r.GroupBytes()))
-	}
-	line += "."
-	if note := MethodNote(r.Method()); note != "" {
-		line += " " + note
-	}
-	fmt.Fprintf(w, "\n%s\n", line)
-	if len(r.Groups) > 0 {
-		fmt.Fprintln(w, groupsNote)
-	}
-	if r.Method() == MethodProcesses {
-		fmt.Fprintln(w, cgroupOnlyNote)
-	}
-
-	for _, s := range rows {
-		if s.Err != nil {
-			fmt.Fprintf(w, "note: %s: %v\n", s.Distro, s.Err)
+		fmt.Fprintln(w, "no distributions are running, so it is not up")
+		renderOthers(w, r.Host)
+	} else {
+		renderVM(w, r.VM, r.Host)
+		fmt.Fprintln(w)
+		rows := append(Sorted(r.Samples), Sorted(r.Groups)...)
+		fmt.Fprint(w, rowsTable(rows, r.Method() == MethodCgroup, r.HasRates()).String())
+		line := fmt.Sprintf("%s attributed to distributions", FormatSize(r.Attributed()))
+		if len(r.Groups) > 0 {
+			line += fmt.Sprintf(", %s to groups that belong to none", FormatSize(r.GroupBytes()))
 		}
-		if s.OOMKills != nil && *s.OOMKills > 0 {
-			fmt.Fprintf(w, "note: %s: the kernel has killed %d process(es) for running out of memory\n", s.Distro, *s.OOMKills)
-		}
+		fmt.Fprintf(w, "\n%s.\n", line)
 	}
-	renderNotes(w, r)
 	renderSessions(w, r)
+	renderNotes(w, r)
 }
 
+// renderNotes writes what explains the numbers, and then everything that
+// went wrong or needs saying about one row.
 func renderNotes(w io.Writer, r Report) {
-	if r.Host != nil && r.Host.Err != nil {
-		fmt.Fprintf(w, "note: what Windows charges each VM could not be read: %v\n", r.Host.Err)
+	var explain, notes []string
+	if len(r.Samples) > 0 {
+		if n := MethodNote(r.Method()); n != "" {
+			explain = append(explain, upperFirst(n))
+		}
 	}
-	for _, n := range r.Notes {
+	if len(r.Groups) > 0 {
+		explain = append(explain, groupsNote)
+	}
+	if r.Method() == MethodProcesses {
+		explain = append(explain, upperFirst(cgroupOnlyNote))
+	}
+	if len(r.Sessions) > 0 {
+		explain = append(explain, sessionsNote)
+	}
+
+	for _, s := range append(Sorted(r.Samples), Sorted(r.Groups)...) {
+		notes = append(notes, rowNotes(s)...)
+	}
+	for _, s := range r.Sessions {
+		if s.Err != nil {
+			notes = append(notes, fmt.Sprintf("wslc session %s could not be measured: %v", s.Name, s.Err))
+			continue
+		}
+		if s.Started {
+			notes = append(notes, fmt.Sprintf("wslc session %s: its VM was not running, and asking wslc started it. It stops again once idle.", s.Name))
+		}
+		for _, c := range s.Containers {
+			notes = append(notes, rowNotes(c)...)
+		}
+	}
+	if r.Host != nil && r.Host.Err != nil {
+		notes = append(notes, fmt.Sprintf("what Windows charges each VM could not be read: %v", r.Host.Err))
+	}
+	notes = append(notes, r.Notes...)
+
+	if len(explain) == 0 && len(notes) == 0 {
+		return
+	}
+	fmt.Fprintf(w, "\n%s\n", rule("notes"))
+	for _, e := range explain {
+		fmt.Fprintln(w, e)
+	}
+	for _, n := range notes {
 		fmt.Fprintf(w, "note: %s\n", n)
 	}
 }
 
-// renderVM writes a VM's header: what its kernel says, and what Windows
-// charges for it.
-func renderVM(w io.Writer, label string, vm VM, host *Host) {
-	head := fmt.Sprintf("%s: %s of %s in use, %s free, %d processor(s)",
-		label, FormatSize(vm.UsedBytes()), FormatSize(vm.TotalBytes), FormatSize(vm.FreeBytes), vm.CPUs)
+// rowNotes is what needs saying about one row.
+func rowNotes(s Sample) []string {
+	var out []string
+	if s.Err != nil {
+		out = append(out, fmt.Sprintf("%s: %v", s.Distro, s.Err))
+	}
+	if s.OOMKills != nil && *s.OOMKills > 0 {
+		out = append(out, fmt.Sprintf("%s: the kernel has killed %d process(es) for running out of memory", s.Distro, *s.OOMKills))
+	}
+	return out
+}
+
+// ruleWidth is how wide a section rule is drawn: narrow enough for an
+// 80-column window.
+const ruleWidth = 78
+
+// rule is a section's heading: its name on a horizontal line.
+func rule(label string) string {
+	head := "── " + label + " "
+	fill := ruleWidth - len([]rune(head))
+	if fill < 3 {
+		fill = 3
+	}
+	return head + strings.Repeat("─", fill)
+}
+
+func upperFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	r := []rune(s)
+	return strings.ToUpper(string(r[0])) + string(r[1:])
+}
+
+// renderVM writes a VM's totals: what its kernel says, and what Windows
+// charges for it. The section's rule has already named it.
+func renderVM(w io.Writer, vm VM, host *Host) {
+	head := fmt.Sprintf("%s of %s in use, %s free, %d CPUs",
+		FormatSize(vm.UsedBytes()), FormatSize(vm.TotalBytes), FormatSize(vm.FreeBytes), vm.CPUs)
 	if vm.Rates.CPU != nil {
 		head += ", CPU " + formatPercent(vm.Rates.CPU)
 	}
 	fmt.Fprintln(w, head)
-	const indent = "            "
 	if vm.CachedBytes > 0 || vm.AnonBytes > 0 {
-		fmt.Fprintf(w, "%s%s page cache, which Windows can reclaim; %s anonymous, which it cannot\n",
-			indent, FormatSize(vm.CachedBytes), FormatSize(vm.AnonBytes))
+		fmt.Fprintf(w, "%s page cache, which Windows can reclaim; %s anonymous, which it cannot\n",
+			FormatSize(vm.CachedBytes), FormatSize(vm.AnonBytes))
 	}
 	if p := vm.Pressure; p != nil {
-		fmt.Fprintf(w, "%sstalled on memory %.1f%%, I/O %.1f%%, CPU %.1f%% of the last ten seconds\n", indent, p.Memory, p.IO, p.CPU)
+		fmt.Fprintf(w, "stalled over the last 10 s: memory %.1f%%, I/O %.1f%%, CPU %.1f%%\n", p.Memory, p.IO, p.CPU)
 	}
 	if vm.Rates.NetRx != nil && vm.Rates.NetTx != nil {
-		fmt.Fprintf(w, "%snetwork %s in, %s out, for the whole VM\n", indent, formatRate(vm.Rates.NetRx), formatRate(vm.Rates.NetTx))
+		fmt.Fprintf(w, "network: %s in, %s out\n", formatRate(vm.Rates.NetRx), formatRate(vm.Rates.NetTx))
 	}
 	if host != nil && host.Utility != nil {
-		fmt.Fprintf(w, "%sWindows charges it %s, the working set of vmmem (pid %d)\n", indent, FormatSize(host.Utility.WorkingSetBytes), host.Utility.PID)
+		fmt.Fprintf(w, "Windows charges it %s (vmmem pid %d)\n", FormatSize(host.Utility.WorkingSetBytes), host.Utility.PID)
 	}
-	renderOthers(w, host, indent)
+	renderOthers(w, host)
 }
 
 // rowsTable lays out rows with the columns their measurement supports.
@@ -879,7 +937,7 @@ func rowsTable(rows []Sample, withCgroup, withRates bool) table {
 
 // renderOthers names the VMs that are not the utility VM. Which VM each one is
 // cannot be told without elevation, so it says what they could be.
-func renderOthers(w io.Writer, h *Host, indent string) {
+func renderOthers(w io.Writer, h *Host) {
 	if h == nil || len(h.Others) == 0 {
 		return
 	}
@@ -887,7 +945,7 @@ func renderOthers(w io.Writer, h *Host, indent string) {
 	for _, v := range h.Others {
 		total += v.WorkingSetBytes
 	}
-	fmt.Fprintf(w, "%s%d other VM(s) hold %s more: a wslc session, or any other Hyper-V VM\n", indent, len(h.Others), FormatSize(total))
+	fmt.Fprintf(w, "%d other VM(s) hold %s more: a wslc session, or any other Hyper-V VM\n", len(h.Others), FormatSize(total))
 }
 
 func optSize(p *uint64) string {
