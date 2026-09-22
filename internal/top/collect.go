@@ -2,6 +2,7 @@ package top
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -29,13 +30,16 @@ type Options struct {
 	Timeout time.Duration
 	// Only limits the measurement to these distributions.
 	Only []string
+	// WSLC also measures wslc sessions. Asking wslc boots a stopped session
+	// VM, so this is only ever done on request.
+	WSLC bool
 }
 
 // Collect measures every running distribution, twice when an interval is
 // asked for, and reports what changed in between.
 func Collect(ctx context.Context, r Runner, o Options) (Report, error) {
 	first, err := Sweep(ctx, r, o)
-	if err != nil || o.Interval <= 0 || len(first.Samples) == 0 {
+	if err != nil || o.Interval <= 0 || (len(first.Samples) == 0 && len(first.Sessions) == 0) {
 		return first, err
 	}
 
@@ -55,12 +59,14 @@ func Collect(ctx context.Context, r Runner, o Options) (Report, error) {
 	return WithRates(first, second, o.Interval), nil
 }
 
-// Sweep measures every running distribution once.
+// Sweep measures every running distribution once, and every wslc session
+// when asked to.
 //
-// Distributions are measured concurrently. Measuring them one after another
-// would spread a rate across however long the whole sweep took, which makes
-// the busiest distribution look calmer the more of them there are.
+// Everything is measured concurrently. Measuring one after another would
+// spread a rate across however long the whole sweep took, which makes the
+// busiest distribution look calmer the more of them there are.
 func Sweep(ctx context.Context, r Runner, o Options) (Report, error) {
+	started := time.Now()
 	timeout := o.Timeout
 	if timeout == 0 {
 		timeout = DefaultTimeout
@@ -72,10 +78,20 @@ func Sweep(ctx context.Context, r Runner, o Options) (Report, error) {
 	if len(o.Only) > 0 {
 		names = intersect(names, o.Only)
 	}
-	if len(names) == 0 {
-		report := Report{SampledAt: time.Now()}
-		readHost(ctx, r, &report)
-		return report, nil
+
+	// Sessions are separate VMs, so they are read alongside the
+	// distributions rather than after them.
+	type sessionResult struct {
+		sessions []Session
+		err      error
+	}
+	sessionsDone := make(chan sessionResult, 1)
+	sr, canSessions := r.(SessionReader)
+	if o.WSLC && canSessions {
+		go func() {
+			s, err := sweepSessions(ctx, sr, timeout, started)
+			sessionsDone <- sessionResult{s, err}
+		}()
 	}
 
 	type result struct {
@@ -105,7 +121,7 @@ func Sweep(ctx context.Context, r Runner, o Options) (Report, error) {
 	}
 	wg.Wait()
 
-	report := Report{SampledAt: time.Now()}
+	report := Report{SampledAt: time.Now(), StartedAt: started}
 	for _, res := range results {
 		report.Samples = append(report.Samples, res.sample)
 		// Every distribution reports the same VM and the same groups, since
@@ -113,6 +129,20 @@ func Sweep(ctx context.Context, r Runner, o Options) (Report, error) {
 		if report.VM.TotalBytes == 0 && res.vm.TotalBytes != 0 {
 			report.VM = res.vm
 			report.Groups = res.groups
+		}
+	}
+	switch {
+	case o.WSLC && !canSessions:
+		report.Sessions = []Session{}
+		report.Notes = append(report.Notes, "wslc sessions cannot be read here")
+	case o.WSLC:
+		res := <-sessionsDone
+		report.Sessions = res.sessions
+		if report.Sessions == nil {
+			report.Sessions = []Session{}
+		}
+		if res.err != nil {
+			report.Notes = append(report.Notes, fmt.Sprintf("wslc sessions could not be listed: %v", res.err))
 		}
 	}
 	readHost(ctx, r, &report)

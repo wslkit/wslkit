@@ -24,6 +24,7 @@ func (a *App) top(args []string) int {
 	once := fs.Bool("once", false, "take one sample and report no rates, rather than waiting")
 	watch := fs.Bool("watch", false, "keep measuring and redraw every interval, until interrupted")
 	timeout := fs.Duration("timeout", top.DefaultTimeout, "bound on each measurement inside a distribution")
+	wslc := fs.Bool("wslc", false, "also measure wslc sessions and their containers; starts a stopped session VM")
 	if err := fs.Parse(args); err != nil {
 		return ExitUsage
 	}
@@ -41,7 +42,7 @@ func (a *App) top(args []string) int {
 		fmt.Fprintln(a.Stderr, "--watch needs an --interval above zero")
 		return ExitUsage
 	}
-	o := top.Options{Interval: *interval, Timeout: *timeout, Only: only}
+	o := top.Options{Interval: *interval, Timeout: *timeout, Only: only, WSLC: *wslc}
 	if *once {
 		// A rate needs two samples separated by time. Asked for one, report
 		// what can be read at an instant and say nothing about rates rather
@@ -63,18 +64,6 @@ func (a *App) top(args []string) int {
 
 // topPrint writes one report.
 func (a *App) topPrint(report top.Report, jsonOut bool) int {
-	if len(report.Samples) == 0 && jsonOut {
-		o := map[string]any{"distributions": []any{}, "note": "no distributions are running"}
-		// Another VM, a wslc session say, can be holding memory with no
-		// distribution up at all.
-		if h := top.HostJSON(report.Host); h != nil {
-			o["host"] = h
-		}
-		if err := writeJSON(a, o); err != nil {
-			return ExitFindings
-		}
-		return ExitOK
-	}
 	if jsonOut {
 		if err := writeJSON(a, top.JSON(report)); err != nil {
 			return ExitFindings

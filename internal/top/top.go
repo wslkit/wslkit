@@ -188,8 +188,13 @@ type Report struct {
 	// guest's uptime it gives the VM's boot time, which is how its vmmem is
 	// found.
 	SampledAt time.Time
+	// StartedAt is when the sweep began, by the Windows clock.
+	StartedAt time.Time
 	// Host is the Windows side, when it was read.
 	Host *Host
+	// Sessions are the wslc sessions, read only when asked for; nil when not
+	// asked, which is different from an empty list.
+	Sessions []Session
 }
 
 // Attributed is the memory the distributions account for.
@@ -294,21 +299,29 @@ func WithRates(before, after Report, interval time.Duration) Report {
 	out.Interval = interval
 	out.Samples = ratesFor(before.Samples, after.Samples, interval)
 	out.Groups = ratesFor(before.Groups, after.Groups, interval)
-
-	b, a := before.VM, after.VM
-	over := elapsed(b.AtCsec, a.AtCsec, interval)
-	out.VM.Rates = VMRates{}
-	if b.TotalBytes != 0 && a.TotalBytes != 0 {
-		if p := perSecond(b.CPUUsec, a.CPUUsec, over); p != nil {
-			pct := *p / 1e6 * 100
-			out.VM.Rates.CPU = &pct
-		}
-		if b.HasNet && a.HasNet {
-			out.VM.Rates.NetRx = perSecond(b.NetRxBytes, a.NetRxBytes, over)
-			out.VM.Rates.NetTx = perSecond(b.NetTxBytes, a.NetTxBytes, over)
-		}
+	out.VM.Rates = vmRates(before.VM, after.VM, interval)
+	if after.Sessions != nil {
+		out.Sessions = sessionRates(before.Sessions, after.Sessions, interval)
 	}
 	return out
+}
+
+// vmRates is what changed across a whole VM between two samples.
+func vmRates(b, a VM, interval time.Duration) VMRates {
+	var r VMRates
+	if b.TotalBytes == 0 || a.TotalBytes == 0 {
+		return r
+	}
+	over := elapsed(b.AtCsec, a.AtCsec, interval)
+	if p := perSecond(b.CPUUsec, a.CPUUsec, over); p != nil {
+		pct := *p / 1e6 * 100
+		r.CPU = &pct
+	}
+	if b.HasNet && a.HasNet {
+		r.NetRx = perSecond(b.NetRxBytes, a.NetRxBytes, over)
+		r.NetTx = perSecond(b.NetTxBytes, a.NetTxBytes, over)
+	}
+	return r
 }
 
 func ratesFor(before, after []Sample, interval time.Duration) []Sample {
@@ -345,7 +358,22 @@ func ratesFor(before, after []Sample, interval time.Duration) []Sample {
 //
 // Line endings matter: this is fed to a shell inside the guest, and a carriage
 // return turns a line into a command that does not exist.
-const SampleScript = `# /proc/uptime in hundredths of a second: the guest's own clock, which is
+const SampleScript = scriptFuncs + distroScript + vmScript
+
+// SessionScript is what runs inside a wslc session VM: the VM, and one group
+// per container. wslc runs its containers as Docker Engine does, one cgroup
+// each under /docker, named by the full container ID. Right after the VM
+// boots, before any container has run, /docker does not exist yet.
+const SessionScript = scriptFuncs + `hz=$(getconf CLK_TCK 2>/dev/null || echo 100)
+echo "clock_hz=$hz"
+for d in /sys/fs/cgroup/docker/*/; do
+  [ -d "$d" ] || continue
+  group "g.$(basename "$d")." "${d%/}"
+done
+` + vmScript
+
+// scriptFuncs are the shell functions both scripts share.
+const scriptFuncs = `# /proc/uptime in hundredths of a second: the guest's own clock, which is
 # what a rate divides by. It always carries two decimals.
 clock() {
   awk '{split($1, a, "."); printf "%.0f\n", a[1] * 100 + a[2]}' /proc/uptime
@@ -373,7 +401,10 @@ group() {
     awk -v p="$gp" -v k="$k" '$1=="some"{split($2, a, "="); print p "psi_" k "=" a[2]; exit}' "$gd/$k.pressure" 2>/dev/null
   done
 }
-# This shell's own cgroup, not pid 1's. Measured on WSL 2.9.11: a systemd
+`
+
+// distroScript measures the distribution it runs in.
+const distroScript = `# This shell's own cgroup, not pid 1's. Measured on WSL 2.9.11: a systemd
 # distribution puts pid 1 in /wsl-user/distro-N/systemd/init.scope, but a
 # distribution without systemd reports 0::/ for pid 1 and the distro node only
 # for its own processes. Reading pid 1 therefore finds nothing on exactly the
@@ -432,7 +463,10 @@ if [ -n "$node" ]; then
     group "g.$n." "${d%/}"
   done
 fi
-echo "vm_at_csec=$(clock)"
+`
+
+// vmScript measures the VM as a whole.
+const vmScript = `echo "vm_at_csec=$(clock)"
 echo "mem_total_kb=$(awk '/^MemTotal:/{print $2}' /proc/meminfo)"
 echo "mem_free_kb=$(awk '/^MemFree:/{print $2}' /proc/meminfo)"
 echo "mem_available_kb=$(awk '/^MemAvailable:/{print $2}' /proc/meminfo)"
@@ -570,7 +604,12 @@ func ParseSample(distro, out string) (Sample, VM, error) {
 	default:
 		return s, vm, fmt.Errorf("top: %s did not say how it measured itself", distro)
 	}
+	return s, f.vm(hz), nil
+}
 
+// vm reads what vmScript printed.
+func (f reader) vm(hz uint64) VM {
+	var vm VM
 	vm.TotalBytes = f.num("mem_total_kb") * 1024
 	vm.FreeBytes = f.num("mem_free_kb") * 1024
 	vm.AvailableBytes = f.num("mem_available_kb") * 1024
@@ -584,7 +623,7 @@ func ParseSample(distro, out string) (Sample, VM, error) {
 		vm.NetRxBytes, vm.NetTxBytes, vm.HasNet = *rx, *tx, true
 	}
 	vm.Pressure = f.pressure("vm_psi_")
-	return s, vm, nil
+	return vm
 }
 
 // ParseGroups reads the cgroups that belong to no distribution out of what
@@ -680,40 +719,88 @@ func Render(w io.Writer, r Report) {
 	if len(r.Samples) == 0 {
 		fmt.Fprintln(w, "no distributions are running, so the utility VM is not up")
 		renderOthers(w, r.Host, "")
+		renderNotes(w, r)
+		renderSessions(w, r)
 		return
 	}
-	vm := r.VM
-	head := fmt.Sprintf("utility VM: %s of %s in use, %s free, %d processor(s)",
-		FormatSize(vm.UsedBytes()), FormatSize(vm.TotalBytes), FormatSize(vm.FreeBytes), vm.CPUs)
+	renderVM(w, "utility VM", r.VM, r.Host)
+	fmt.Fprintln(w)
+
+	rows := append(Sorted(r.Samples), Sorted(r.Groups)...)
+	fmt.Fprint(w, rowsTable(rows, r.Method() == MethodCgroup, r.HasRates()).String())
+
+	line := fmt.Sprintf("%s attributed to distributions", FormatSize(r.Attributed()))
+	if len(r.Groups) > 0 {
+		line += fmt.Sprintf(", %s to groups that belong to none", FormatSize(r.GroupBytes()))
+	}
+	line += "."
+	if note := MethodNote(r.Method()); note != "" {
+		line += " " + note
+	}
+	fmt.Fprintf(w, "\n%s\n", line)
+	if len(r.Groups) > 0 {
+		fmt.Fprintln(w, groupsNote)
+	}
+	if r.Method() == MethodProcesses {
+		fmt.Fprintln(w, cgroupOnlyNote)
+	}
+
+	for _, s := range rows {
+		if s.Err != nil {
+			fmt.Fprintf(w, "note: %s: %v\n", s.Distro, s.Err)
+		}
+		if s.OOMKills != nil && *s.OOMKills > 0 {
+			fmt.Fprintf(w, "note: %s: the kernel has killed %d process(es) for running out of memory\n", s.Distro, *s.OOMKills)
+		}
+	}
+	renderNotes(w, r)
+	renderSessions(w, r)
+}
+
+func renderNotes(w io.Writer, r Report) {
+	if r.Host != nil && r.Host.Err != nil {
+		fmt.Fprintf(w, "note: what Windows charges each VM could not be read: %v\n", r.Host.Err)
+	}
+	for _, n := range r.Notes {
+		fmt.Fprintf(w, "note: %s\n", n)
+	}
+}
+
+// renderVM writes a VM's header: what its kernel says, and what Windows
+// charges for it.
+func renderVM(w io.Writer, label string, vm VM, host *Host) {
+	head := fmt.Sprintf("%s: %s of %s in use, %s free, %d processor(s)",
+		label, FormatSize(vm.UsedBytes()), FormatSize(vm.TotalBytes), FormatSize(vm.FreeBytes), vm.CPUs)
 	if vm.Rates.CPU != nil {
 		head += ", CPU " + formatPercent(vm.Rates.CPU)
 	}
 	fmt.Fprintln(w, head)
+	const indent = "            "
 	if vm.CachedBytes > 0 || vm.AnonBytes > 0 {
-		fmt.Fprintf(w, "            %s page cache, which Windows can reclaim; %s anonymous, which it cannot\n",
-			FormatSize(vm.CachedBytes), FormatSize(vm.AnonBytes))
+		fmt.Fprintf(w, "%s%s page cache, which Windows can reclaim; %s anonymous, which it cannot\n",
+			indent, FormatSize(vm.CachedBytes), FormatSize(vm.AnonBytes))
 	}
 	if p := vm.Pressure; p != nil {
-		fmt.Fprintf(w, "            stalled on memory %.1f%%, I/O %.1f%%, CPU %.1f%% of the last ten seconds\n", p.Memory, p.IO, p.CPU)
+		fmt.Fprintf(w, "%sstalled on memory %.1f%%, I/O %.1f%%, CPU %.1f%% of the last ten seconds\n", indent, p.Memory, p.IO, p.CPU)
 	}
 	if vm.Rates.NetRx != nil && vm.Rates.NetTx != nil {
-		fmt.Fprintf(w, "            network %s in, %s out, for the whole VM\n", formatRate(vm.Rates.NetRx), formatRate(vm.Rates.NetTx))
+		fmt.Fprintf(w, "%snetwork %s in, %s out, for the whole VM\n", indent, formatRate(vm.Rates.NetRx), formatRate(vm.Rates.NetTx))
 	}
-	if h := r.Host; h != nil && h.Utility != nil {
-		fmt.Fprintf(w, "            Windows charges it %s, the working set of vmmem (pid %d)\n", FormatSize(h.Utility.WorkingSetBytes), h.Utility.PID)
+	if host != nil && host.Utility != nil {
+		fmt.Fprintf(w, "%sWindows charges it %s, the working set of vmmem (pid %d)\n", indent, FormatSize(host.Utility.WorkingSetBytes), host.Utility.PID)
 	}
-	renderOthers(w, r.Host, "            ")
-	fmt.Fprintln(w)
+	renderOthers(w, host, indent)
+}
 
-	samples := Sorted(r.Samples)
-
-	rows := append(append([]Sample(nil), samples...), Sorted(r.Groups)...)
-	withCgroup := r.Method() == MethodCgroup
-	withRates := r.HasRates()
-	var withSwap bool
+// rowsTable lays out rows with the columns their measurement supports.
+func rowsTable(rows []Sample, withCgroup, withRates bool) table {
+	var withSwap, withInit bool
 	for _, s := range rows {
 		if s.SwapBytes != nil && *s.SwapBytes > 0 {
 			withSwap = true
+		}
+		if s.Kind == KindDistro && s.Init != "" {
+			withInit = true
 		}
 	}
 
@@ -735,7 +822,9 @@ func Render(w io.Writer, r Report) {
 	} else {
 		headers = append(headers, "PROCESSES")
 	}
-	headers = append(headers, "INIT")
+	if withInit {
+		headers = append(headers, "INIT")
+	}
 
 	t := table{headers: headers}
 	for _, s := range rows {
@@ -745,7 +834,7 @@ func Render(w io.Writer, r Report) {
 		}
 		if s.Err != nil {
 			row := []string{s.Distro, kind}
-			for range headers[2 : len(headers)-1] {
+			for range headers[3:] {
 				row = append(row, "-")
 			}
 			t.rows = append(t.rows, append(row, "could not be measured"))
@@ -776,44 +865,16 @@ func Render(w io.Writer, r Report) {
 		} else {
 			row = append(row, strconv.Itoa(s.Processes))
 		}
-		init := s.Init
-		if s.Kind != KindDistro {
-			init = ""
+		if withInit {
+			init := ""
+			if s.Kind == KindDistro {
+				init = s.Init
+			}
+			row = append(row, init)
 		}
-		t.rows = append(t.rows, append(row, init))
+		t.rows = append(t.rows, row)
 	}
-	fmt.Fprint(w, t.String())
-
-	line := fmt.Sprintf("%s attributed to distributions", FormatSize(r.Attributed()))
-	if len(r.Groups) > 0 {
-		line += fmt.Sprintf(", %s to groups that belong to none", FormatSize(r.GroupBytes()))
-	}
-	line += "."
-	if note := MethodNote(r.Method()); note != "" {
-		line += " " + note
-	}
-	fmt.Fprintf(w, "\n%s\n", line)
-	if len(r.Groups) > 0 {
-		fmt.Fprintln(w, groupsNote)
-	}
-	if r.Method() == MethodProcesses {
-		fmt.Fprintln(w, cgroupOnlyNote)
-	}
-
-	for _, s := range rows {
-		if s.Err != nil {
-			fmt.Fprintf(w, "note: %s: %v\n", s.Distro, s.Err)
-		}
-		if s.OOMKills != nil && *s.OOMKills > 0 {
-			fmt.Fprintf(w, "note: %s: the kernel has killed %d process(es) for running out of memory\n", s.Distro, *s.OOMKills)
-		}
-	}
-	if r.Host != nil && r.Host.Err != nil {
-		fmt.Fprintf(w, "note: what Windows charges each VM could not be read: %v\n", r.Host.Err)
-	}
-	for _, n := range r.Notes {
-		fmt.Fprintf(w, "note: %s\n", n)
-	}
+	return t
 }
 
 // renderOthers names the VMs that are not the utility VM. Which VM each one is
@@ -886,26 +947,73 @@ func HostJSON(h *Host) map[string]any {
 	if h.Err != nil {
 		return map[string]any{"error": h.Err.Error()}
 	}
-	vm := func(v HostVM) map[string]any {
-		return map[string]any{"pid": v.PID, "working_set_bytes": v.WorkingSetBytes, "created": v.Created.UTC().Format(time.RFC3339)}
-	}
 	others := make([]map[string]any, 0, len(h.Others))
 	for _, v := range h.Others {
-		others = append(others, vm(v))
+		others = append(others, hostVMJSON(v))
 	}
 	o := map[string]any{"other_vms": others}
 	if h.Utility != nil {
-		o["utility_vm"] = vm(*h.Utility)
+		o["utility_vm"] = hostVMJSON(*h.Utility)
 	}
 	return o
+}
+
+func hostVMJSON(v HostVM) map[string]any {
+	return map[string]any{"pid": v.PID, "working_set_bytes": v.WorkingSetBytes, "created": v.Created.UTC().Format(time.RFC3339)}
 }
 
 func pressureJSON(p Pressure) map[string]any {
 	return map[string]any{"cpu": p.CPU, "memory": p.Memory, "io": p.IO}
 }
 
+// vmJSON is a VM's block of --json.
+func vmJSON(v VM) map[string]any {
+	vm := map[string]any{
+		"total_bytes":     v.TotalBytes,
+		"free_bytes":      v.FreeBytes,
+		"available_bytes": v.AvailableBytes,
+		"used_bytes":      v.UsedBytes(),
+		"cached_bytes":    v.CachedBytes,
+		"anon_bytes":      v.AnonBytes,
+		"cpus":            v.CPUs,
+		"uptime_seconds":  v.UptimeSec,
+	}
+	if v.HasNet {
+		vm["net_rx_bytes"] = v.NetRxBytes
+		vm["net_tx_bytes"] = v.NetTxBytes
+	}
+	if p := v.Pressure; p != nil {
+		vm["pressure"] = pressureJSON(*p)
+	}
+	if p := v.Rates.CPU; p != nil {
+		vm["cpu_percent"] = *p
+	}
+	if p := v.Rates.NetRx; p != nil {
+		vm["net_rx_bytes_per_second"] = *p
+	}
+	if p := v.Rates.NetTx; p != nil {
+		vm["net_tx_bytes_per_second"] = *p
+	}
+	return vm
+}
+
 // JSON is the object printed for --json.
 func JSON(r Report) map[string]any {
+	if len(r.Samples) == 0 {
+		o := map[string]any{"distributions": []any{}, "note": "no distributions are running"}
+		// Another VM, a wslc session say, can be holding memory with no
+		// distribution up at all.
+		if h := HostJSON(r.Host); h != nil {
+			o["host"] = h
+		}
+		if r.Sessions != nil {
+			o["wslc_sessions"] = sessionsJSON(r.Sessions)
+		}
+		if len(r.Notes) > 0 {
+			o["notes"] = r.Notes
+		}
+		return o
+	}
 	distros := make([]map[string]any, 0, len(r.Samples))
 	for _, s := range Sorted(r.Samples) {
 		o := sampleJSON(s, "distribution")
@@ -921,34 +1029,8 @@ func JSON(r Report) map[string]any {
 		o["kind"] = string(g.Kind)
 		groups = append(groups, o)
 	}
-	vm := map[string]any{
-		"total_bytes":     r.VM.TotalBytes,
-		"free_bytes":      r.VM.FreeBytes,
-		"available_bytes": r.VM.AvailableBytes,
-		"used_bytes":      r.VM.UsedBytes(),
-		"cached_bytes":    r.VM.CachedBytes,
-		"anon_bytes":      r.VM.AnonBytes,
-		"cpus":            r.VM.CPUs,
-		"uptime_seconds":  r.VM.UptimeSec,
-	}
-	if r.VM.HasNet {
-		vm["net_rx_bytes"] = r.VM.NetRxBytes
-		vm["net_tx_bytes"] = r.VM.NetTxBytes
-	}
-	if p := r.VM.Pressure; p != nil {
-		vm["pressure"] = pressureJSON(*p)
-	}
-	if p := r.VM.Rates.CPU; p != nil {
-		vm["cpu_percent"] = *p
-	}
-	if p := r.VM.Rates.NetRx; p != nil {
-		vm["net_rx_bytes_per_second"] = *p
-	}
-	if p := r.VM.Rates.NetTx; p != nil {
-		vm["net_tx_bytes_per_second"] = *p
-	}
 	o := map[string]any{
-		"vm":               vm,
+		"vm":               vmJSON(r.VM),
 		"distributions":    distros,
 		"groups":           groups,
 		"attributed_bytes": r.Attributed(),
@@ -959,6 +1041,14 @@ func JSON(r Report) map[string]any {
 	}
 	if h := HostJSON(r.Host); h != nil {
 		o["host"] = h
+	}
+	// Present only when --wslc asked for it, so its absence says "not
+	// asked" and an empty list says "asked, and there are none".
+	if r.Sessions != nil {
+		o["wslc_sessions"] = sessionsJSON(r.Sessions)
+	}
+	if len(r.Notes) > 0 {
+		o["notes"] = r.Notes
 	}
 	if m := r.Method(); m != "" {
 		o["method"] = string(m)

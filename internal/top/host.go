@@ -47,29 +47,55 @@ const matchTolerance = 3 * time.Second
 // the tolerance of each other are ambiguous, and then neither is claimed.
 func MatchHost(vms []HostVM, utilityBoot time.Time) Host {
 	var h Host
+	h.Utility, h.Others = claim(vms, utilityBoot)
+	return h
+}
+
+// claim takes the one vmmem created at boot out of vms. None is taken when
+// none matches or when more than one does.
+func claim(vms []HostVM, boot time.Time) (*HostVM, []HostVM) {
 	match := -1
 	for i, v := range vms {
-		d := v.Created.Sub(utilityBoot)
+		d := v.Created.Sub(boot)
 		if d < 0 {
 			d = -d
 		}
 		if d <= matchTolerance {
 			if match >= 0 {
-				match = -2
-				break
+				return nil, vms
 			}
 			match = i
 		}
 	}
-	for i, v := range vms {
-		if i == match {
-			u := v
-			h.Utility = &u
+	if match < 0 {
+		return nil, vms
+	}
+	found := vms[match]
+	rest := append(append([]HostVM(nil), vms[:match]...), vms[match+1:]...)
+	return &found, rest
+}
+
+// claimSessions gives each measured wslc session its vmmem, so it is shown
+// with its session rather than as an unnamed other VM.
+//
+// A matched vmmem also settles whether this measurement started the VM: its
+// creation time and the sweep's start are both read off the Windows clock, so
+// comparing them does not depend on the guest's.
+func claimSessions(h *Host, sessions []Session, sampledAt, sweepStarted time.Time) {
+	for i := range sessions {
+		at := sessions[i].sampledAt
+		if at.IsZero() {
+			at = sampledAt
+		}
+		boot, ok := sessions[i].Boot(at)
+		if !ok || sessions[i].Err != nil {
 			continue
 		}
-		h.Others = append(h.Others, v)
+		sessions[i].Host, h.Others = claim(h.Others, boot)
+		if v := sessions[i].Host; v != nil && !sweepStarted.IsZero() {
+			sessions[i].Started = v.Created.After(sweepStarted)
+		}
 	}
-	return h
 }
 
 // UtilityBoot is when the utility VM booted, by its own clock: the moment it
@@ -94,12 +120,11 @@ func readHost(ctx context.Context, r Runner, report *Report) {
 	}
 	// With no distribution answering there is no boot time to match, and
 	// usually no utility VM either; every vmmem is then some other VM.
-	boot, ok := report.UtilityBoot()
-	if !ok {
-		report.Host = &Host{Others: vms}
-		return
+	h := Host{Others: vms}
+	if boot, ok := report.UtilityBoot(); ok {
+		h = MatchHost(vms, boot)
 	}
-	h := MatchHost(vms, boot)
+	claimSessions(&h, report.Sessions, report.SampledAt, report.StartedAt)
 	report.Host = &h
 }
 

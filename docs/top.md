@@ -5,13 +5,15 @@ responsible. It is the answer to "why is vmmem so large", and the `docker stats`
 WSL does not have: one row for everything using the VM, with the same columns
 for each.
 
-It reads only, and it measures nothing that is not already running.
+It reads only, and without `--wslc` it measures nothing that is not already
+running.
 
 ```
 wslkit top             memory, CPU, disk and pressure per distribution
 wslkit top --watch     the same, redrawn every interval until Ctrl+C
 wslkit top --once      one sample, and no rates
 wslkit top --json      integer bytes
+wslkit top --wslc      and wslc sessions' containers
 wslkit top Ubuntu      only these distributions
 ```
 
@@ -57,6 +59,38 @@ Every other `vmmem` is reported as another VM, without a name. A wslc session
 runs its containers in a VM of its own, and that is usually what it is, but
 Windows Sandbox or any Hyper-V guest looks the same. Those VMs are reported
 even when no distribution is running.
+
+### wslc containers, with `--wslc`
+
+```
+wslc session wslc-cli-user: 548.4 MiB of 7.6 GiB in use, 7.0 GiB free, 4 processor(s), CPU 103.2%
+            238.3 MiB page cache, which Windows can reclaim; 55.4 MiB anonymous, which it cannot
+            stalled on memory 0.0%, I/O 2.5%, CPU 0.6% of the last ten seconds
+            network 24 B/s in, 24 B/s out, for the whole VM
+            Windows charges it 786.0 MiB, the working set of vmmem (pid 39264)
+
+NAME           KIND  MEMORY     ANON       CPU    READ   WRITE  PIDS  STALL MEM/IO
+wk-spike-busy  wslc  4.8 MiB    136.0 KiB  99.9%  0 B/s  0 B/s  1     0.0% / 0.1%
+wk-spike-idle  wslc  724.0 KiB  132.0 KiB  0.0%   0 B/s  0 B/s  1     0.0% / 0.0%
+```
+
+wslc, the container CLI in the WSL 2.9 pre-releases, runs each session's
+containers in a VM of its own. `--wslc` adds a section per session: that VM's
+totals, what Windows charges for it, and one row per running container, with
+the same columns as everything else.
+
+It is off by default because **asking wslc anything about a session's
+containers starts that session's VM** if it was stopped, and nothing a normal
+user can read says whether it is running without asking. top otherwise never
+starts anything. If the VM booted during the measurement, the report says so.
+It stops again once idle. Without `--wslc`, a running session VM still shows up
+as one of the other VMs above, unnamed.
+
+The numbers come from the containers' own cgroups inside the session VM, read
+through `wslc system session run`, not from `wslc stats`. Those print display
+strings (`988KiB / 7.611GiB`) rather than numbers. wslc is a preview, and its
+output has changed in every 2.9 release so far. See
+[the research note](https://github.com/wslkit/wslkit/blob/main/docs/research/2026-09-wslc-session.md).
 
 None of this is visible from `top` or `free` inside a distribution. They see
 their own processes. They do not see the other distributions, WSL's own
@@ -156,6 +190,7 @@ report after another, or with `--json` one object per line.
 | `--interval D` | gap between the samples a rate is measured over, default two seconds |
 | `--once` | take one sample and report no rates, rather than waiting |
 | `--watch` | keep measuring and redraw every interval, until Ctrl+C |
+| `--wslc` | also measure wslc sessions and their containers; starts a stopped session VM |
 | `--timeout D` | bound on each measurement inside a distribution |
 
 ## Limits

@@ -18,7 +18,7 @@ named by the full container ID. There is no `wsl-user`.
 
 ## Which wslc commands start the VM
 
-Starting state: a session listed (`wslc-cli-Zoltan`), `wslcsession.exe`
+Starting state: a session listed (`wslc-cli-user`), `wslcsession.exe`
 running, and one `vmmem`, the utility VM's. The session VM had stopped by
 itself earlier. Each command was run once, and the `vmmem` count checked
 after it:
@@ -97,8 +97,25 @@ holding the name.
   Hyper-V VM also has a `vmmem` (Windows Sandbox, a Hyper-V guest, another
   engine's VM). With one of those running and the wslc session idle, the
   heuristic says "up", and the first `wslc` call boots the session VM. That
-  breaks top's rule. Not yet tried: whether `session run` also boots a stopped
-  session VM (it probably does), and any other non-admin signal.
+  breaks top's rule.
+
+## Resolution
+
+#97 shipped as an opt-in `--wslc`, so booting the session VM only happens when
+someone asks for it. Observed while building it:
+
+- **`wslc system session run` boots a stopped session VM too.** `top --wslc`
+  run against a stopped VM went from one `vmmem` to two, and its only calls
+  were `wslc info` (which does not boot the VM) and `session run`.
+- **With no containers, the session VM stopped by itself after about 40
+  seconds.** Twice, both times after its containers were removed.
+- **Right after boot there is no `/docker` cgroup** until a container runs.
+  That is a session with no containers, not an error.
+- **Whether top started the VM is decided by comparing the matched `vmmem`'s
+  creation time with the sweep's start.** Both are on the Windows clock. The
+  guest's clock could not decide it: the VM came up within a second of the
+  sweep starting. Verified both ways: the note appears on a cold run and not
+  on a warm one.
 
 ## Left behind
 
