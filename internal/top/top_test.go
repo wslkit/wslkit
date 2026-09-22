@@ -164,14 +164,14 @@ func TestCollectMeasuresEveryRunningDistribution(t *testing.T) {
 		running: []string{"Ubuntu", "skrog"},
 		out:     map[string]string{"Ubuntu": cgroupOut, "skrog": processOut},
 	}
-	report, rates, err := Collect(context.Background(), r, Options{})
+	report, err := Collect(context.Background(), r, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(report.Samples) != 2 {
 		t.Fatalf("got %d samples", len(report.Samples))
 	}
-	if rates != nil {
+	if report.HasRates() {
 		t.Error("one sample cannot produce a rate")
 	}
 	if report.VM.TotalBytes == 0 {
@@ -187,7 +187,7 @@ func TestCollectReportsOneFailureWithoutLosingTheRest(t *testing.T) {
 		out:     map[string]string{"Ubuntu": cgroupOut},
 		err:     map[string]error{"broken": errors.New("the distribution is shutting down")},
 	}
-	report, _, err := Collect(context.Background(), r, Options{})
+	report, err := Collect(context.Background(), r, Options{})
 	if err != nil {
 		t.Fatalf("the sweep should not fail: %v", err)
 	}
@@ -209,14 +209,14 @@ func TestCollectComputesARateFromTwoSweeps(t *testing.T) {
 		second:  map[string]string{"Ubuntu": busier},
 	}
 	// A short interval keeps the test fast; the arithmetic is the point.
-	report, rates, err := Collect(context.Background(), r, Options{Interval: 10 * time.Millisecond})
+	report, err := Collect(context.Background(), r, Options{Interval: 10 * time.Millisecond})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if report.Interval != 10*time.Millisecond {
 		t.Errorf("interval %v", report.Interval)
 	}
-	p := rates["Ubuntu"]
+	p := report.Samples[0].Rates.CPU
 	if p == nil {
 		t.Fatal("no rate was computed")
 	}
@@ -232,7 +232,7 @@ func TestCollectOnlyLimitsWhatIsMeasured(t *testing.T) {
 		running: []string{"Ubuntu", "skrog"},
 		out:     map[string]string{"Ubuntu": cgroupOut, "skrog": processOut},
 	}
-	report, _, err := Collect(context.Background(), r, Options{Only: []string{"skrog"}})
+	report, err := Collect(context.Background(), r, Options{Only: []string{"skrog"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,19 +240,19 @@ func TestCollectOnlyLimitsWhatIsMeasured(t *testing.T) {
 		t.Fatalf("got %+v", report.Samples)
 	}
 	// And a name that is not running is simply not measured.
-	report2, _, _ := Collect(context.Background(), r, Options{Only: []string{"nope"}})
+	report2, _ := Collect(context.Background(), r, Options{Only: []string{"nope"}})
 	if len(report2.Samples) != 0 {
 		t.Errorf("got %+v", report2.Samples)
 	}
 }
 
 func TestCollectWithNothingRunning(t *testing.T) {
-	report, rates, err := Collect(context.Background(), &fakeRunner{}, Options{})
+	report, err := Collect(context.Background(), &fakeRunner{}, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Samples) != 0 || rates != nil {
-		t.Errorf("got %+v %v", report.Samples, rates)
+	if len(report.Samples) != 0 || report.HasRates() {
+		t.Errorf("got %+v", report.Samples)
 	}
 }
 
@@ -261,10 +261,10 @@ func TestCollectWithNothingRunning(t *testing.T) {
 func TestRenderSaysHowItMeasuredAndWhatIsMissing(t *testing.T) {
 	s, vm, _ := ParseSample("skrog", processOut)
 	var b bytes.Buffer
-	Render(&b, Report{VM: vm, Samples: []Sample{s}}, nil)
+	Render(&b, Report{VM: vm, Samples: []Sample{s}})
 	out := b.String()
 
-	if !strings.Contains(out, "utility VM:") {
+	if !strings.Contains(out, "── utility VM") {
 		t.Errorf("the VM total is the headline and is missing:\n%s", out)
 	}
 	// The distinction that explains why vmmem stays large.
@@ -272,7 +272,7 @@ func TestRenderSaysHowItMeasuredAndWhatIsMissing(t *testing.T) {
 		t.Errorf("the reclaimable split is missing:\n%s", out)
 	}
 	// The columns do not add up, and the report has to say why.
-	if !strings.Contains(out, processesNote) {
+	if !strings.Contains(out, upperFirst(processesNote)) {
 		t.Errorf("the method note is missing:\n%s", out)
 	}
 	if !strings.Contains(out, "attributed to distributions") {
@@ -283,8 +283,8 @@ func TestRenderSaysHowItMeasuredAndWhatIsMissing(t *testing.T) {
 func TestRenderUsesTheCgroupNoteWhenThatIsWhatHappened(t *testing.T) {
 	s, vm, _ := ParseSample("Ubuntu", cgroupOut)
 	var b bytes.Buffer
-	Render(&b, Report{VM: vm, Samples: []Sample{s}}, nil)
-	if !strings.Contains(b.String(), cgroupNote) {
+	Render(&b, Report{VM: vm, Samples: []Sample{s}})
+	if !strings.Contains(b.String(), upperFirst(cgroupNote)) {
 		t.Errorf("got:\n%s", b.String())
 	}
 }
@@ -294,14 +294,15 @@ func TestRenderUsesTheCgroupNoteWhenThatIsWhatHappened(t *testing.T) {
 func TestRenderOmitsTheCPUColumnWithoutRates(t *testing.T) {
 	s, vm, _ := ParseSample("Ubuntu", cgroupOut)
 	var without bytes.Buffer
-	Render(&without, Report{VM: vm, Samples: []Sample{s}}, nil)
-	if strings.Contains(without.String(), "CPU") {
+	Render(&without, Report{VM: vm, Samples: []Sample{s}})
+	if strings.Contains(header(without.String()), "CPU") {
 		t.Errorf("no rate was measured, so there should be no CPU column:\n%s", without.String())
 	}
 
 	pct := 42.0
+	s.Rates.CPU = &pct
 	var with bytes.Buffer
-	Render(&with, Report{VM: vm, Samples: []Sample{s}}, map[string]*float64{"Ubuntu": &pct})
+	Render(&with, Report{VM: vm, Samples: []Sample{s}, Interval: time.Second})
 	if !strings.Contains(with.String(), "42.0%") {
 		t.Errorf("the rate is missing:\n%s", with.String())
 	}
@@ -309,7 +310,7 @@ func TestRenderOmitsTheCPUColumnWithoutRates(t *testing.T) {
 
 func TestRenderWithNothingRunning(t *testing.T) {
 	var b bytes.Buffer
-	Render(&b, Report{}, nil)
+	Render(&b, Report{})
 	if !strings.Contains(b.String(), "no distributions are running") {
 		t.Errorf("got %q", b.String())
 	}
@@ -319,7 +320,7 @@ func TestRenderHasNoTrailingWhitespace(t *testing.T) {
 	a, vm, _ := ParseSample("Ubuntu", cgroupOut)
 	c, _, _ := ParseSample("skrog", processOut)
 	var b bytes.Buffer
-	Render(&b, Report{VM: vm, Samples: []Sample{a, c}}, nil)
+	Render(&b, Report{VM: vm, Samples: []Sample{a, c}})
 	for _, line := range strings.Split(b.String(), "\n") {
 		if strings.TrimRight(line, " ") != line {
 			t.Errorf("line has trailing whitespace: %q", line)
@@ -329,7 +330,7 @@ func TestRenderHasNoTrailingWhitespace(t *testing.T) {
 
 func TestJSONCarriesTheMethodAndItsCaveat(t *testing.T) {
 	s, vm, _ := ParseSample("skrog", processOut)
-	o := JSON(Report{VM: vm, Samples: []Sample{s}}, nil)
+	o := JSON(Report{VM: vm, Samples: []Sample{s}})
 	if o["method"] != string(MethodProcesses) {
 		t.Errorf("method %v", o["method"])
 	}
@@ -387,4 +388,14 @@ func TestSampleScriptHasUnixLineEndings(t *testing.T) {
 	if !strings.HasSuffix(SampleScript, "\n") {
 		t.Error("the script should end with a newline")
 	}
+}
+
+// header is the table's header row: the first line that starts with NAME.
+func header(out string) string {
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(line, "NAME") {
+			return line
+		}
+	}
+	return ""
 }
