@@ -179,7 +179,10 @@ this was written on. Dividing by the interval alone made a two-second CPU rate
 read about 9% high.
 
 `--watch` measures once per interval and compares each sample with the one
-before it. On a console it redraws in place. Piped or redirected, it writes one
+before it. On a console it draws on the alternate screen, as `top` and `htop`
+do: one frame in place, and the screen you had comes back when you press
+Ctrl+C. A frame taller than the window is cut to fit, with a line saying how
+much is hidden, so the header never scrolls away. Piped or redirected, it writes one
 report after another, or with `--json` one object per line.
 
 ## Flags

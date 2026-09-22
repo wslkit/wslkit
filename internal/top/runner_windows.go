@@ -8,8 +8,11 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 	"unicode/utf16"
+
+	"golang.org/x/sys/windows"
 )
 
 // WSLRunner is the production Runner.
@@ -54,6 +57,11 @@ func (r WSLRunner) run(ctx context.Context, timeout time.Duration, stdin []byte,
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(cctx, r.exe(), args...)
+	// A console of the child's own, never shown. Sharing top's console let
+	// wsl.exe switch it to Linux terminal semantics, where a line feed does
+	// not return to the first column, and top's own report then came out as
+	// a staircase. Its standard streams are pipes either way.
+	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: windows.CREATE_NO_WINDOW}
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}

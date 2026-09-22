@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/wslkit/wslkit/internal/top"
@@ -89,6 +90,13 @@ func (a *App) topWatch(o top.Options, jsonOut bool) int {
 	if f, ok := a.Stdout.(*os.File); ok && !jsonOut {
 		redraw = console.EnableVT(f)
 	}
+	if redraw {
+		// The alternate screen, as top and htop use: frames replace each
+		// other instead of piling up in the scrollback, and leaving it puts
+		// back whatever was on the screen before.
+		fmt.Fprint(a.Stdout, "\x1b[?1049h")
+		defer fmt.Fprint(a.Stdout, "\x1b[?1049l")
+	}
 
 	prev, err := top.Sweep(ctx, top.WSLRunner{}, o)
 	if err != nil {
@@ -127,16 +135,65 @@ func (a *App) topWatch(o top.Options, jsonOut bool) int {
 			b.WriteString("\n")
 		}
 		saved := a.Stdout
-		a.Stdout = &b
+		var frameBuf bytes.Buffer
+		a.Stdout = &frameBuf
 		a.topPrint(report, false)
 		a.Stdout = saved
 		if redraw {
-			fmt.Fprintf(&b, "\nevery %s, until Ctrl+C\n", o.Interval)
+			footer := fmt.Sprintf("every %s, until Ctrl+C", o.Interval)
+			cols, rows := 0, 0
+			if f, ok := a.Stdout.(*os.File); ok {
+				cols, rows = console.Size(f)
+			}
+			b.WriteString(fitFrame(frameBuf.String(), cols, rows, footer))
+		} else {
+			b.Write(frameBuf.Bytes())
 		}
 		if _, err := a.Stdout.Write(b.Bytes()); err != nil {
 			return ExitFindings
 		}
 	}
+}
+
+// fitFrame cuts a frame to the console's height, so a refreshing display
+// never scrolls its own header away, and ends it with the footer. The cut
+// is said, not silent. Zero rows means the height is unknown, and nothing is
+// cut.
+//
+// Rows are counted as the console lays them out: a line wider than the window
+// wraps, and takes as many rows as it wraps to. The long notes under a table
+// do, and counting them as one row each let a frame that looked short enough
+// scroll its header off a 30-row window.
+func fitFrame(frame string, cols, rows int, footer string) string {
+	lines := strings.Split(strings.TrimRight(frame, "\n"), "\n")
+	height := func(line string) int {
+		n := len([]rune(line))
+		if cols <= 0 || n <= cols {
+			return 1
+		}
+		return (n + cols - 1) / cols
+	}
+	// The footer and the blank line above it, and one row spare, because the
+	// last line's newline would otherwise scroll the window by one.
+	room := rows - 3
+	if rows <= 0 || room <= 1 {
+		return strings.Join(lines, "\n") + "\n\n" + footer + "\n"
+	}
+	used := 0
+	for i, line := range lines {
+		if used+height(line) > room {
+			// Keep a row for saying so; drop lines until it fits.
+			for i > 0 && used+1 > room {
+				i--
+				used -= height(lines[i])
+			}
+			hidden := len(lines) - i
+			lines = append(lines[:i:i], fmt.Sprintf("... %d more line(s); a larger window shows them", hidden))
+			break
+		}
+		used += height(line)
+	}
+	return strings.Join(lines, "\n") + "\n\n" + footer + "\n"
 }
 
 // writeJSON prints one object as a line of JSON.

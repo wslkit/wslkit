@@ -24,3 +24,13 @@ func EnableVT(f *os.File) bool {
 	}
 	return windows.SetConsoleMode(h, mode|windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING) == nil
 }
+
+// Size is how many columns and rows of f's console window are visible, or
+// zeros when f is not a console.
+func Size(f *os.File) (cols, rows int) {
+	var info windows.ConsoleScreenBufferInfo
+	if err := windows.GetConsoleScreenBufferInfo(windows.Handle(f.Fd()), &info); err != nil {
+		return 0, 0
+	}
+	return int(info.Window.Right-info.Window.Left) + 1, int(info.Window.Bottom-info.Window.Top) + 1
+}
