@@ -34,6 +34,12 @@ type Options struct {
 	Sections Sections
 }
 
+// DiskReader gives the size on Windows of each distribution's disk file, by
+// lower-cased name. A Runner that also implements it gets a DISK column.
+type DiskReader interface {
+	DiskSizes(ctx context.Context) (map[string]uint64, error)
+}
+
 // Collect measures every running distribution, twice when an interval is
 // asked for, and reports what changed in between.
 func Collect(ctx context.Context, r Runner, o Options) (Report, error) {
@@ -147,6 +153,16 @@ func Sweep(ctx context.Context, r Runner, o Options) (Report, error) {
 		}
 		if res.err != nil {
 			report.Notes = append(report.Notes, fmt.Sprintf("wslc sessions could not be listed: %v", res.err))
+		}
+	}
+	if dr, ok := r.(DiskReader); ok && len(report.Samples) > 0 {
+		if sizes, err := dr.DiskSizes(ctx); err == nil {
+			for i := range report.Samples {
+				if n, ok := sizes[strings.ToLower(report.Samples[i].Distro)]; ok {
+					n := n
+					report.Samples[i].HostDiskBytes = &n
+				}
+			}
 		}
 	}
 	readHost(ctx, r, &report)

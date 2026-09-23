@@ -27,6 +27,9 @@ type Session struct {
 	Containers []Sample
 	// Host is the session VM's vmmem, when exactly one matched it.
 	Host *HostVM
+	// DiskBytes is the size of the session's storage.vhdx on Windows, which
+	// every container in it shares; nil when it could not be read.
+	DiskBytes *uint64
 	// Started says the VM booted during this measurement: it was not running,
 	// and asking wslc started it.
 	Started bool
@@ -124,6 +127,12 @@ func (s Session) Boot(sampledAt time.Time) (time.Time, bool) {
 	return sampledAt.Add(-time.Duration(s.VM.AtCsec) * 10 * time.Millisecond), true
 }
 
+// SessionDiskReader gives the size of a session's storage.vhdx on Windows. A
+// SessionReader that also implements it gets a disk line per session.
+type SessionDiskReader interface {
+	SessionDisk(name string) (uint64, bool)
+}
+
 // sweepSessions measures every wslc session. Each is its own VM, so they are
 // measured at once, like distributions.
 //
@@ -151,6 +160,11 @@ func sweepSessions(ctx context.Context, sr SessionReader, timeout time.Duration,
 			list, _ := sr.ContainerNames(ctx, name)
 			s, err := ParseSession(name, out, list)
 			s.Err = err
+			if dr, ok := sr.(SessionDiskReader); ok {
+				if n, ok := dr.SessionDisk(name); ok {
+					s.DiskBytes = &n
+				}
+			}
 			s.sampledAt = at
 			// The guest's uptime can only put its boot at or after the
 			// moment the VM was created, so a boot after the sweep began is
@@ -203,6 +217,9 @@ func renderSessions(w io.Writer, r Report) {
 			host = &Host{Utility: s.Host}
 		}
 		renderVM(w, s.VM, host)
+		if s.DiskBytes != nil {
+			fmt.Fprintf(w, "disk: %s, shared by its containers (storage.vhdx)\n", FormatSize(*s.DiskBytes))
+		}
 		fmt.Fprintln(w)
 		if len(s.Containers) == 0 {
 			fmt.Fprintln(w, "no containers are running")
@@ -234,6 +251,9 @@ func sessionsJSON(sessions []Session) []map[string]any {
 		o["started_by_measurement"] = s.Started
 		if s.Host != nil {
 			o["host"] = hostVMJSON(*s.Host)
+		}
+		if s.DiskBytes != nil {
+			o["storage_vhdx_bytes"] = *s.DiskBytes
 		}
 		out = append(out, o)
 	}

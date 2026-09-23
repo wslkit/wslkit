@@ -50,6 +50,11 @@ The wslc section appears by default when a session VM is running, or when wslc i
 installed and none is, in which case it says so. On a machine without wslc there
 is none. `--wslc` always shows it, empty or not.
 
+The VM line also says how long the VM has been up, which shows at a glance that it
+was restarted, and the memory line how much of its swap is in use. A wslc
+session's section adds the size of its `storage.vhdx`, which all its containers
+share, so containers get no disk column of their own.
+
 ### What Windows charges
 
 ```
@@ -122,6 +127,9 @@ waiting.
 | `READ`, `WRITE` | disk bytes per second |
 | `PIDS` | processes and threads, as `docker stats` counts them |
 | `STALL MEM/IO` | pressure: the share of the last ten seconds in which something in the row was stalled waiting for memory or for disk |
+| `LIMIT` | the row's caps, from `wslkit limit` or `wslc run --memory/--cpus`: the memory limit that bites first, and the CPU quota. Shown only when some row has one |
+| `THROTTLED` | the share of the time the CPU quota held the row back. Shown only with a CPU limit and a rate; `-` for a row without one |
+| `DISK USED/FILE` | what the distribution's filesystem holds, and the size of its `.vhdx` file on Windows. The file grows and does not shrink by itself; see [disk](disk.md) |
 
 Usage says a resource is used. Pressure says it is short. A distribution at
 80% of the VM's memory with no memory stall is fine. One at 30% with a

@@ -275,8 +275,9 @@ func TestRenderSaysHowItMeasuredAndWhatIsMissing(t *testing.T) {
 	if strings.Contains(out, upperFirst(processesNote)) {
 		t.Errorf("the method note is in the report:\n%s", out)
 	}
-	if !strings.Contains(out, "attributed to distributions") {
-		t.Errorf("the attributed total is missing:\n%s", out)
+	// The rows added up said nothing the rows did not; it is only in the JSON.
+	if strings.Contains(out, "attributed to distributions") {
+		t.Errorf("the attributed total is back in the report:\n%s", out)
 	}
 }
 
