@@ -194,6 +194,26 @@ type Report struct {
 	Host *Host
 	// Sessions are the wslc sessions whose VM was running; nil when none was.
 	Sessions []Session
+	// WSLCPresent says wslc is installed, running or not.
+	WSLCPresent bool
+	// Sections is which parts of the report were asked for.
+	Sections Sections
+}
+
+// Sections says which parts of top's report are wanted: WSL, the utility VM
+// and its distributions, and WSLC, the wslc session VMs. The zero value is
+// both. A section that is not wanted is not measured either.
+type Sections struct {
+	WSL  bool
+	WSLC bool
+}
+
+// Wants is which sections to measure and show.
+func (s Sections) Wants() (wsl, wslc bool) {
+	if !s.WSL && !s.WSLC {
+		return true, true
+	}
+	return s.WSL, s.WSLC
 }
 
 // Attributed is the memory the distributions account for.
@@ -720,23 +740,50 @@ func MethodNote(m Method) string {
 // with two VMs on screen, explanations between them made one section run into
 // the next.
 func Render(w io.Writer, r Report) {
-	fmt.Fprintln(w, rule("utility VM"))
-	if len(r.Samples) == 0 {
-		fmt.Fprintln(w, "no distributions are running, so it is not up")
-		renderOthers(w, r.Host)
-	} else {
-		renderVM(w, r.VM, r.Host)
-		fmt.Fprintln(w)
-		rows := append(Sorted(r.Samples), Sorted(r.Groups)...)
-		fmt.Fprint(w, rowsTable(rows, r.Method() == MethodCgroup, r.HasRates()).String())
-		line := fmt.Sprintf("%s attributed to distributions", FormatSize(r.Attributed()))
-		if len(r.Groups) > 0 {
-			line += fmt.Sprintf(", %s to groups that belong to none", FormatSize(r.GroupBytes()))
+	wantWSL, _ := r.Sections.Wants()
+	if wantWSL {
+		fmt.Fprintln(w, rule("utility VM"))
+		if len(r.Samples) == 0 {
+			fmt.Fprintln(w, "no distributions are running, so it is not up")
+			renderOthers(w, r.Host)
+		} else {
+			renderVM(w, r.VM, r.Host)
+			fmt.Fprintln(w)
+			rows := append(Sorted(r.Samples), Sorted(r.Groups)...)
+			fmt.Fprint(w, rowsTable(rows, r.Method() == MethodCgroup, r.HasRates()).String())
+			line := fmt.Sprintf("%s attributed to distributions", FormatSize(r.Attributed()))
+			if len(r.Groups) > 0 {
+				line += fmt.Sprintf(", %s to groups that belong to none", FormatSize(r.GroupBytes()))
+			}
+			fmt.Fprintf(w, "\n%s.\n", line)
 		}
-		fmt.Fprintf(w, "\n%s.\n", line)
 	}
-	renderSessions(w, r)
+	if showWSLC(r) {
+		var b strings.Builder
+		renderSessions(&b, r)
+		if len(r.Sessions) == 0 {
+			fmt.Fprintf(&b, "\n%s\nno wslc session VM is running, and top does not start one\n", rule("wslc"))
+		}
+		out := b.String()
+		if !wantWSL {
+			// The first section on the page does not open with a blank line.
+			out = strings.TrimPrefix(out, "\n")
+		}
+		fmt.Fprint(w, out)
+	}
 	renderNotes(w, r)
+}
+
+// showWSLC says whether the wslc section is drawn. Asked for with --wslc it
+// always is, empty or not. By default it is drawn when there is a running
+// session, or when wslc is installed and none is running, so the empty
+// section says so; a machine without wslc gets none.
+func showWSLC(r Report) bool {
+	_, wantWSLC := r.Sections.Wants()
+	if !wantWSLC {
+		return false
+	}
+	return r.Sections.WSLC || len(r.Sessions) > 0 || r.WSLCPresent
 }
 
 // renderNotes writes what explains the numbers, and then everything that
@@ -1056,6 +1103,18 @@ func vmJSON(v VM) map[string]any {
 
 // JSON is the object printed for --json.
 func JSON(r Report) map[string]any {
+	if wantWSL, _ := r.Sections.Wants(); !wantWSL {
+		// Only the wslc section was asked for: nothing about the utility VM
+		// was measured, so none of it is written.
+		o := map[string]any{"wslc_sessions": sessionsJSON(r.Sessions)}
+		if h := HostJSON(r.Host); h != nil {
+			o["host"] = h
+		}
+		if len(r.Notes) > 0 {
+			o["notes"] = r.Notes
+		}
+		return o
+	}
 	if len(r.Samples) == 0 {
 		o := map[string]any{"distributions": []any{}, "note": "no distributions are running"}
 		// Another VM, a wslc session say, can be holding memory with no
@@ -1063,7 +1122,7 @@ func JSON(r Report) map[string]any {
 		if h := HostJSON(r.Host); h != nil {
 			o["host"] = h
 		}
-		if r.Sessions != nil {
+		if showWSLC(r) {
 			o["wslc_sessions"] = sessionsJSON(r.Sessions)
 		}
 		if len(r.Notes) > 0 {
@@ -1099,8 +1158,9 @@ func JSON(r Report) map[string]any {
 	if h := HostJSON(r.Host); h != nil {
 		o["host"] = h
 	}
-	// Present only when a wslc session VM was running.
-	if r.Sessions != nil {
+	// Present when the wslc section is: a running session, wslc installed,
+	// or --wslc. An empty list says no session VM was running.
+	if showWSLC(r) {
 		o["wslc_sessions"] = sessionsJSON(r.Sessions)
 	}
 	if len(r.Notes) > 0 {

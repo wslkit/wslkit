@@ -12,6 +12,8 @@ wslkit top             memory, CPU, disk and pressure, refreshed until Ctrl+C
 wslkit top --once      one report, then exit
 wslkit top --json      one report as JSON, integer bytes
 wslkit top --watch     keep refreshing even when piped
+wslkit top --wsl       only the WSL section: the utility VM and its distributions
+wslkit top --wslc      only the wslc section: running wslc session VMs
 wslkit top Ubuntu      only these distributions
 ```
 
@@ -35,6 +37,18 @@ The first line is what Task Manager shows against `vmmem`. The split underneath
 is the useful part: **page cache** is memory the VM is holding that Windows can
 take back under pressure, and **anonymous** memory is what it cannot. A VM that
 looks enormous but is mostly page cache is not a problem.
+
+### Choosing sections
+
+By default top shows both sections: the utility VM with its distributions, and
+the wslc session VMs. `--wsl` shows only the first and `--wslc` only the second;
+both flags together are the same as neither. A section that is not shown is not
+measured either: `--wslc` alone runs nothing in a distribution, and `--wsl` alone
+never calls wslc.
+
+The wslc section appears by default when a session VM is running, or when wslc is
+installed and none is, in which case it says so. On a machine without wslc there
+is none. `--wslc` always shows it, empty or not.
 
 ### What Windows charges
 
@@ -79,7 +93,7 @@ containers in a VM of its own. For each session whose VM is running, top adds
 a section: that VM's totals, what Windows charges for it, and one row per
 running container, with the same columns as everything else.
 
-A stopped session gets no section, and is not asked anything: **asking wslc
+A stopped session is not asked anything: **asking wslc
 about a session's containers starts that session's VM** if it was stopped. top
 tells the two apart without asking wslc. A running VM has its disk attached, and
 Windows' Restart Manager reports the session's `storage.vhdx` in use; a stopped
@@ -201,6 +215,8 @@ report after another, or with `--json` one object per line.
 | `--interval D` | gap between the samples a rate is measured over, default two seconds; `0` is one instant sample with no rates |
 | `--once` | print one report and exit, instead of refreshing on a console |
 | `--watch` | keep refreshing every interval even when piped or redirected; with `--json`, one object per line |
+| `--wsl` | show the WSL section: the utility VM and its distributions |
+| `--wslc` | show the wslc section: the wslc session VMs that are running. Never starts one; with none running, the section is shown empty and says so |
 | `--raw` | print what the measurement printed inside each distribution, unparsed, labelled with the WSL version |
 
 `--raw` is for when the numbers look wrong. Its output is exactly what top's

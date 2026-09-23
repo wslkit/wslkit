@@ -41,7 +41,7 @@ func (r WSLRunner) Sessions(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var names []string
+	names := []string{}
 	for _, s := range sessions {
 		if s.Running && s.Err == nil {
 			names = append(names, s.Name)

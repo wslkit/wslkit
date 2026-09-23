@@ -106,7 +106,8 @@ someone asks for it. The flag was removed before any release, from `top` and
 `doctor` alike, once a way to tell a running session VM from a stopped one
 without asking wslc was found (see "Telling a running session VM from a
 stopped one" below): both now read only sessions whose VM is already up.
-Observed while building it:
+`top` later gained `--wsl` and `--wslc` again, but only to choose which
+sections to show; neither starts anything. Observed while building it:
 
 - **`wslc system session run` boots a stopped session VM too.** `top --wslc`
   run against a stopped VM went from one `vmmem` to two, and its only calls

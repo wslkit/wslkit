@@ -40,7 +40,9 @@ type Session struct {
 // SessionReader reads wslc sessions. A Runner that also implements it can
 // measure them.
 type SessionReader interface {
-	// Sessions lists the sessions wslc knows. It does not start one.
+	// Sessions lists the sessions whose VM is running. It starts none. It
+	// returns nil when there is no wslc, and an empty list when there is but
+	// no session VM is running.
 	Sessions(ctx context.Context) ([]string, error)
 	// SampleSession runs SessionScript inside the session's VM.
 	SampleSession(ctx context.Context, name string, timeout time.Duration) (string, error)
@@ -124,11 +126,15 @@ func (s Session) Boot(sampledAt time.Time) (time.Time, bool) {
 
 // sweepSessions measures every wslc session. Each is its own VM, so they are
 // measured at once, like distributions.
-func sweepSessions(ctx context.Context, sr SessionReader, timeout time.Duration, started time.Time) ([]Session, error) {
+//
+// present is false when there is no wslc at all: the reader returns nil
+// names then, and an empty list when wslc is there with nothing running.
+func sweepSessions(ctx context.Context, sr SessionReader, timeout time.Duration, started time.Time) ([]Session, bool, error) {
 	names, err := sr.Sessions(ctx)
 	if err != nil {
-		return nil, err
+		return nil, true, err
 	}
+	present := names != nil
 	sessions := make([]Session, len(names))
 	done := make(chan struct{}, len(names))
 	for i, name := range names {
@@ -159,7 +165,7 @@ func sweepSessions(ctx context.Context, sr SessionReader, timeout time.Duration,
 	for range names {
 		<-done
 	}
-	return sessions, nil
+	return sessions, present, nil
 }
 
 // sessionRates fills in what changed in each session since before.

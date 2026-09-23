@@ -28,6 +28,8 @@ func (a *App) top(args []string) int {
 	watch := fs.Bool("watch", false, "keep refreshing every interval even when not on a console")
 	timeout := fs.Duration("timeout", top.DefaultTimeout, "bound on each measurement inside a distribution")
 	raw := fs.Bool("raw", false, "print what the measurement printed inside each distribution, unparsed, for a bug report")
+	wsl := fs.Bool("wsl", false, "show the WSL section: the utility VM and its distributions (default: both sections)")
+	wslc := fs.Bool("wslc", false, "show the wslc section: running wslc session VMs; never starts one (default: both sections)")
 	if err := fs.Parse(args); err != nil {
 		return ExitUsage
 	}
@@ -37,7 +39,7 @@ func (a *App) top(args []string) int {
 		fmt.Fprintln(a.Stderr, "--interval must not be negative")
 		return ExitUsage
 	}
-	o := top.Options{Interval: *interval, Timeout: *timeout, Only: only}
+	o := top.Options{Interval: *interval, Timeout: *timeout, Only: only, Sections: top.Sections{WSL: *wsl, WSLC: *wslc}}
 	if *raw {
 		return a.topRaw(o)
 	}
