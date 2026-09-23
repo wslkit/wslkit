@@ -30,9 +30,8 @@ type Options struct {
 	Timeout time.Duration
 	// Only limits the measurement to these distributions.
 	Only []string
-	// WSLC also measures wslc sessions. Asking wslc boots a stopped session
-	// VM, so this is only ever done on request.
-	WSLC bool
+	// Sections is which parts to measure; the zero value is both.
+	Sections Sections
 }
 
 // Collect measures every running distribution, twice when an interval is
@@ -71,26 +70,33 @@ func Sweep(ctx context.Context, r Runner, o Options) (Report, error) {
 	if timeout == 0 {
 		timeout = DefaultTimeout
 	}
-	names, err := r.Running(ctx)
-	if err != nil {
-		return Report{}, err
-	}
-	if len(o.Only) > 0 {
-		names = intersect(names, o.Only)
+	wantWSL, wantWSLC := o.Sections.Wants()
+	var names []string
+	if wantWSL {
+		var err error
+		names, err = r.Running(ctx)
+		if err != nil {
+			return Report{}, err
+		}
+		if len(o.Only) > 0 {
+			names = intersect(names, o.Only)
+		}
 	}
 
 	// Sessions are separate VMs, so they are read alongside the
 	// distributions rather than after them.
 	type sessionResult struct {
 		sessions []Session
+		present  bool
 		err      error
 	}
 	sessionsDone := make(chan sessionResult, 1)
 	sr, canSessions := r.(SessionReader)
-	if o.WSLC && canSessions {
+	canSessions = canSessions && wantWSLC
+	if canSessions {
 		go func() {
-			s, err := sweepSessions(ctx, sr, timeout, started)
-			sessionsDone <- sessionResult{s, err}
+			s, present, err := sweepSessions(ctx, sr, timeout, started)
+			sessionsDone <- sessionResult{s, present, err}
 		}()
 	}
 
@@ -121,7 +127,7 @@ func Sweep(ctx context.Context, r Runner, o Options) (Report, error) {
 	}
 	wg.Wait()
 
-	report := Report{SampledAt: time.Now(), StartedAt: started}
+	report := Report{SampledAt: time.Now(), StartedAt: started, Sections: o.Sections}
 	for _, res := range results {
 		report.Samples = append(report.Samples, res.sample)
 		// Every distribution reports the same VM and the same groups, since
@@ -131,15 +137,13 @@ func Sweep(ctx context.Context, r Runner, o Options) (Report, error) {
 			report.Groups = res.groups
 		}
 	}
-	switch {
-	case o.WSLC && !canSessions:
-		report.Sessions = []Session{}
-		report.Notes = append(report.Notes, "wslc sessions cannot be read here")
-	case o.WSLC:
+	if canSessions {
+		// Only sessions whose VM is already running come back, so a machine
+		// without wslc, or with every session stopped, gets no section at all.
 		res := <-sessionsDone
-		report.Sessions = res.sessions
-		if report.Sessions == nil {
-			report.Sessions = []Session{}
+		report.WSLCPresent = res.present
+		if len(res.sessions) > 0 {
+			report.Sessions = res.sessions
 		}
 		if res.err != nil {
 			report.Notes = append(report.Notes, fmt.Sprintf("wslc sessions could not be listed: %v", res.err))

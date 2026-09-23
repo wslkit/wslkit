@@ -39,7 +39,7 @@ func withDiskFlags(extra ...string) []string {
 // runFlagNames are the flags the doctor's read-only commands take.
 var runFlagNames = []string{
 	"--json", "--report", "--verbose", "--only", "--from-snapshot",
-	"--elevated", "--allow-vm-wake", "--timeout", "--no-redact",
+	"--elevated", "--allow-vm-wake", "--timeout", "--no-redact", "--online",
 }
 
 // Shells lists what completion can be generated for.
@@ -105,7 +105,7 @@ func CommandTree() []cmdNode {
 				}},
 			},
 		},
-		{Name: "top", Desc: "What the utility VM is using, and which distribution is responsible", Flags: []string{"--json", "--interval", "--once", "--watch", "--wslc", "--raw", "--timeout"}, Positional: []argKind{argDistro}},
+		{Name: "top", Desc: "What the utility VM is using, and which distribution is responsible", Flags: []string{"--json", "--interval", "--once", "--watch", "--wsl", "--wslc", "--raw", "--timeout"}, Positional: []argKind{argDistro}},
 		{
 			Name: "limit",
 			Desc: "Cap what one distribution may use",

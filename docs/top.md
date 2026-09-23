@@ -5,15 +5,15 @@ responsible. It is the answer to "why is vmmem so large", and the `docker stats`
 WSL does not have: one row for everything using the VM, with the same columns
 for each.
 
-It reads only, and without `--wslc` it measures nothing that is not already
-running.
+It reads only, and it measures nothing that is not already running.
 
 ```
-wslkit top             memory, CPU, disk and pressure per distribution
-wslkit top --watch     the same, redrawn every interval until Ctrl+C
-wslkit top --once      one sample, and no rates
-wslkit top --json      integer bytes
-wslkit top --wslc      and wslc sessions' containers
+wslkit top             memory, CPU, disk and pressure, refreshed until Ctrl+C
+wslkit top --once      one report, then exit
+wslkit top --json      one report as JSON, integer bytes
+wslkit top --watch     keep refreshing even when piped
+wslkit top --wsl       only the WSL section: the utility VM and its distributions
+wslkit top --wslc      only the wslc section: running wslc session VMs
 wslkit top Ubuntu      only these distributions
 ```
 
@@ -22,7 +22,7 @@ wslkit top Ubuntu      only these distributions
 ```
 ── utility VM ────────────────────────────────────────────────────────────────
 1.2 GiB of 7.6 GiB in use, 6.3 GiB free, 4 CPUs, CPU 22.0%
-616.5 MiB page cache, which Windows can reclaim; 179.3 MiB anonymous, which it cannot
+616.5 MiB page cache (reclaimable), 179.3 MiB anonymous (unreclaimable)
 stalled over the last 10 s: memory 0.0%, I/O 15.2%, CPU 3.4%
 network: 691 B/s in, 696 B/s out
 
@@ -30,13 +30,25 @@ NAME          KIND    MEMORY     ANON       CPU    READ       WRITE      PIDS  S
 Ubuntu        distro  469.6 MiB  105.4 MiB  15.3%  1.6 KiB/s  1.6 KiB/s  88    0.0% / 6.8%   systemd
 skrog-engine  distro  199.2 MiB  66.6 MiB   6.2%   0 B/s      0 B/s      90    0.0% / 4.5%   init(skrog-engi
 docker        cgroup  16.7 MiB   4.9 MiB    0.0%   0 B/s      0 B/s      6     0.0% / 0.0%
-wsl           wsl     696.0 KiB  116.0 KiB  0.6%   0 B/s      0 B/s      1     0.0% / 0.0%
+WSL itself    wsl     696.0 KiB  116.0 KiB  0.6%   0 B/s      0 B/s      1     0.0% / 0.0%
 ```
 
 The first line is what Task Manager shows against `vmmem`. The split underneath
 is the useful part: **page cache** is memory the VM is holding that Windows can
 take back under pressure, and **anonymous** memory is what it cannot. A VM that
 looks enormous but is mostly page cache is not a problem.
+
+### Choosing sections
+
+By default top shows both sections: the utility VM with its distributions, and
+the wslc session VMs. `--wsl` shows only the first and `--wslc` only the second;
+both flags together are the same as neither. A section that is not shown is not
+measured either: `--wslc` alone runs nothing in a distribution, and `--wsl` alone
+never calls wslc.
+
+The wslc section appears by default when a session VM is running, or when wslc is
+installed and none is, in which case it says so. On a machine without wslc there
+is none. `--wslc` always shows it, empty or not.
 
 ### What Windows charges
 
@@ -61,12 +73,12 @@ runs its containers in a VM of its own, and that is usually what it is, but
 Windows Sandbox or any Hyper-V guest looks the same. Those VMs are reported
 even when no distribution is running.
 
-### wslc containers, with `--wslc`
+### wslc containers
 
 ```
 ── wslc session wslc-cli-user (preview) ──────────────────────────────────────
 548.4 MiB of 7.6 GiB in use, 7.0 GiB free, 4 CPUs, CPU 103.2%
-238.3 MiB page cache, which Windows can reclaim; 55.4 MiB anonymous, which it cannot
+238.3 MiB page cache (reclaimable), 55.4 MiB anonymous (unreclaimable)
 stalled over the last 10 s: memory 0.0%, I/O 2.5%, CPU 0.6%
 network: 24 B/s in, 24 B/s out
 Windows charges it 786.0 MiB (vmmem pid 39264)
@@ -77,16 +89,16 @@ wk-spike-idle  wslc  724.0 KiB  132.0 KiB  0.0%   0 B/s  0 B/s  1     0.0% / 0.0
 ```
 
 wslc, the container CLI in the WSL 2.9 pre-releases, runs each session's
-containers in a VM of its own. `--wslc` adds a section per session: that VM's
-totals, what Windows charges for it, and one row per running container, with
-the same columns as everything else.
+containers in a VM of its own. For each session whose VM is running, top adds
+a section: that VM's totals, what Windows charges for it, and one row per
+running container, with the same columns as everything else.
 
-It is off by default because **asking wslc anything about a session's
-containers starts that session's VM** if it was stopped, and nothing a normal
-user can read says whether it is running without asking. top otherwise never
-starts anything. If the VM booted during the measurement, the report says so.
-It stops again once idle. Without `--wslc`, a running session VM still shows up
-as one of the other VMs above, unnamed.
+A stopped session is not asked anything: **asking wslc
+about a session's containers starts that session's VM** if it was stopped. top
+tells the two apart without asking wslc. A running VM has its disk attached, and
+Windows' Restart Manager reports the session's `storage.vhdx` in use; a stopped
+one's disk is held by nobody. That query holds no handle on the file, so it cannot
+get in the way of a VM that is starting.
 
 The numbers come from the containers' own cgroups inside the session VM, read
 through `wslc system session run`, not from `wslc stats`. Those print display
@@ -121,7 +133,7 @@ explanation and note comes once, in a notes section after the last one.
 
 ### The rows that are not distributions
 
-- **`wsl`** is WSL's own processes inside the VM (`wsl-user/non-distro`).
+- **`WSL itself`** is WSL's own processes inside the VM (`wsl-user/non-distro`), which belong to no distribution. Its KIND is `wsl`, and in `--json` it is the group named `wsl`.
 - **A `cgroup` row** is a cgroup at the VM's root that belongs to no
   distribution. `/docker` is where Docker Engine without systemd puts its
   containers, and those containers are **not** inside the distribution that
@@ -172,16 +184,23 @@ counter by the same five seconds. The measurements are in
 
 ## Rates
 
-A rate needs two samples separated by time. Asked for one with `--once`, the
-report omits the rate columns rather than printing a number that means
-something else.
+A rate needs two samples separated by time. Asked for a single instant sample,
+with `--interval 0`, the report omits the rate columns rather than printing a
+number that means something else.
 
 Rates divide by the VM's own clock between the two samples, not by `--interval`.
 Measuring every distribution takes time too, about 190 ms a sweep on the machine
 this was written on. Dividing by the interval alone made a two-second CPU rate
 read about 9% high.
 
-`--watch` measures once per interval and compares each sample with the one
+## Refreshing, or one report
+
+On a console top refreshes, as `top`, `htop` and `docker stats` do. Anywhere
+else, a pipe, a file, or `--json`, it prints one report and exits, so a script
+never waits on a command that does not end. `--once` prints one report on a
+console too, and `--watch` keeps refreshing when piped.
+
+Refreshing measures once per interval and compares each sample with the one
 before it. On a console it draws on the alternate screen, as `top` and `htop`
 do: one frame in place, and the screen you had comes back when you press
 Ctrl+C. A frame taller than the window is cut to fit, with a line saying how
@@ -193,10 +212,11 @@ report after another, or with `--json` one object per line.
 | Flag | What it does |
 |---|---|
 | `--json` | machine-readable output, sizes in bytes |
-| `--interval D` | gap between the samples a rate is measured over, default two seconds |
-| `--once` | take one sample and report no rates, rather than waiting |
-| `--watch` | keep measuring and redraw every interval, until Ctrl+C |
-| `--wslc` | also measure wslc sessions and their containers; starts a stopped session VM |
+| `--interval D` | gap between the samples a rate is measured over, default two seconds; `0` is one instant sample with no rates |
+| `--once` | print one report and exit, instead of refreshing on a console |
+| `--watch` | keep refreshing every interval even when piped or redirected; with `--json`, one object per line |
+| `--wsl` | show the WSL section: the utility VM and its distributions |
+| `--wslc` | show the wslc section: the wslc session VMs that are running. Never starts one; with none running, the section is shown empty and says so |
 | `--raw` | print what the measurement printed inside each distribution, unparsed, labelled with the WSL version |
 
 `--raw` is for when the numbers look wrong. Its output is exactly what top's

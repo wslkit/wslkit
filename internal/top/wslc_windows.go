@@ -4,13 +4,14 @@ package top
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/wslkit/wslkit/internal/winapi/wslcsess"
 )
 
 // wslcTimeout bounds the wslc calls that are not a measurement.
@@ -28,31 +29,21 @@ func wslc() (string, error) {
 	return "", errors.New("wslc is not installed; it ships with the WSL 2.9 pre-releases")
 }
 
-// Sessions lists the sessions wslc knows about. `wslc info` does not start a
-// session VM (docs/research/2026-09-wslc-session.md), so this is safe to ask
-// even though what follows is not.
+// Sessions lists the wslc sessions whose VM is already running. It never asks
+// wslc, which would boot a stopped one: wslcsess tells from whether the VM's
+// disk is attached. A session whose state cannot be told is left out, since
+// guessing "running" would start it. Without wslc there are none.
 func (r WSLRunner) Sessions(ctx context.Context) ([]string, error) {
-	exe, err := wslc()
+	if _, err := wslc(); err != nil {
+		return nil, nil
+	}
+	sessions, err := wslcsess.List()
 	if err != nil {
 		return nil, err
 	}
-	out, stderr, err := WSLRunner{Exe: exe}.run(ctx, wslcTimeout, nil, "info", "--format", "json")
-	if err != nil {
-		return nil, fmt.Errorf("top: wslc info: %w: %s", err, oneLine(stderr))
-	}
-	var info struct {
-		Server struct {
-			Sessions []struct {
-				Name string `json:"Name"`
-			} `json:"Sessions"`
-		} `json:"Server"`
-	}
-	if err := json.Unmarshal([]byte(out), &info); err != nil {
-		return nil, fmt.Errorf("top: wslc info printed something unexpected: %w", err)
-	}
-	var names []string
-	for _, s := range info.Server.Sessions {
-		if s.Name != "" {
+	names := []string{}
+	for _, s := range sessions {
+		if s.Running && s.Err == nil {
 			names = append(names, s.Name)
 		}
 	}

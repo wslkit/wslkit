@@ -28,7 +28,7 @@ fine and hidden unless you ask for it.
 ```
 wslkit doctor --verbose          show the checks that passed too
 wslkit doctor --only M1          only checks in one milestone
-wslkit doctor --elevated         re-read the facts that need an administrator
+wslkit doctor --elevated         fail unless the terminal is elevated (for scripts)
 wslkit doctor --json             machine-readable, schema wslkit/result/v1
 ```
 
@@ -37,6 +37,19 @@ One broken fact should not produce a page of misleading findings.
 
 [Every check](probes.md) is listed in the reference, generated from the same
 registry the binary runs.
+
+### wslc containers
+
+wslc, the container CLI in the WSL 2.9 pre-releases, runs its containers in a
+VM of its own, whose DNS can fail when everything else on the machine works.
+`WSC001` asks each DNS server a container would be given, from inside that VM,
+and compares the answer with a public resolver's.
+
+It does that only for a session whose VM is already running, because asking a
+stopped one anything would start it. It tells the two apart without asking wslc:
+a running VM has its disk attached, and Windows' Restart Manager reports
+`storage.vhdx` in use. A stopped session is reported as skipped. To check one,
+run `wslkit doctor` while a wslc container is up.
 
 ### Working on someone else's machine
 
@@ -177,7 +190,7 @@ would actually undo.
 | `--verbose` | show OK and skipped findings too |
 | `--only M1[,M2]` | run only checks tagged with these milestones |
 | `--from-snapshot FILE` | run against a saved machine instead of this one |
-| `--elevated` | require an elevated console and re-read admin-only facts |
+| `--elevated` | fail unless the console is elevated. Elevation is detected either way, and the facts that need an administrator are read whenever the console has one; the flag only makes a script stop instead of reporting them UNKNOWN |
 | `--allow-vm-wake` | permit checks that would start the WSL VM |
 | `--timeout DURATION` | per-collector deadline, default five seconds |
 | `--online` | check the published WSL releases instead of the built-in list |

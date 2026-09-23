@@ -171,7 +171,7 @@ func TestRenderShowsGroupsAndCgroupColumns(t *testing.T) {
 	var b bytes.Buffer
 	Render(&b, Report{VM: vm, Samples: []Sample{s}, Groups: ParseGroups(out)})
 	got := b.String()
-	for _, want := range []string{"docker", "cgroup", "wsl", "PIDS", "STALL", groupsNote, "stalled over the last 10 s"} {
+	for _, want := range []string{"docker", "cgroup", "WSL itself", "PIDS", "STALL", groupsNote, "stalled over the last 10 s", "(reclaimable)", "(unreclaimable)"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q:\n%s", want, got)
 		}
@@ -239,5 +239,23 @@ func TestJSONKeepsDistributionsAndAddsGroups(t *testing.T) {
 	}
 	if o["attributed_bytes"] != uint64(208789504) {
 		t.Errorf("attributed %v: groups must not be counted as distributions", o["attributed_bytes"])
+	}
+}
+
+// On screen WSL's own cgroup is "WSL itself"; in the JSON it keeps the name
+// `wsl`, so nothing that reads it has to change.
+func TestTheWSLRowKeepsItsNameInJSON(t *testing.T) {
+	out := realOutput(t)
+	s, vm, _ := ParseSample("skrog-engine", out)
+	o := JSON(Report{VM: vm, Samples: []Sample{s}, Groups: ParseGroups(out)})
+	var names []string
+	for _, g := range o["groups"].([]map[string]any) {
+		names = append(names, g["name"].(string))
+	}
+	if !strings.Contains(strings.Join(names, ","), "wsl") {
+		t.Errorf("groups %v", names)
+	}
+	if displayName(Sample{Distro: "wsl", Kind: KindWSL}) != "WSL itself" || displayName(Sample{Distro: "Ubuntu", Kind: KindDistro}) != "Ubuntu" {
+		t.Error("display names")
 	}
 }

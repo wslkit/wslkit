@@ -10,6 +10,7 @@ import (
 	"github.com/wslkit/wslkit/internal/probe/net"
 	"github.com/wslkit/wslkit/internal/probe/perf"
 	"github.com/wslkit/wslkit/internal/probe/wsl"
+	"github.com/wslkit/wslkit/internal/probe/wslc"
 )
 
 func Probes() []probe.Probe {
@@ -21,6 +22,7 @@ func Probes() []probe.Probe {
 	out = append(out, net.All()...)  // NET004, NET002
 	out = append(out, perf.All()...) // MEM001
 	out = append(out, evt.All()...)  // EVT001
+	out = append(out, wslc.All()...) // WSC001, running wslc sessions only
 	return out
 }
 

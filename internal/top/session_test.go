@@ -111,11 +111,12 @@ func (s *sessionRunner) ContainerNames(ctx context.Context, name string) (string
 
 func (s *sessionRunner) HostVMs(ctx context.Context) ([]HostVM, error) { return s.vms, nil }
 
-// The whole point of the flag: without it, wslc is never asked anything,
-// because asking boots a stopped session VM.
-func TestSessionsAreReadOnlyWhenAskedFor(t *testing.T) {
+// top asks wslc about exactly the sessions the reader reports running, and
+// nothing else. The production reader returns only sessions whose VM is up
+// (wslcsess); with none, wslc is not asked anything and there is no section.
+func TestSessionsAreSampledOnlyWhenRunning(t *testing.T) {
 	out, list := sessionFixture(t)
-	r := &sessionRunner{sessions: []string{"s"}, out: out, list: list}
+	r := &sessionRunner{out: out, list: list}
 	r.running = []string{"skrog-engine"}
 	r.fakeRunner.out = map[string]string{"skrog-engine": realOutput(t)}
 
@@ -124,13 +125,19 @@ func TestSessionsAreReadOnlyWhenAskedFor(t *testing.T) {
 		t.Fatal(err)
 	}
 	if r.sampled != 0 || report.Sessions != nil {
-		t.Fatalf("wslc was asked without --wslc: %d calls, %+v", r.sampled, report.Sessions)
+		t.Fatalf("wslc was asked with no session running: %d calls, %+v", r.sampled, report.Sessions)
 	}
 	if _, ok := JSON(report)["wslc_sessions"]; ok {
-		t.Error("JSON says wslc was asked when it was not")
+		t.Error("JSON has a wslc section with no session running")
+	}
+	var b bytes.Buffer
+	Render(&b, report)
+	if strings.Contains(b.String(), "wslc session") {
+		t.Errorf("a wslc section with no session running:\n%s", b.String())
 	}
 
-	report, err = Collect(context.Background(), r, Options{WSLC: true})
+	r.sessions = []string{"s"}
+	report, err = Collect(context.Background(), r, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,12 +146,12 @@ func TestSessionsAreReadOnlyWhenAskedFor(t *testing.T) {
 	}
 }
 
-// A session VM holds memory with no distribution running, and --wslc must
-// still show it.
+// A session VM holds memory with no distribution running, and top must still
+// show it.
 func TestSessionsWithNoDistributionRunning(t *testing.T) {
 	out, list := sessionFixture(t)
 	r := &sessionRunner{sessions: []string{"s"}, out: out, list: list}
-	report, err := Collect(context.Background(), r, Options{WSLC: true})
+	report, err := Collect(context.Background(), r, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,20 +191,120 @@ func TestEachVMIsASectionAndTheNotesComeLast(t *testing.T) {
 	}
 }
 
+// The reader errs only when wslc is there and its sessions could not be
+// listed. The distributions are still reported, the wslc section is empty,
+// and a note says why.
 func TestSessionListFailureIsANoteNotAnError(t *testing.T) {
-	r := &sessionRunner{sessionErr: errors.New("wslc is not installed")}
+	r := &sessionRunner{sessionErr: errors.New("access is denied")}
 	r.running = []string{"skrog-engine"}
 	r.fakeRunner.out = map[string]string{"skrog-engine": realOutput(t)}
-	report, err := Collect(context.Background(), r, Options{WSLC: true})
+	report, err := Collect(context.Background(), r, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Samples) != 1 || !strings.Contains(strings.Join(report.Notes, " "), "wslc is not installed") {
+	if len(report.Samples) != 1 || !strings.Contains(strings.Join(report.Notes, " "), "access is denied") {
 		t.Errorf("samples %d notes %v", len(report.Samples), report.Notes)
 	}
-	// Asked, and there are none: an empty list, not an absent one.
 	if s, ok := JSON(report)["wslc_sessions"].([]map[string]any); !ok || len(s) != 0 {
 		t.Errorf("wslc_sessions %v", JSON(report)["wslc_sessions"])
+	}
+}
+
+// --wsl: the wslc section is not shown, and wslc is not asked anything.
+func TestOnlyTheWSLSection(t *testing.T) {
+	out, list := sessionFixture(t)
+	r := &sessionRunner{sessions: []string{"s"}, out: out, list: list}
+	r.running = []string{"skrog-engine"}
+	r.fakeRunner.out = map[string]string{"skrog-engine": realOutput(t)}
+	report, err := Collect(context.Background(), r, Options{Sections: Sections{WSL: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.sampled != 0 || report.Sessions != nil {
+		t.Errorf("wslc was asked with only --wsl: %d calls", r.sampled)
+	}
+	var b bytes.Buffer
+	Render(&b, report)
+	if !strings.Contains(b.String(), rule("utility VM")) || strings.Contains(b.String(), "wslc session") {
+		t.Errorf("got:\n%s", b.String())
+	}
+	if _, ok := JSON(report)["wslc_sessions"]; ok {
+		t.Error("JSON has a wslc section with only --wsl")
+	}
+}
+
+// --wslc: the WSL section is not shown, and no distribution is measured.
+func TestOnlyTheWSLCSection(t *testing.T) {
+	out, list := sessionFixture(t)
+	r := &sessionRunner{sessions: []string{"s"}, out: out, list: list}
+	r.running = []string{"skrog-engine"}
+	r.fakeRunner.out = map[string]string{"skrog-engine": realOutput(t)}
+	report, err := Collect(context.Background(), r, Options{Sections: Sections{WSLC: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.calls != 0 || len(report.Samples) != 0 {
+		t.Errorf("a distribution was measured with only --wslc: %d calls", r.calls)
+	}
+	var b bytes.Buffer
+	Render(&b, report)
+	got := b.String()
+	if !strings.HasPrefix(got, rule("wslc session s (preview)")) || strings.Contains(got, "utility VM") {
+		t.Errorf("got:\n%s", got)
+	}
+	o := JSON(report)
+	if _, ok := o["vm"]; ok {
+		t.Error("JSON has the utility VM with only --wslc")
+	}
+	if _, ok := o["distributions"]; ok {
+		t.Error("JSON has distributions with only --wslc")
+	}
+	if s, ok := o["wslc_sessions"].([]map[string]any); !ok || len(s) != 1 {
+		t.Errorf("wslc_sessions %v", o["wslc_sessions"])
+	}
+}
+
+// --wslc with no session VM running: the section is shown, empty, and says
+// why; nothing is started to fill it.
+func TestTheWSLCSectionStaysEmpty(t *testing.T) {
+	r := &sessionRunner{sessions: []string{}}
+	report, err := Collect(context.Background(), r, Options{Sections: Sections{WSLC: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b bytes.Buffer
+	Render(&b, report)
+	if !strings.HasPrefix(b.String(), rule("wslc")) || !strings.Contains(b.String(), "no wslc session VM is running") {
+		t.Errorf("got:\n%s", b.String())
+	}
+	if s, ok := JSON(report)["wslc_sessions"].([]map[string]any); !ok || len(s) != 0 {
+		t.Errorf("wslc_sessions %v", JSON(report)["wslc_sessions"])
+	}
+}
+
+// By default: with wslc installed and no session running, the empty section
+// says so; without wslc there is no section at all.
+func TestTheDefaultShowsAnEmptyWSLCSectionOnlyWhereWSLCIs(t *testing.T) {
+	for _, c := range []struct {
+		name     string
+		sessions []string
+		want     bool
+	}{
+		{"wslc installed, nothing running", []string{}, true},
+		{"no wslc", nil, false},
+	} {
+		r := &sessionRunner{sessions: c.sessions}
+		r.running = []string{"skrog-engine"}
+		r.fakeRunner.out = map[string]string{"skrog-engine": realOutput(t)}
+		report, err := Collect(context.Background(), r, Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var b bytes.Buffer
+		Render(&b, report)
+		if got := strings.Contains(b.String(), "no wslc session VM is running"); got != c.want {
+			t.Errorf("%s: empty wslc section shown %v, want %v:\n%s", c.name, got, c.want, b.String())
+		}
 	}
 }
 
@@ -229,12 +336,12 @@ func TestSweepSaysWhenItStartedTheSessionVM(t *testing.T) {
 	// The fixture's VM booted vm_at_csec ago. A sweep that began a minute
 	// after that found it already running.
 	up := time.Duration(s.VM.AtCsec) * 10 * time.Millisecond
-	got, _ := sweepSessions(context.Background(), r, time.Second, time.Now().Add(-up+time.Minute))
+	got, _, _ := sweepSessions(context.Background(), r, time.Second, time.Now().Add(-up+time.Minute))
 	if got[0].Started {
 		t.Error("a VM up since before the sweep was claimed as started by it")
 	}
 	// One that began ten seconds before the boot is what caused it.
-	got, _ = sweepSessions(context.Background(), r, time.Second, time.Now().Add(-up-10*time.Second))
+	got, _, _ = sweepSessions(context.Background(), r, time.Second, time.Now().Add(-up-10*time.Second))
 	if !got[0].Started {
 		t.Error("a VM that booted after the sweep began was not claimed as started by it")
 	}

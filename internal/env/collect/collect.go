@@ -63,6 +63,12 @@ type collector struct {
 	run  func(ctx context.Context, e *env.Env, o Options) error
 }
 
+// collectorTimeouts replace Options.Timeout for the collectors that need longer:
+// the wslc one gives each DNS server three seconds to answer, inside a VM.
+var collectorTimeouts = map[string]time.Duration{
+	"wslc": 15 * time.Second,
+}
+
 // runAll executes collectors concurrently. Each writes only its own fields of
 // Env; nothing reads Env until all have returned. A collector that exceeds its
 // deadline is abandoned (its goroutine may finish later and write into fields
@@ -75,7 +81,11 @@ func runAll(ctx context.Context, e *env.Env, o Options, cs []collector) {
 		wg.Add(1)
 		go func(c collector) {
 			defer wg.Done()
-			cctx, cancel := context.WithTimeout(ctx, o.Timeout)
+			limit := o.Timeout
+			if t, ok := collectorTimeouts[c.name]; ok {
+				limit = t
+			}
+			cctx, cancel := context.WithTimeout(ctx, limit)
 			defer cancel()
 			start := time.Now()
 			done := make(chan error, 1)
@@ -95,7 +105,7 @@ func runAll(ctx context.Context, e *env.Env, o Options, cs []collector) {
 				}
 			case <-cctx.Done():
 				stat.TimedOut = true
-				stat.Err = "timed out after " + o.Timeout.String()
+				stat.Err = "timed out after " + limit.String()
 			}
 			stat.DurationMS = time.Since(start).Milliseconds()
 			mu.Lock()

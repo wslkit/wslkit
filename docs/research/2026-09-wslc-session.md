@@ -102,7 +102,12 @@ holding the name.
 ## Resolution
 
 #97 shipped as an opt-in `--wslc`, so booting the session VM only happens when
-someone asks for it. Observed while building it:
+someone asks for it. The flag was removed before any release, from `top` and
+`doctor` alike, once a way to tell a running session VM from a stopped one
+without asking wslc was found (see "Telling a running session VM from a
+stopped one" below): both now read only sessions whose VM is already up.
+`top` later gained `--wsl` and `--wslc` again, but only to choose which
+sections to show; neither starts anything. Observed while building it:
 
 - **`wslc system session run` boots a stopped session VM too.** `top --wslc`
   run against a stopped VM went from one `vmmem` to two, and its only calls
@@ -123,3 +128,51 @@ Nothing. The two test containers (`wk-spike-idle`, `wk-spike-busy`) were
 removed. The pre-existing `skrog-share-c` container and the session were not
 touched. The session VM was started by the `wslc list` test and left to stop
 on its own idle timeout, as it had before.
+
+## Containers cannot resolve names (2026-09-23)
+
+On this machine (Windows 10 19045, WSL 2.9.12), `apt update` failed in every
+wslc container, while the distributions, and Docker inside skrog-engine, were
+fine.
+
+- **The session VM's network is WSL's user-mode device host, not NAT and not
+  mirrored.** `.wslconfig` sets no `networkingMode`. The VM has the host's own
+  address, and a container's connection to `1.1.1.1:80` appeared on Windows as
+  a socket owned by `dllhost.exe` with `wsldevicehost.dll` loaded, registered
+  as the `WslDeviceHost` COM class. The host re-creates the VM's connections
+  as its own sockets.
+- **A container is given only the host's IPv4 resolver.** The session VM's
+  resolv.conf had the host's IPv4 resolver and its IPv6 ones. Containers
+  without IPv6, the default, get only the IPv4 one.
+- **Queries to that resolver fail inside the PC.** From the session VM, the
+  host's resolver answered SERVFAIL, over UDP and TCP, in 0 ms. A packet
+  capture on every Windows network component showed the Windows host's own
+  query reaching the resolver and being answered, and the container's and the
+  session VM's queries appearing nowhere. Nothing in the session VM redirects
+  port 53 or listens on it.
+- **Queries to any other resolver work.** `--dns 1.1.1.1` fixed `apt update`.
+- **Ruled out:** the router (it answers the same address from Windows), and
+  `dnsTunneling=true` in `.wslconfig` (the failure was the same with it
+  commented out and the session VM freshly booted).
+
+Not established: whether wslc DNS worked on this machine before the 2.7 round
+trip, and which part of the device host produces the SERVFAIL.
+
+`wslkit doctor` checks for this (`WSC001`), for sessions whose VM is running.
+
+## Telling a running session VM from a stopped one (2026-09-23)
+
+Asking wslc anything boots a stopped session VM, so a check has to know first.
+Measured on WSL 2.9.12, across several boots and idle stops, without elevation:
+
+| signal | running | stopped | usable |
+|---|---|---|---|
+| Restart Manager: who holds `sessions\<name>\storage.vhdx` | `System` | nobody | **yes**, per session, and it holds no handle |
+| `sessions\<name>\swap.vhdx` exists | yes | no | as corroboration; a crash could leave it behind |
+| exclusive open of `storage.vhdx` | sharing violation | opens | no: the handle could stop a VM booting at that instant |
+| `swap.vhdx` creation time against the VM's `vmmem` | | | no: NTFS tunneling hands a re-created `swap.vhdx` its predecessor's creation time |
+| the `WslDeviceHost` `dllhost.exe` | present | **present** | no: it outlives the VM |
+| an extra `vmmem` | present | absent | no: any Hyper-V VM has one |
+
+Restart Manager answers the same way for a distribution's disk: a running
+skrog-engine's `ext4.vhdx` was held by `System` and `WSL Service`.

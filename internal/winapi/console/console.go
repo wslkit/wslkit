@@ -34,6 +34,12 @@ func OwnConsole(cmd *exec.Cmd) {
 	cmd.SysProcAttr.CreationFlags |= windows.CREATE_NO_WINDOW
 }
 
+// IsConsole reports whether f is a console rather than a pipe or a file.
+func IsConsole(f *os.File) bool {
+	var mode uint32
+	return windows.GetConsoleMode(windows.Handle(f.Fd()), &mode) == nil
+}
+
 // EnableVT turns on virtual-terminal processing for f and reports whether f is
 // a console that now has it. A pipe or a file is not, and gets plain output.
 func EnableVT(f *os.File) bool {

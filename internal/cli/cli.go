@@ -142,7 +142,7 @@ in one binary. Every group prints its own help: wslkit <command> help.
   wslkit agent ...                     guest agent: install into a distro, run the Windows daemon (wslkit agent help)
   wslkit sock ...                      bridge Windows sockets into a distro: ssh-agent, gpg-agent (wslkit sock help)
   wslkit disk ...                      inspect and maintain distribution disks: list, info (wslkit disk help)
-  wslkit top [--json] [--watch]        what the utility VM is using, and which distro
+  wslkit top [--once] [--json]         what the VMs are using, refreshed until Ctrl+C
   wslkit limit ...                     cap what one distro may use (wslkit limit help)
   wslkit proxy ...                     get a Windows proxy working inside a distro (wslkit proxy help)
   wslkit guard ...                     get WSL answering again after the machine slept (wslkit guard help)
@@ -171,7 +171,8 @@ check / explain flags:
   --verbose               show details for OK and SKIPPED findings too
   --only M1[,M2]          run only probes tagged with these milestones (check)
   --from-snapshot FILE    run probes on a saved --json output instead of this machine
-  --elevated              require an elevated terminal (re-checks admin-only data)
+  --elevated              fail unless the terminal is elevated; elevation itself
+                          is detected, and admin-only facts are read whenever it is
   --allow-vm-wake         permit probes that would start the WSL VM (none yet)
   --online                check the published WSL releases (one request, cached
                           for a day); off by default, nothing else uses the network

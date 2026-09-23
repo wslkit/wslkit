@@ -192,9 +192,28 @@ type Report struct {
 	StartedAt time.Time
 	// Host is the Windows side, when it was read.
 	Host *Host
-	// Sessions are the wslc sessions, read only when asked for; nil when not
-	// asked, which is different from an empty list.
+	// Sessions are the wslc sessions whose VM was running; nil when none was.
 	Sessions []Session
+	// WSLCPresent says wslc is installed, running or not.
+	WSLCPresent bool
+	// Sections is which parts of the report were asked for.
+	Sections Sections
+}
+
+// Sections says which parts of top's report are wanted: WSL, the utility VM
+// and its distributions, and WSLC, the wslc session VMs. The zero value is
+// both. A section that is not wanted is not measured either.
+type Sections struct {
+	WSL  bool
+	WSLC bool
+}
+
+// Wants is which sections to measure and show.
+func (s Sections) Wants() (wsl, wslc bool) {
+	if !s.WSL && !s.WSLC {
+		return true, true
+	}
+	return s.WSL, s.WSLC
 }
 
 // Attributed is the memory the distributions account for.
@@ -697,7 +716,7 @@ const (
 	cgroupNote    = "per-distribution figures come from each distribution's own cgroup, which accounts for it alone. They still do not sum to the VM total: page cache and kernel memory belong to the VM."
 	processesNote = "this WSL has no per-distribution cgroup, so per-distribution memory is the resident set of the processes each distribution can see. Shared pages are counted once per process that maps them, and page cache and kernel memory are not counted at all."
 	// groupsNote explains the rows that are not distributions.
-	groupsNote = "wsl is WSL's own processes. A cgroup row sits at the VM's root and belongs to no distribution: /docker is where Docker Engine without systemd puts its containers."
+	groupsNote = "WSL itself is WSL's own processes in the VM, which belong to no distribution. A cgroup row sits at the VM's root and belongs to no distribution: /docker is where Docker Engine without systemd puts its containers."
 	// cgroupOnlyNote says why the I/O and pressure columns are missing.
 	cgroupOnlyNote = "disk I/O, PIDs and pressure per distribution need the per-distribution cgroup, which arrived in WSL 2.9, so they are not shown."
 )
@@ -721,23 +740,50 @@ func MethodNote(m Method) string {
 // with two VMs on screen, explanations between them made one section run into
 // the next.
 func Render(w io.Writer, r Report) {
-	fmt.Fprintln(w, rule("utility VM"))
-	if len(r.Samples) == 0 {
-		fmt.Fprintln(w, "no distributions are running, so it is not up")
-		renderOthers(w, r.Host)
-	} else {
-		renderVM(w, r.VM, r.Host)
-		fmt.Fprintln(w)
-		rows := append(Sorted(r.Samples), Sorted(r.Groups)...)
-		fmt.Fprint(w, rowsTable(rows, r.Method() == MethodCgroup, r.HasRates()).String())
-		line := fmt.Sprintf("%s attributed to distributions", FormatSize(r.Attributed()))
-		if len(r.Groups) > 0 {
-			line += fmt.Sprintf(", %s to groups that belong to none", FormatSize(r.GroupBytes()))
+	wantWSL, _ := r.Sections.Wants()
+	if wantWSL {
+		fmt.Fprintln(w, rule("utility VM"))
+		if len(r.Samples) == 0 {
+			fmt.Fprintln(w, "no distributions are running, so it is not up")
+			renderOthers(w, r.Host)
+		} else {
+			renderVM(w, r.VM, r.Host)
+			fmt.Fprintln(w)
+			rows := append(Sorted(r.Samples), Sorted(r.Groups)...)
+			fmt.Fprint(w, rowsTable(rows, r.Method() == MethodCgroup, r.HasRates()).String())
+			line := fmt.Sprintf("%s attributed to distributions", FormatSize(r.Attributed()))
+			if len(r.Groups) > 0 {
+				line += fmt.Sprintf(", %s to groups that belong to none", FormatSize(r.GroupBytes()))
+			}
+			fmt.Fprintf(w, "\n%s.\n", line)
 		}
-		fmt.Fprintf(w, "\n%s.\n", line)
 	}
-	renderSessions(w, r)
+	if showWSLC(r) {
+		var b strings.Builder
+		renderSessions(&b, r)
+		if len(r.Sessions) == 0 {
+			fmt.Fprintf(&b, "\n%s\nno wslc session VM is running, and top does not start one\n", rule("wslc"))
+		}
+		out := b.String()
+		if !wantWSL {
+			// The first section on the page does not open with a blank line.
+			out = strings.TrimPrefix(out, "\n")
+		}
+		fmt.Fprint(w, out)
+	}
 	renderNotes(w, r)
+}
+
+// showWSLC says whether the wslc section is drawn. Asked for with --wslc it
+// always is, empty or not. By default it is drawn when there is a running
+// session, or when wslc is installed and none is running, so the empty
+// section says so; a machine without wslc gets none.
+func showWSLC(r Report) bool {
+	_, wantWSLC := r.Sections.Wants()
+	if !wantWSLC {
+		return false
+	}
+	return r.Sections.WSLC || len(r.Sessions) > 0 || r.WSLCPresent
 }
 
 // renderNotes writes what explains the numbers, and then everything that
@@ -835,7 +881,7 @@ func renderVM(w io.Writer, vm VM, host *Host) {
 	}
 	fmt.Fprintln(w, head)
 	if vm.CachedBytes > 0 || vm.AnonBytes > 0 {
-		fmt.Fprintf(w, "%s page cache, which Windows can reclaim; %s anonymous, which it cannot\n",
+		fmt.Fprintf(w, "%s page cache (reclaimable), %s anonymous (unreclaimable)\n",
 			FormatSize(vm.CachedBytes), FormatSize(vm.AnonBytes))
 	}
 	if p := vm.Pressure; p != nil {
@@ -886,19 +932,20 @@ func rowsTable(rows []Sample, withCgroup, withRates bool) table {
 
 	t := table{headers: headers}
 	for _, s := range rows {
+		name := displayName(s)
 		kind := "distro"
 		if s.Kind != KindDistro {
 			kind = string(s.Kind)
 		}
 		if s.Err != nil {
-			row := []string{s.Distro, kind}
+			row := []string{name, kind}
 			for range headers[3:] {
 				row = append(row, "-")
 			}
 			t.rows = append(t.rows, append(row, "could not be measured"))
 			continue
 		}
-		row := []string{s.Distro, kind, FormatSize(s.MemoryBytes)}
+		row := []string{name, kind, FormatSize(s.MemoryBytes)}
 		if withCgroup {
 			row = append(row, optSize(s.AnonBytes))
 		}
@@ -946,6 +993,16 @@ func renderOthers(w io.Writer, h *Host) {
 		total += v.WorkingSetBytes
 	}
 	fmt.Fprintf(w, "%d other VM(s) hold %s more: a wslc session, or any other Hyper-V VM\n", len(h.Others), FormatSize(total))
+}
+
+// displayName is how a row is named in the table. WSL's own cgroup is named
+// `wsl` in the data, which next to a KIND of `wsl` said nothing; on screen it is
+// "WSL itself". The JSON keeps the data's name.
+func displayName(s Sample) string {
+	if s.Kind == KindWSL {
+		return "WSL itself"
+	}
+	return s.Distro
 }
 
 func optSize(p *uint64) string {
@@ -1057,6 +1114,18 @@ func vmJSON(v VM) map[string]any {
 
 // JSON is the object printed for --json.
 func JSON(r Report) map[string]any {
+	if wantWSL, _ := r.Sections.Wants(); !wantWSL {
+		// Only the wslc section was asked for: nothing about the utility VM
+		// was measured, so none of it is written.
+		o := map[string]any{"wslc_sessions": sessionsJSON(r.Sessions)}
+		if h := HostJSON(r.Host); h != nil {
+			o["host"] = h
+		}
+		if len(r.Notes) > 0 {
+			o["notes"] = r.Notes
+		}
+		return o
+	}
 	if len(r.Samples) == 0 {
 		o := map[string]any{"distributions": []any{}, "note": "no distributions are running"}
 		// Another VM, a wslc session say, can be holding memory with no
@@ -1064,7 +1133,7 @@ func JSON(r Report) map[string]any {
 		if h := HostJSON(r.Host); h != nil {
 			o["host"] = h
 		}
-		if r.Sessions != nil {
+		if showWSLC(r) {
 			o["wslc_sessions"] = sessionsJSON(r.Sessions)
 		}
 		if len(r.Notes) > 0 {
@@ -1100,9 +1169,9 @@ func JSON(r Report) map[string]any {
 	if h := HostJSON(r.Host); h != nil {
 		o["host"] = h
 	}
-	// Present only when --wslc asked for it, so its absence says "not
-	// asked" and an empty list says "asked, and there are none".
-	if r.Sessions != nil {
+	// Present when the wslc section is: a running session, wslc installed,
+	// or --wslc. An empty list says no session VM was running.
+	if showWSLC(r) {
 		o["wslc_sessions"] = sessionsJSON(r.Sessions)
 	}
 	if len(r.Notes) > 0 {

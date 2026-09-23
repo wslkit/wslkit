@@ -70,6 +70,7 @@ func Run(ctx context.Context, o Options) (*env.Env, error) {
 		{"hotfixes", collectHotfixes},
 		{"policy", collectPolicy},
 		{"agent", collectAgent},
+		{"wslc", collectWSLC},
 	})
 	return e, nil
 }

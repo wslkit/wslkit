@@ -60,13 +60,14 @@ recent runtime may name it for you; an older one only says `E_UNEXPECTED`.
 ## Facts it could not read
 
 Some checks report UNKNOWN rather than guessing. They need an administrator to
-read what they look at.
+read what they look at, so run it again from a console that already has one:
 
 ```
-wslkit doctor --elevated
+wslkit doctor
 ```
 
-from a console that already has one. wslkit will not relaunch itself to get it.
+Elevation is detected, so no flag is needed. wslkit will not relaunch itself
+to get it.
 
 ## Then fix
 

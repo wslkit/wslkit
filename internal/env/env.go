@@ -86,6 +86,9 @@ type Env struct {
 	Procs    Procs            `json:"procs"`
 	Plugins  Field[[]Plugin]  `json:"plugins"`
 	Agent    Field[AgentInfo] `json:"agent"`
+	// WSLC is what wslc's sessions look like. Only a session whose VM is
+	// already running is tested; wslkit never starts one.
+	WSLC Field[WSLCInfo] `json:"wslc"`
 
 	// Collectors records how long each collector took and whether it errored,
 	// so a slow or broken machine is visible in the snapshot itself.
@@ -393,6 +396,37 @@ type AgentInfo struct {
 	LastError  string    `json:"last_error,omitempty"`
 	Autostart  bool      `json:"autostart"`
 	AllowedNum int       `json:"allowed_targets"`
+}
+
+// WSLCInfo is what doctor found out about wslc, the container CLI in the WSL
+// 2.9 pre-releases. Asking a session anything boots its VM, so only sessions
+// whose VM is already running are asked.
+type WSLCInfo struct {
+	Version  string        `json:"version,omitempty"`
+	Sessions []WSLCSession `json:"sessions"`
+}
+
+// WSLCSession is one wslc session and what DNS its containers get.
+type WSLCSession struct {
+	Name string `json:"name"`
+	// Running says the session's VM was up. Only a running one is tested:
+	// asking a stopped one anything would boot it.
+	Running bool `json:"running"`
+	// Resolvers are the IPv4 nameservers in the session VM's resolv.conf.
+	// They are what a container is given: IPv6 ones are dropped for a
+	// container without IPv6, which is the default.
+	Resolvers []WSLCResolver `json:"resolvers"`
+	// Public is the same query sent to a public resolver, to tell a broken
+	// resolver apart from no network at all.
+	Public WSLCResolver `json:"public"`
+	Err    string       `json:"err,omitempty"`
+}
+
+// WSLCResolver is one DNS query and how it went: a DNS status such as
+// NOERROR or SERVFAIL, or "timeout".
+type WSLCResolver struct {
+	Addr   string `json:"addr"`
+	Status string `json:"status"`
 }
 
 // New returns an Env with schema and defaults set.
