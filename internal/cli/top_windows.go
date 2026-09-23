@@ -27,7 +27,6 @@ func (a *App) top(args []string) int {
 	once := fs.Bool("once", false, "take one sample and report no rates, rather than waiting")
 	watch := fs.Bool("watch", false, "keep measuring and redraw every interval, until interrupted")
 	timeout := fs.Duration("timeout", top.DefaultTimeout, "bound on each measurement inside a distribution")
-	wslc := fs.Bool("wslc", false, "also measure wslc sessions and their containers; starts a stopped session VM")
 	raw := fs.Bool("raw", false, "print what the measurement printed inside each distribution, unparsed, for a bug report")
 	if err := fs.Parse(args); err != nil {
 		return ExitUsage
@@ -46,7 +45,7 @@ func (a *App) top(args []string) int {
 		fmt.Fprintln(a.Stderr, "--watch needs an --interval above zero")
 		return ExitUsage
 	}
-	o := top.Options{Interval: *interval, Timeout: *timeout, Only: only, WSLC: *wslc}
+	o := top.Options{Interval: *interval, Timeout: *timeout, Only: only}
 	if *once {
 		// A rate needs two samples separated by time. Asked for one, report
 		// what can be read at an instant and say nothing about rates rather

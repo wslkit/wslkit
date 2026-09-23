@@ -17,9 +17,9 @@ const KindWSLC Kind = "wslc"
 // and the containers running in it.
 //
 // wslc exists only in the WSL 2.9 pre-releases and its output changes from one
-// release to the next, so this is read only when asked for with --wslc. Asking
-// is also what makes it safe: `wslc list` boots a stopped session VM, and
-// nothing a normal user can read says whether it is up without asking. See
+// release to the next. Only a session whose VM is already running is read:
+// `wslc list` and `wslc system session run` boot a stopped one, so the
+// reader finds running ones without asking wslc (wslcsess). See
 // docs/research/2026-09-wslc-session.md.
 type Session struct {
 	Name       string

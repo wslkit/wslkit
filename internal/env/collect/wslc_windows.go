@@ -15,7 +15,7 @@ import (
 	"github.com/wslkit/wslkit/internal/env"
 	"github.com/wslkit/wslkit/internal/winapi/console"
 	"github.com/wslkit/wslkit/internal/winapi/fileinfo"
-	"github.com/wslkit/wslkit/internal/winapi/rstrtmgr"
+	"github.com/wslkit/wslkit/internal/winapi/wslcsess"
 )
 
 func findWSLC() (string, error) {
@@ -43,26 +43,11 @@ func runWSLC(ctx context.Context, exe string, stdin string, args ...string) (str
 	return out.String(), nil
 }
 
-// sessionRunning says whether a wslc session's VM is up, without asking wslc,
-// which would boot it.
-//
-// While the VM runs its disk is attached, and the Restart Manager reports it
-// held by System; while it is stopped, nobody holds it. Measured on WSL 2.9.12
-// through several boots and idle stops. The Restart Manager holds no handle on
-// the file, so asking cannot get in the way of a VM starting at that moment.
-func sessionRunning(dir string) (bool, error) {
-	held, err := rstrtmgr.Holders(filepath.Join(dir, "storage.vhdx"))
-	if err != nil {
-		return false, err
-	}
-	return len(held) > 0, nil
-}
-
 // collectWSLC tests the DNS each running wslc session hands its containers.
 //
-// It starts nothing. Sessions are found as directories under
-// %LOCALAPPDATA%\wslc\sessions, and wslc is asked only about those whose VM
-// is already running; a stopped one is recorded as such and left stopped.
+// It starts nothing: wslc is asked only about a session whose VM is already
+// running, which wslcsess tells without asking wslc. A stopped one is
+// recorded as such and left stopped.
 func collectWSLC(ctx context.Context, e *env.Env, o Options) error {
 	const src = `%LOCALAPPDATA%\wslc\sessions, Restart Manager, wslc system session run`
 	exe, err := findWSLC()
@@ -74,31 +59,24 @@ func collectWSLC(ctx context.Context, e *env.Env, o Options) error {
 	if v, err := fileinfo.Version(exe); err == nil {
 		info.Version = v
 	}
-	root := filepath.Join(os.Getenv("LOCALAPPDATA"), "wslc", "sessions")
-	dirs, err := os.ReadDir(root)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	sessions, err := wslcsess.List()
+	if err != nil {
 		e.WSLC = env.Fail[env.WSLCInfo](kindOf(err), src, err)
 		return err
 	}
-	for _, d := range dirs {
-		if !d.IsDir() {
-			continue
-		}
-		name := d.Name()
-		s := env.WSLCSession{Name: name, Resolvers: []env.WSLCResolver{}}
-		running, err := sessionRunning(filepath.Join(root, name))
-		if err != nil {
-			s.Err = "could not tell whether its VM is running, so it was left alone: " + err.Error()
+	for _, found := range sessions {
+		s := env.WSLCSession{Name: found.Name, Resolvers: []env.WSLCResolver{}}
+		if found.Err != nil {
+			s.Err = "could not tell whether its VM is running, so it was left alone: " + found.Err.Error()
 			info.Sessions = append(info.Sessions, s)
 			continue
 		}
-		if !running {
+		if !found.Running {
 			info.Sessions = append(info.Sessions, s)
 			continue
 		}
-		s.Running = true
-		out, err := runWSLC(ctx, exe, wslcDNSScript, "--session", name, "system", "session", "run", "/bin/sh")
-		parsed := parseWSLCDNS(name, out)
+		out, err := runWSLC(ctx, exe, wslcDNSScript, "--session", found.Name, "system", "session", "run", "/bin/sh")
+		parsed := parseWSLCDNS(found.Name, out)
 		parsed.Running = true
 		if err != nil {
 			parsed.Err = err.Error()

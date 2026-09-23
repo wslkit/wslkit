@@ -105,7 +105,7 @@ func CommandTree() []cmdNode {
 				}},
 			},
 		},
-		{Name: "top", Desc: "What the utility VM is using, and which distribution is responsible", Flags: []string{"--json", "--interval", "--once", "--watch", "--wslc", "--raw", "--timeout"}, Positional: []argKind{argDistro}},
+		{Name: "top", Desc: "What the utility VM is using, and which distribution is responsible", Flags: []string{"--json", "--interval", "--once", "--watch", "--raw", "--timeout"}, Positional: []argKind{argDistro}},
 		{
 			Name: "limit",
 			Desc: "Cap what one distribution may use",

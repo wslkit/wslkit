@@ -71,10 +71,10 @@ the cgroups that belong to no distribution, such as WSL's own processes and
 `/docker`. Counters a distribution could not report are left out rather than
 written as zero. A `host` block carries what Windows charges: `utility_vm`
 (the matched `vmmem`) and `other_vms`, each with `pid`, `working_set_bytes` and
-`created`; it is present even when no distribution is running. With `--wslc`, a
-`wslc_sessions` list: each session's `vm`, its `containers`, its `host` vmmem
-and `started_by_measurement`. It is absent without the flag, and an empty list
-when asked and there are none. With
+`created`; it is present even when no distribution is running. A
+`wslc_sessions` list holds each wslc session whose VM was running: its `vm`,
+its `containers`, its `host` vmmem and `started_by_measurement`. It is absent
+when no session VM is running. With
 `--watch --json`, one such object per line, one per
 interval.
 

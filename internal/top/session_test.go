@@ -111,11 +111,12 @@ func (s *sessionRunner) ContainerNames(ctx context.Context, name string) (string
 
 func (s *sessionRunner) HostVMs(ctx context.Context) ([]HostVM, error) { return s.vms, nil }
 
-// The whole point of the flag: without it, wslc is never asked anything,
-// because asking boots a stopped session VM.
-func TestSessionsAreReadOnlyWhenAskedFor(t *testing.T) {
+// top asks wslc about exactly the sessions the reader reports running, and
+// nothing else. The production reader returns only sessions whose VM is up
+// (wslcsess); with none, wslc is not asked anything and there is no section.
+func TestSessionsAreSampledOnlyWhenRunning(t *testing.T) {
 	out, list := sessionFixture(t)
-	r := &sessionRunner{sessions: []string{"s"}, out: out, list: list}
+	r := &sessionRunner{out: out, list: list}
 	r.running = []string{"skrog-engine"}
 	r.fakeRunner.out = map[string]string{"skrog-engine": realOutput(t)}
 
@@ -124,13 +125,19 @@ func TestSessionsAreReadOnlyWhenAskedFor(t *testing.T) {
 		t.Fatal(err)
 	}
 	if r.sampled != 0 || report.Sessions != nil {
-		t.Fatalf("wslc was asked without --wslc: %d calls, %+v", r.sampled, report.Sessions)
+		t.Fatalf("wslc was asked with no session running: %d calls, %+v", r.sampled, report.Sessions)
 	}
 	if _, ok := JSON(report)["wslc_sessions"]; ok {
-		t.Error("JSON says wslc was asked when it was not")
+		t.Error("JSON has a wslc section with no session running")
+	}
+	var b bytes.Buffer
+	Render(&b, report)
+	if strings.Contains(b.String(), "wslc session") {
+		t.Errorf("a wslc section with no session running:\n%s", b.String())
 	}
 
-	report, err = Collect(context.Background(), r, Options{WSLC: true})
+	r.sessions = []string{"s"}
+	report, err = Collect(context.Background(), r, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,13 +145,12 @@ func TestSessionsAreReadOnlyWhenAskedFor(t *testing.T) {
 		t.Fatalf("sessions %+v after %d calls", report.Sessions, r.sampled)
 	}
 }
-
-// A session VM holds memory with no distribution running, and --wslc must
-// still show it.
+// A session VM holds memory with no distribution running, and top must still
+// show it.
 func TestSessionsWithNoDistributionRunning(t *testing.T) {
 	out, list := sessionFixture(t)
 	r := &sessionRunner{sessions: []string{"s"}, out: out, list: list}
-	report, err := Collect(context.Background(), r, Options{WSLC: true})
+	report, err := Collect(context.Background(), r, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,15 +194,15 @@ func TestSessionListFailureIsANoteNotAnError(t *testing.T) {
 	r := &sessionRunner{sessionErr: errors.New("wslc is not installed")}
 	r.running = []string{"skrog-engine"}
 	r.fakeRunner.out = map[string]string{"skrog-engine": realOutput(t)}
-	report, err := Collect(context.Background(), r, Options{WSLC: true})
+	report, err := Collect(context.Background(), r, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(report.Samples) != 1 || !strings.Contains(strings.Join(report.Notes, " "), "wslc is not installed") {
 		t.Errorf("samples %d notes %v", len(report.Samples), report.Notes)
 	}
-	// Asked, and there are none: an empty list, not an absent one.
-	if s, ok := JSON(report)["wslc_sessions"].([]map[string]any); !ok || len(s) != 0 {
+	// No running session to show, so no section; the note says why.
+	if _, ok := JSON(report)["wslc_sessions"]; ok {
 		t.Errorf("wslc_sessions %v", JSON(report)["wslc_sessions"])
 	}
 }

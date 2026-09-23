@@ -24,7 +24,7 @@ func rowsOf(text string, cols int) int {
 }
 
 // A frame taller than the window would scroll its own header away on every
-// redraw, which is what --watch --wslc did in a 30-row console.
+// redraw, which is what --watch with a wslc session did in a 30-row console.
 func TestFitFrameKeepsTheHeaderOnScreen(t *testing.T) {
 	var lines []string
 	for i := 0; i < 34; i++ {

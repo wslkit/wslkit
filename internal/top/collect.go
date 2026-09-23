@@ -30,9 +30,6 @@ type Options struct {
 	Timeout time.Duration
 	// Only limits the measurement to these distributions.
 	Only []string
-	// WSLC also measures wslc sessions. Asking wslc boots a stopped session
-	// VM, so this is only ever done on request.
-	WSLC bool
 }
 
 // Collect measures every running distribution, twice when an interval is
@@ -87,7 +84,7 @@ func Sweep(ctx context.Context, r Runner, o Options) (Report, error) {
 	}
 	sessionsDone := make(chan sessionResult, 1)
 	sr, canSessions := r.(SessionReader)
-	if o.WSLC && canSessions {
+	if canSessions {
 		go func() {
 			s, err := sweepSessions(ctx, sr, timeout, started)
 			sessionsDone <- sessionResult{s, err}
@@ -131,15 +128,12 @@ func Sweep(ctx context.Context, r Runner, o Options) (Report, error) {
 			report.Groups = res.groups
 		}
 	}
-	switch {
-	case o.WSLC && !canSessions:
-		report.Sessions = []Session{}
-		report.Notes = append(report.Notes, "wslc sessions cannot be read here")
-	case o.WSLC:
+	if canSessions {
+		// Only sessions whose VM is already running come back, so a machine
+		// without wslc, or with every session stopped, gets no section at all.
 		res := <-sessionsDone
-		report.Sessions = res.sessions
-		if report.Sessions == nil {
-			report.Sessions = []Session{}
+		if len(res.sessions) > 0 {
+			report.Sessions = res.sessions
 		}
 		if res.err != nil {
 			report.Notes = append(report.Notes, fmt.Sprintf("wslc sessions could not be listed: %v", res.err))

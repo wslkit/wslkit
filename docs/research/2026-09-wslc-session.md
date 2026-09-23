@@ -102,7 +102,11 @@ holding the name.
 ## Resolution
 
 #97 shipped as an opt-in `--wslc`, so booting the session VM only happens when
-someone asks for it. Observed while building it:
+someone asks for it. The flag was removed before any release, from `top` and
+`doctor` alike, once a way to tell a running session VM from a stopped one
+without asking wslc was found (see "Telling a running session VM from a
+stopped one" below): both now read only sessions whose VM is already up.
+Observed while building it:
 
 - **`wslc system session run` boots a stopped session VM too.** `top --wslc`
   run against a stopped VM went from one `vmmem` to two, and its only calls

@@ -192,8 +192,7 @@ type Report struct {
 	StartedAt time.Time
 	// Host is the Windows side, when it was read.
 	Host *Host
-	// Sessions are the wslc sessions, read only when asked for; nil when not
-	// asked, which is different from an empty list.
+	// Sessions are the wslc sessions whose VM was running; nil when none was.
 	Sessions []Session
 }
 
@@ -1100,8 +1099,7 @@ func JSON(r Report) map[string]any {
 	if h := HostJSON(r.Host); h != nil {
 		o["host"] = h
 	}
-	// Present only when --wslc asked for it, so its absence says "not
-	// asked" and an empty list says "asked, and there are none".
+	// Present only when a wslc session VM was running.
 	if r.Sessions != nil {
 		o["wslc_sessions"] = sessionsJSON(r.Sessions)
 	}
