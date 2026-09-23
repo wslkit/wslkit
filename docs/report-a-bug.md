@@ -17,6 +17,16 @@ scrubbed.
 Include the command you ran and what you expected instead. If a command failed,
 its exit code narrows it a long way; see [exit codes](exit-codes.md).
 
+If `wslkit top`'s numbers look wrong, attach this too:
+
+```
+wslkit top --raw
+```
+
+It is what top measured inside each distribution, before any parsing, so the
+report can be replayed as a test. It holds your distribution names and
+counters, and nothing about you or the machine beyond that.
+
 ## For a WSL bug
 
 Microsoft's own log collector is the right tool for a report to them, because

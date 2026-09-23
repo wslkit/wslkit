@@ -1,0 +1,22 @@
+# distribution=Ubuntu wsl=2.7.14.0
+clock_hz=100
+method=processes
+at_csec=5025
+memory_kb=292152
+cpu_ticks=638
+processes=42
+init=systemd
+vm_at_csec=5027
+mem_total_kb=7977576
+mem_free_kb=6713416
+mem_available_kb=7399072
+mem_cached_kb=724720
+mem_anon_kb=145120
+cpus=4
+uptime_sec=50
+vm_cpu_ticks=1447
+net_rx_bytes=8582
+net_tx_bytes=7454
+vm_psi_cpu=1.48
+vm_psi_memory=0.00
+vm_psi_io=11.77
