@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf16"
+
+	"github.com/wslkit/wslkit/internal/winapi/console"
 )
 
 // Which distributions are running is one of the few facts the registry cannot
@@ -44,6 +46,7 @@ func runningDistros(ctx context.Context, timeout time.Duration) (map[string]bool
 	defer cancel()
 
 	cmd := exec.CommandContext(cctx, "wsl.exe", "--list", "--running", "--quiet")
+	console.OwnConsole(cmd)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	runErr := cmd.Run()

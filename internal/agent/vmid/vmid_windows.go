@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/wslkit/wslkit/internal/winapi/console"
 	"github.com/wslkit/wslkit/internal/winapi/wmi"
 )
 
@@ -46,7 +47,9 @@ func Active(ctx context.Context, distro string) (string, error) {
 	}
 	cctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(cctx, "wsl.exe", args...).Output()
+	cmd := exec.CommandContext(cctx, "wsl.exe", args...)
+	console.OwnConsole(cmd)
+	out, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("vmid: wslinfo --vm-id: %w", err)
 	}

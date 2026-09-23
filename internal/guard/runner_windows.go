@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf16"
+
+	"github.com/wslkit/wslkit/internal/winapi/console"
 )
 
 // WSLRunner is the real machine.
@@ -30,6 +32,7 @@ func (WSLRunner) run(ctx context.Context, timeout time.Duration, args ...string)
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(cctx, "wsl.exe", args...)
+	console.OwnConsole(cmd)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	err := cmd.Run()

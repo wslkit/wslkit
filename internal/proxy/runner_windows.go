@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf16"
+
+	"github.com/wslkit/wslkit/internal/winapi/console"
 )
 
 // WSLRunner runs a shell script inside a distribution through wsl.exe, as root.
@@ -30,6 +32,7 @@ func (WSLRunner) Run(ctx context.Context, distro, script string, timeout time.Du
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	cmd := exec.CommandContext(cctx, "wsl.exe", "-d", distro, "-u", "root", "--exec", "/bin/sh")
+	console.OwnConsole(cmd)
 	cmd.Stdin = strings.NewReader(script)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb

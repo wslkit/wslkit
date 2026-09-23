@@ -22,6 +22,7 @@ import (
 
 	"github.com/wslkit/wslkit/internal/agent/config"
 	"github.com/wslkit/wslkit/internal/agent/payload"
+	"github.com/wslkit/wslkit/internal/winapi/console"
 )
 
 // Options for Install/Uninstall.
@@ -204,6 +205,7 @@ func run(ctx context.Context, distro string, stdin []byte, args ...string) (stri
 	defer cancel()
 	full := append([]string{"-d", distro, "-u", "root", "--"}, args...)
 	cmd := exec.CommandContext(cctx, "wsl.exe", full...)
+	console.OwnConsole(cmd)
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}
