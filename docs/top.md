@@ -128,8 +128,11 @@ Usage says a resource is used. Pressure says it is short. A distribution at
 persistent stall is the thing to look at.
 
 The kernel's OOM kills are counted too, and a row that has had any gets a
-note. Each VM is a section of its own under a rule naming it, and every
-explanation and note comes once, in a notes section after the last one.
+note. Each VM is a section of its own under a rule naming it. A notes section
+follows only when this run found something to say: a row that could not be
+measured, OOM kills, a VM that could not be read. On a healthy machine there is
+none. What explains the numbers in general, everything on this page in short,
+is in `wslkit top help`.
 
 ### The rows that are not distributions
 
@@ -155,12 +158,12 @@ bridges and `veth` pairs carry the same packets again on their way out.
 
 ## The numbers do not add up, on purpose
 
-Per-distribution memory will not sum to the VM total, and the report says so
-rather than quietly fudging it. Page cache and kernel memory belong to the VM
+Per-distribution memory will not sum to the VM total, and top does not quietly
+fudge it so that it does. Page cache and kernel memory belong to the VM
 rather than to any distribution.
 
-How a distribution is measured depends on your WSL version, and the report tells
-you which was used:
+How a distribution is measured depends on your WSL version. `--json` says which
+was used, in its `method` and `note` fields:
 
 - On WSL 2.9, each distribution gets its own cgroup, which accounts for it
   alone. That is true attribution, and it carries everything in the table.
@@ -170,7 +173,7 @@ you which was used:
   That is real attribution of process memory, but it counts a shared page once
   per process that maps it, and it cannot see page cache at all. Disk I/O,
   PIDs, pressure and the extra rows need the per-distribution cgroup, so on 2.7
-  they are left out, and the report says so, rather than approximated.
+  they are left out rather than approximated.
   VM-wide pressure is shown on both.
 
 At the time of writing WSL 2.9 is a pre-release and 2.7 is the current stable

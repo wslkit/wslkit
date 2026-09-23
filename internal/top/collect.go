@@ -127,7 +127,7 @@ func Sweep(ctx context.Context, r Runner, o Options) (Report, error) {
 	}
 	wg.Wait()
 
-	report := Report{SampledAt: time.Now(), StartedAt: started, Sections: o.Sections}
+	report := Report{SampledAt: time.Now(), StartedAt: started, Sections: o.Sections, Filtered: len(o.Only) > 0}
 	for _, res := range results {
 		report.Samples = append(report.Samples, res.sample)
 		// Every distribution reports the same VM and the same groups, since

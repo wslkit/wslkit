@@ -168,9 +168,9 @@ func TestSessionsWithNoDistributionRunning(t *testing.T) {
 }
 
 // With two VMs on screen, explanations printed between them made one run into
-// the next. Each VM is its own section under a rule, and everything that
-// explains comes once, after the last section.
-func TestEachVMIsASectionAndTheNotesComeLast(t *testing.T) {
+// the next. Each VM is its own section under a rule, and what explains the
+// numbers is in wslkit top help, not in the report at all.
+func TestEachVMIsASectionAndTheExplanationsAreInTheGuide(t *testing.T) {
 	out, list := sessionFixture(t)
 	s, _ := ParseSession("s", out, list)
 	d, vm, _ := ParseSample("skrog-engine", realOutput(t))
@@ -180,13 +180,16 @@ func TestEachVMIsASectionAndTheNotesComeLast(t *testing.T) {
 
 	utility := strings.Index(got, rule("utility VM"))
 	session := strings.Index(got, rule("wslc session s (preview)"))
-	notes := strings.Index(got, rule("notes"))
-	if utility != 0 || session <= utility || notes <= session {
-		t.Fatalf("sections out of order (utility %d, session %d, notes %d):\n%s", utility, session, notes, got)
+	if utility != 0 || session <= utility {
+		t.Fatalf("sections out of order (utility %d, session %d):\n%s", utility, session, got)
+	}
+	// A healthy run has nothing to note, so no notes section.
+	if strings.Contains(got, rule("notes")) {
+		t.Errorf("a notes section with nothing to note:\n%s", got)
 	}
 	for _, explanation := range []string{groupsNote, sessionsNote, upperFirst(cgroupNote)} {
-		if i := strings.Index(got, explanation); i < notes {
-			t.Errorf("%q is not in the notes at the end:\n%s", explanation, got)
+		if strings.Contains(got, explanation) || !strings.Contains(guideText(), explanation) {
+			t.Errorf("%q belongs in the guide, not the report:\n%s", explanation, got)
 		}
 	}
 }

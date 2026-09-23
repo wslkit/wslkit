@@ -115,7 +115,7 @@ func TestCollectWithNoDistributionStillReportsOtherVMs(t *testing.T) {
 	}
 	var b bytes.Buffer
 	Render(&b, report)
-	if !strings.Contains(b.String(), "no distributions are running") || !strings.Contains(b.String(), "750.0 MiB more") {
+	if !strings.Contains(b.String(), "no distributions are running") || !strings.Contains(b.String(), "hold 750.0 MiB: the utility VM, a wslc session") {
 		t.Errorf("got:\n%s", b.String())
 	}
 }

@@ -171,7 +171,7 @@ func TestRenderShowsGroupsAndCgroupColumns(t *testing.T) {
 	var b bytes.Buffer
 	Render(&b, Report{VM: vm, Samples: []Sample{s}, Groups: ParseGroups(out)})
 	got := b.String()
-	for _, want := range []string{"docker", "cgroup", "WSL itself", "PIDS", "STALL", groupsNote, "stalled over the last 10 s", "(reclaimable)", "(unreclaimable)"} {
+	for _, want := range []string{"docker", "cgroup", "WSL itself", "PIDS", "STALL", "stalled over the last 10 s", "(reclaimable)", "(unreclaimable)"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q:\n%s", want, got)
 		}
@@ -202,8 +202,9 @@ func TestRenderWithoutCgroupsSaysWhatIsMissing(t *testing.T) {
 	if h := header(got); strings.Contains(h, "READ") || strings.Contains(h, "PIDS") || strings.Contains(h, "STALL") {
 		t.Errorf("cgroup columns without a cgroup:\n%s", got)
 	}
-	if !strings.Contains(got, upperFirst(cgroupOnlyNote)) {
-		t.Errorf("the report does not say why:\n%s", got)
+	// Why is in wslkit top help, not under every report.
+	if strings.Contains(got, upperFirst(cgroupOnlyNote)) || !strings.Contains(guideText(), upperFirst(cgroupOnlyNote)) {
+		t.Errorf("the explanation belongs in the guide, not the report:\n%s", got)
 	}
 }
 

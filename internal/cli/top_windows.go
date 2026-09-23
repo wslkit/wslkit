@@ -20,8 +20,13 @@ import (
 )
 
 func (a *App) top(args []string) int {
+	if len(args) > 0 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
+		a.topUsage()
+		return ExitOK
+	}
 	fs := flag.NewFlagSet("top", flag.ContinueOnError)
 	fs.SetOutput(a.Stderr)
+	fs.Usage = a.topUsage
 	jsonOut := fs.Bool("json", false, "machine-readable output on stdout")
 	interval := fs.Duration("interval", 2*time.Second, "gap between the samples a rate is measured over; 0 is one instant sample with no rates")
 	once := fs.Bool("once", false, "print one report and exit, instead of refreshing on a console")
@@ -63,6 +68,34 @@ func (a *App) top(args []string) int {
 		return ExitFindings
 	}
 	return a.topPrint(report, *jsonOut)
+}
+
+// topUsage is top's own page: what to type, and how to read what comes back.
+// The reading guide used to be printed under every report.
+func (a *App) topUsage() {
+	fmt.Fprint(a.Stderr, `wslkit top: what the WSL VMs are using, and what inside them is responsible.
+
+  wslkit top                 refresh every 2 s until Ctrl+C (on a console)
+  wslkit top --once          one report, then exit
+  wslkit top --json          one report as JSON, integer bytes
+  wslkit top Ubuntu          only these distributions
+
+flags:
+  --once           one report and exit, even on a console
+  --watch          keep refreshing even when piped; with --json, one object per line
+  --interval D     gap between the samples a rate is measured over (default 2s);
+                   0 is one instant sample with no rates
+  --wsl            only the WSL section: the utility VM and its distributions
+  --wslc           only the wslc section: running wslc session VMs; never starts one
+  --json           machine-readable output
+  --raw            what was measured inside each distribution, unparsed, for a bug report
+  --timeout D      bound on each measurement inside a distribution
+
+Piped, redirected or with --json, top prints one report and exits.
+
+reading the output
+
+`+top.ReadingGuide)
 }
 
 // topPrint writes one report.

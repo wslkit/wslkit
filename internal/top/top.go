@@ -198,6 +198,9 @@ type Report struct {
 	WSLCPresent bool
 	// Sections is which parts of the report were asked for.
 	Sections Sections
+	// Filtered says the distributions were limited to named ones, so none
+	// being measured does not mean none is running.
+	Filtered bool
 }
 
 // Sections says which parts of top's report are wanted: WSL, the utility VM
@@ -710,8 +713,8 @@ func formatPercent(p *float64) string {
 	return fmt.Sprintf("%.1f%%", *p)
 }
 
-// Explanations of what the two methods do and do not cover, printed with the
-// report so nobody has to guess why the columns do not add up.
+// Explanations of what the two methods do and do not cover. They are in the
+// JSON's note field and in ReadingGuide, not in every report.
 const (
 	cgroupNote    = "per-distribution figures come from each distribution's own cgroup, which accounts for it alone. They still do not sum to the VM total: page cache and kernel memory belong to the VM."
 	processesNote = "this WSL has no per-distribution cgroup, so per-distribution memory is the resident set of the processes each distribution can see. Shared pages are counted once per process that maps them, and page cache and kernel memory are not counted at all."
@@ -743,7 +746,10 @@ func Render(w io.Writer, r Report) {
 	wantWSL, _ := r.Sections.Wants()
 	if wantWSL {
 		fmt.Fprintln(w, rule("utility VM"))
-		if len(r.Samples) == 0 {
+		if len(r.Samples) == 0 && r.Filtered {
+			fmt.Fprintln(w, "none of the named distributions is running")
+			renderOthers(w, r.Host)
+		} else if len(r.Samples) == 0 {
 			fmt.Fprintln(w, "no distributions are running, so it is not up")
 			renderOthers(w, r.Host)
 		} else {
@@ -786,24 +792,12 @@ func showWSLC(r Report) bool {
 	return r.Sections.WSLC || len(r.Sessions) > 0 || r.WSLCPresent
 }
 
-// renderNotes writes what explains the numbers, and then everything that
-// went wrong or needs saying about one row.
+// renderNotes writes what this run found that needs saying: a row that could
+// not be measured, OOM kills, a VM that asking wslc started. What explains the
+// numbers in general is the same every run, and lives in ReadingGuide, which
+// wslkit top help prints. On a healthy machine there is nothing here at all.
 func renderNotes(w io.Writer, r Report) {
-	var explain, notes []string
-	if len(r.Samples) > 0 {
-		if n := MethodNote(r.Method()); n != "" {
-			explain = append(explain, upperFirst(n))
-		}
-	}
-	if len(r.Groups) > 0 {
-		explain = append(explain, groupsNote)
-	}
-	if r.Method() == MethodProcesses {
-		explain = append(explain, upperFirst(cgroupOnlyNote))
-	}
-	if len(r.Sessions) > 0 {
-		explain = append(explain, sessionsNote)
-	}
+	var notes []string
 
 	for _, s := range append(Sorted(r.Samples), Sorted(r.Groups)...) {
 		notes = append(notes, rowNotes(s)...)
@@ -825,13 +819,10 @@ func renderNotes(w io.Writer, r Report) {
 	}
 	notes = append(notes, r.Notes...)
 
-	if len(explain) == 0 && len(notes) == 0 {
+	if len(notes) == 0 {
 		return
 	}
 	fmt.Fprintf(w, "\n%s\n", rule("notes"))
-	for _, e := range explain {
-		fmt.Fprintln(w, e)
-	}
 	for _, n := range notes {
 		fmt.Fprintf(w, "note: %s\n", n)
 	}
@@ -991,6 +982,12 @@ func renderOthers(w io.Writer, h *Host) {
 	var total uint64
 	for _, v := range h.Others {
 		total += v.WorkingSetBytes
+	}
+	if h.Utility == nil {
+		// With no distribution measured there is no boot time to match the
+		// utility VM's vmmem by, so it may be one of these.
+		fmt.Fprintf(w, "%d VM(s) hold %s: the utility VM, a wslc session, or any other Hyper-V VM\n", len(h.Others), FormatSize(total))
+		return
 	}
 	fmt.Fprintf(w, "%d other VM(s) hold %s more: a wslc session, or any other Hyper-V VM\n", len(h.Others), FormatSize(total))
 }

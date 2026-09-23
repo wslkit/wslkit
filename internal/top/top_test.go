@@ -271,21 +271,26 @@ func TestRenderSaysHowItMeasuredAndWhatIsMissing(t *testing.T) {
 	if !strings.Contains(out, "page cache") || !strings.Contains(out, "anonymous") {
 		t.Errorf("the reclaimable split is missing:\n%s", out)
 	}
-	// The columns do not add up, and the report has to say why.
-	if !strings.Contains(out, upperFirst(processesNote)) {
-		t.Errorf("the method note is missing:\n%s", out)
+	// Why the columns do not add up is in wslkit top help, not in every report.
+	if strings.Contains(out, upperFirst(processesNote)) {
+		t.Errorf("the method note is in the report:\n%s", out)
 	}
 	if !strings.Contains(out, "attributed to distributions") {
 		t.Errorf("the attributed total is missing:\n%s", out)
 	}
 }
 
-func TestRenderUsesTheCgroupNoteWhenThatIsWhatHappened(t *testing.T) {
+// Both methods are explained in the guide, since either can be what a machine
+// uses, and the JSON still says which one this run used.
+func TestTheGuideExplainsBothMethods(t *testing.T) {
+	for _, n := range []string{upperFirst(cgroupNote), upperFirst(processesNote), groupsNote, sessionsNote} {
+		if !strings.Contains(guideText(), n) {
+			t.Errorf("the guide does not carry %q", n)
+		}
+	}
 	s, vm, _ := ParseSample("Ubuntu", cgroupOut)
-	var b bytes.Buffer
-	Render(&b, Report{VM: vm, Samples: []Sample{s}})
-	if !strings.Contains(b.String(), upperFirst(cgroupNote)) {
-		t.Errorf("got:\n%s", b.String())
+	if JSON(Report{VM: vm, Samples: []Sample{s}})["note"] != cgroupNote {
+		t.Error("the JSON lost its method note")
 	}
 }
 
@@ -398,4 +403,10 @@ func header(out string) string {
 		}
 	}
 	return ""
+}
+
+// guideText is the reading guide with its line wrapping undone, so a test can
+// look for a sentence without caring where the lines break.
+func guideText() string {
+	return strings.Join(strings.Fields(ReadingGuide), " ")
 }
