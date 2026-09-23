@@ -50,6 +50,11 @@ The wslc section appears by default when a session VM is running, or when wslc i
 installed and none is, in which case it says so. On a machine without wslc there
 is none. `--wslc` always shows it, empty or not.
 
+The VM line also says how long the VM has been up, which shows at a glance that it
+was restarted, and the memory line how much of its swap is in use. A wslc
+session's section adds the size of its `storage.vhdx`, which all its containers
+share, so containers get no disk column of their own.
+
 ### What Windows charges
 
 ```
@@ -115,6 +120,7 @@ waiting.
 
 | Column | What it is |
 |---|---|
+| `IMAGE` | in the wslc tables, in place of `KIND`: the container's image, as `wslc list` names it. wslc names containers at random, so this is what says what is running. A long registry path is cut from the front |
 | `MEMORY` | everything charged to the row, including the page cache its reads and writes pulled in |
 | `ANON` | the part of that Windows can never reclaim |
 | `SWAP` | swapped-out memory; shown only when something has swapped |
@@ -122,14 +128,20 @@ waiting.
 | `READ`, `WRITE` | disk bytes per second |
 | `PIDS` | processes and threads, as `docker stats` counts them |
 | `STALL MEM/IO` | pressure: the share of the last ten seconds in which something in the row was stalled waiting for memory or for disk |
+| `LIMIT` | the row's caps, from `wslkit limit` or `wslc run --memory/--cpus`: the memory limit that bites first, and the CPU quota. Shown only when some row has one |
+| `THROTTLED` | the share of the time the CPU quota held the row back. Shown only with a CPU limit and a rate; `-` for a row without one |
+| `DISK USED/FILE` | what the distribution's filesystem holds, and the size of its `.vhdx` file on Windows. The file grows and does not shrink by itself; see [disk](disk.md) |
 
 Usage says a resource is used. Pressure says it is short. A distribution at
 80% of the VM's memory with no memory stall is fine. One at 30% with a
 persistent stall is the thing to look at.
 
 The kernel's OOM kills are counted too, and a row that has had any gets a
-note. Each VM is a section of its own under a rule naming it, and every
-explanation and note comes once, in a notes section after the last one.
+note. Each VM is a section of its own under a rule naming it. A notes section
+follows only when this run found something to say: a row that could not be
+measured, OOM kills, a VM that could not be read. On a healthy machine there is
+none. What explains the numbers in general, everything on this page in short,
+is in `wslkit top help`.
 
 ### The rows that are not distributions
 
@@ -155,12 +167,12 @@ bridges and `veth` pairs carry the same packets again on their way out.
 
 ## The numbers do not add up, on purpose
 
-Per-distribution memory will not sum to the VM total, and the report says so
-rather than quietly fudging it. Page cache and kernel memory belong to the VM
+Per-distribution memory will not sum to the VM total, and top does not quietly
+fudge it so that it does. Page cache and kernel memory belong to the VM
 rather than to any distribution.
 
-How a distribution is measured depends on your WSL version, and the report tells
-you which was used:
+How a distribution is measured depends on your WSL version. `--json` says which
+was used, in its `method` and `note` fields:
 
 - On WSL 2.9, each distribution gets its own cgroup, which accounts for it
   alone. That is true attribution, and it carries everything in the table.
@@ -170,7 +182,7 @@ you which was used:
   That is real attribution of process memory, but it counts a shared page once
   per process that maps it, and it cannot see page cache at all. Disk I/O,
   PIDs, pressure and the extra rows need the per-distribution cgroup, so on 2.7
-  they are left out, and the report says so, rather than approximated.
+  they are left out rather than approximated.
   VM-wide pressure is shown on both.
 
 At the time of writing WSL 2.9 is a pre-release and 2.7 is the current stable

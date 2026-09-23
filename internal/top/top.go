@@ -86,6 +86,9 @@ type Rates struct {
 	// Read and Write are disk bytes per second.
 	Read  *float64
 	Write *float64
+	// Throttled is the share of the time the CPU limit held the row back, in
+	// percent.
+	Throttled *float64
 }
 
 // Sample is one measurement of one row: a distribution, or a cgroup that
@@ -112,6 +115,21 @@ type Sample struct {
 	WriteBytes *uint64
 	Pressure   *Pressure
 
+	// Limits, as wslkit limit or wslc run --memory set them; nil is none.
+	MemHighBytes *uint64
+	MemMaxBytes  *uint64
+	// CPULimit is cpu.max as a number of CPUs: 1.5 is a quota of one and a
+	// half processors.
+	CPULimit *float64
+	// ThrottledUsec is how long the CPU limit has held the row back.
+	ThrottledUsec *uint64
+
+	// DiskUsedBytes and DiskSizeBytes are the distribution's own filesystem,
+	// from df inside it; HostDiskBytes is its .vhdx file's size on Windows.
+	DiskUsedBytes *uint64
+	DiskSizeBytes *uint64
+	HostDiskBytes *uint64
+
 	// Processes is how many processes the distribution can see.
 	Processes int
 	// CPUUsec is CPU time used so far, which a rate is computed from.
@@ -125,6 +143,8 @@ type Sample struct {
 	Init string
 	// CgroupPath is the node the numbers came from, when there was one.
 	CgroupPath string
+	// Image is a wslc container's image, as `wslc list` names it.
+	Image string
 	// Err explains a distribution that could not be measured, so one that is
 	// shutting down does not hide the rest.
 	Err error
@@ -145,6 +165,10 @@ type VM struct {
 	AnonBytes uint64
 	CPUs      int
 	UptimeSec uint64
+	// SwapTotalBytes and SwapFreeBytes are the VM's swap; a total of zero is
+	// no swap.
+	SwapTotalBytes uint64
+	SwapFreeBytes  uint64
 
 	// CPUUsec is busy time across every processor.
 	CPUUsec uint64
@@ -198,6 +222,9 @@ type Report struct {
 	WSLCPresent bool
 	// Sections is which parts of the report were asked for.
 	Sections Sections
+	// Filtered says the distributions were limited to named ones, so none
+	// being measured does not mean none is running.
+	Filtered bool
 }
 
 // Sections says which parts of top's report are wanted: WSL, the utility VM
@@ -286,6 +313,17 @@ func optPerSecond(before, after *uint64, over time.Duration) *float64 {
 	return perSecond(*before, *after, over)
 }
 
+// throttledPercent is how much of the time between two samples a CPU limit
+// held the row back.
+func throttledPercent(before, after *uint64, over time.Duration) *float64 {
+	p := optPerSecond(before, after, over)
+	if p == nil {
+		return nil
+	}
+	pct := *p / 1e6 * 100
+	return &pct
+}
+
 // CPUPercent is what share of one processor a distribution used between two
 // samples. It needs both, so it is nil for a single measurement.
 func CPUPercent(before, after Sample, interval time.Duration) *float64 {
@@ -305,9 +343,10 @@ func CPUPercent(before, after Sample, interval time.Duration) *float64 {
 func sampleRates(before, after Sample, interval time.Duration) Rates {
 	over := elapsed(before.AtCsec, after.AtCsec, interval)
 	return Rates{
-		CPU:   CPUPercent(before, after, interval),
-		Read:  optPerSecond(before.ReadBytes, after.ReadBytes, over),
-		Write: optPerSecond(before.WriteBytes, after.WriteBytes, over),
+		CPU:       CPUPercent(before, after, interval),
+		Read:      optPerSecond(before.ReadBytes, after.ReadBytes, over),
+		Write:     optPerSecond(before.WriteBytes, after.WriteBytes, over),
+		Throttled: throttledPercent(before.ThrottledUsec, after.ThrottledUsec, over),
 	}
 }
 
@@ -410,6 +449,11 @@ group() {
   [ -r "$gd/memory.peak" ] && echo "${gp}peak_bytes=$(cat "$gd/memory.peak")"
   [ -r "$gd/memory.swap.current" ] && echo "${gp}swap_bytes=$(cat "$gd/memory.swap.current")"
   [ -r "$gd/pids.current" ] && echo "${gp}pids=$(cat "$gd/pids.current")"
+  # Limits, as wslkit limit or wslc run --memory set them; "max" is none.
+  [ -r "$gd/memory.high" ] && echo "${gp}mem_high=$(cat "$gd/memory.high")"
+  [ -r "$gd/memory.max" ] && echo "${gp}mem_max=$(cat "$gd/memory.max")"
+  [ -r "$gd/cpu.max" ] && echo "${gp}cpu_max=$(cat "$gd/cpu.max")"
+  awk -v p="$gp" '$1=="throttled_usec"{print p "throttled_usec=" $2; exit}' "$gd/cpu.stat" 2>/dev/null
   awk -v p="$gp" '$1=="oom_kill"{print p "oom_kills=" $2; exit}' "$gd/memory.events" 2>/dev/null
   # io.stat is one line per device; an empty file means no I/O yet, which is
   # a real zero.
@@ -469,6 +513,8 @@ else
   echo "memory_kb=$rss"
   echo "cpu_ticks=$ticks"
 fi
+# The distribution's own disk, as its filesystem sees it.
+df -Pk / 2>/dev/null | awk 'NR==2{print "disk_size_kb=" $2; print "disk_used_kb=" $3}'
 echo "processes=$(ls -d /proc/[0-9]* 2>/dev/null | wc -l)"
 echo "init=$(cat /proc/1/comm 2>/dev/null)"
 # Cgroups that belong to no distribution. Only where wsl-user exists: without
@@ -491,6 +537,8 @@ echo "mem_free_kb=$(awk '/^MemFree:/{print $2}' /proc/meminfo)"
 echo "mem_available_kb=$(awk '/^MemAvailable:/{print $2}' /proc/meminfo)"
 echo "mem_cached_kb=$(awk '/^Cached:/{print $2; exit}' /proc/meminfo)"
 echo "mem_anon_kb=$(awk '/^AnonPages:/{print $2}' /proc/meminfo)"
+echo "swap_total_kb=$(awk '/^SwapTotal:/{print $2}' /proc/meminfo)"
+echo "swap_free_kb=$(awk '/^SwapFree:/{print $2}' /proc/meminfo)"
 echo "cpus=$(awk '/^processor/{n++} END{print n+0}' /proc/cpuinfo)"
 echo "uptime_sec=$(awk '{print int($1)}' /proc/uptime)"
 # user nice system idle iowait irq softirq steal: busy is all but idle and
@@ -589,6 +637,34 @@ func (f reader) cgroupCounters(s *Sample) {
 	s.ReadBytes = f.opt("read_bytes")
 	s.WriteBytes = f.opt("write_bytes")
 	s.Pressure = f.pressure("psi_")
+	s.MemHighBytes = f.limit("mem_high")
+	s.MemMaxBytes = f.limit("mem_max")
+	s.CPULimit = f.cpuLimit("cpu_max")
+	s.ThrottledUsec = f.opt("throttled_usec")
+}
+
+// limit reads a cgroup memory limit: a byte count, or "max" for none.
+func (f reader) limit(key string) *uint64 {
+	if strings.TrimSpace(f[key]) == "max" {
+		return nil
+	}
+	return f.opt(key)
+}
+
+// cpuLimit reads cpu.max, "<quota> <period>" in microseconds or "max <period>"
+// for none, as a number of CPUs.
+func (f reader) cpuLimit(key string) *float64 {
+	parts := strings.Fields(f[key])
+	if len(parts) != 2 || parts[0] == "max" {
+		return nil
+	}
+	quota, err1 := strconv.ParseFloat(parts[0], 64)
+	period, err2 := strconv.ParseFloat(parts[1], 64)
+	if err1 != nil || err2 != nil || period <= 0 {
+		return nil
+	}
+	cpus := quota / period
+	return &cpus
 }
 
 // ParseSample reads what SampleScript printed.
@@ -623,7 +699,19 @@ func ParseSample(distro, out string) (Sample, VM, error) {
 	default:
 		return s, vm, fmt.Errorf("top: %s did not say how it measured itself", distro)
 	}
+	s.DiskSizeBytes = f.kib("disk_size_kb")
+	s.DiskUsedBytes = f.kib("disk_used_kb")
 	return s, f.vm(hz), nil
+}
+
+// kib is a count of KiB, as df and /proc/meminfo print them, in bytes.
+func (f reader) kib(key string) *uint64 {
+	v := f.opt(key)
+	if v == nil {
+		return nil
+	}
+	b := *v * 1024
+	return &b
 }
 
 // vm reads what vmScript printed.
@@ -636,6 +724,8 @@ func (f reader) vm(hz uint64) VM {
 	vm.AnonBytes = f.num("mem_anon_kb") * 1024
 	vm.CPUs = int(f.num("cpus"))
 	vm.UptimeSec = f.num("uptime_sec")
+	vm.SwapTotalBytes = f.num("swap_total_kb") * 1024
+	vm.SwapFreeBytes = f.num("swap_free_kb") * 1024
 	vm.CPUUsec = f.num("vm_cpu_ticks") * 1_000_000 / hz
 	vm.AtCsec = f.num("vm_at_csec")
 	if rx, tx := f.opt("net_rx_bytes"), f.opt("net_tx_bytes"); rx != nil && tx != nil {
@@ -710,8 +800,8 @@ func formatPercent(p *float64) string {
 	return fmt.Sprintf("%.1f%%", *p)
 }
 
-// Explanations of what the two methods do and do not cover, printed with the
-// report so nobody has to guess why the columns do not add up.
+// Explanations of what the two methods do and do not cover. They are in the
+// JSON's note field and in ReadingGuide, not in every report.
 const (
 	cgroupNote    = "per-distribution figures come from each distribution's own cgroup, which accounts for it alone. They still do not sum to the VM total: page cache and kernel memory belong to the VM."
 	processesNote = "this WSL has no per-distribution cgroup, so per-distribution memory is the resident set of the processes each distribution can see. Shared pages are counted once per process that maps them, and page cache and kernel memory are not counted at all."
@@ -743,7 +833,10 @@ func Render(w io.Writer, r Report) {
 	wantWSL, _ := r.Sections.Wants()
 	if wantWSL {
 		fmt.Fprintln(w, rule("utility VM"))
-		if len(r.Samples) == 0 {
+		if len(r.Samples) == 0 && r.Filtered {
+			fmt.Fprintln(w, "none of the named distributions is running")
+			renderOthers(w, r.Host)
+		} else if len(r.Samples) == 0 {
 			fmt.Fprintln(w, "no distributions are running, so it is not up")
 			renderOthers(w, r.Host)
 		} else {
@@ -751,11 +844,6 @@ func Render(w io.Writer, r Report) {
 			fmt.Fprintln(w)
 			rows := append(Sorted(r.Samples), Sorted(r.Groups)...)
 			fmt.Fprint(w, rowsTable(rows, r.Method() == MethodCgroup, r.HasRates()).String())
-			line := fmt.Sprintf("%s attributed to distributions", FormatSize(r.Attributed()))
-			if len(r.Groups) > 0 {
-				line += fmt.Sprintf(", %s to groups that belong to none", FormatSize(r.GroupBytes()))
-			}
-			fmt.Fprintf(w, "\n%s.\n", line)
 		}
 	}
 	if showWSLC(r) {
@@ -786,24 +874,12 @@ func showWSLC(r Report) bool {
 	return r.Sections.WSLC || len(r.Sessions) > 0 || r.WSLCPresent
 }
 
-// renderNotes writes what explains the numbers, and then everything that
-// went wrong or needs saying about one row.
+// renderNotes writes what this run found that needs saying: a row that could
+// not be measured, OOM kills, a VM that asking wslc started. What explains the
+// numbers in general is the same every run, and lives in ReadingGuide, which
+// wslkit top help prints. On a healthy machine there is nothing here at all.
 func renderNotes(w io.Writer, r Report) {
-	var explain, notes []string
-	if len(r.Samples) > 0 {
-		if n := MethodNote(r.Method()); n != "" {
-			explain = append(explain, upperFirst(n))
-		}
-	}
-	if len(r.Groups) > 0 {
-		explain = append(explain, groupsNote)
-	}
-	if r.Method() == MethodProcesses {
-		explain = append(explain, upperFirst(cgroupOnlyNote))
-	}
-	if len(r.Sessions) > 0 {
-		explain = append(explain, sessionsNote)
-	}
+	var notes []string
 
 	for _, s := range append(Sorted(r.Samples), Sorted(r.Groups)...) {
 		notes = append(notes, rowNotes(s)...)
@@ -825,13 +901,10 @@ func renderNotes(w io.Writer, r Report) {
 	}
 	notes = append(notes, r.Notes...)
 
-	if len(explain) == 0 && len(notes) == 0 {
+	if len(notes) == 0 {
 		return
 	}
 	fmt.Fprintf(w, "\n%s\n", rule("notes"))
-	for _, e := range explain {
-		fmt.Fprintln(w, e)
-	}
 	for _, n := range notes {
 		fmt.Fprintf(w, "note: %s\n", n)
 	}
@@ -879,10 +952,21 @@ func renderVM(w io.Writer, vm VM, host *Host) {
 	if vm.Rates.CPU != nil {
 		head += ", CPU " + formatPercent(vm.Rates.CPU)
 	}
+	if vm.UptimeSec > 0 {
+		head += ", up " + formatUptime(vm.UptimeSec)
+	}
 	fmt.Fprintln(w, head)
 	if vm.CachedBytes > 0 || vm.AnonBytes > 0 {
-		fmt.Fprintf(w, "%s page cache (reclaimable), %s anonymous (unreclaimable)\n",
+		line := fmt.Sprintf("%s page cache (reclaimable), %s anonymous (unreclaimable)",
 			FormatSize(vm.CachedBytes), FormatSize(vm.AnonBytes))
+		if vm.SwapTotalBytes > 0 {
+			used := uint64(0)
+			if vm.SwapTotalBytes > vm.SwapFreeBytes {
+				used = vm.SwapTotalBytes - vm.SwapFreeBytes
+			}
+			line += fmt.Sprintf(", swap %s of %s", FormatSize(used), FormatSize(vm.SwapTotalBytes))
+		}
+		fmt.Fprintln(w, line)
 	}
 	if p := vm.Pressure; p != nil {
 		fmt.Fprintf(w, "stalled over the last 10 s: memory %.1f%%, I/O %.1f%%, CPU %.1f%%\n", p.Memory, p.IO, p.CPU)
@@ -898,17 +982,36 @@ func renderVM(w io.Writer, vm VM, host *Host) {
 
 // rowsTable lays out rows with the columns their measurement supports.
 func rowsTable(rows []Sample, withCgroup, withRates bool) table {
-	var withSwap, withInit bool
+	var withSwap, withInit, withLimit, withCPULimit, withDisk bool
+	// A table of wslc containers names each one's image where the others say
+	// what kind of row it is: every row there is the same kind.
+	containers := len(rows) > 0
 	for _, s := range rows {
+		if s.Kind != KindWSLC {
+			containers = false
+		}
 		if s.SwapBytes != nil && *s.SwapBytes > 0 {
 			withSwap = true
+		}
+		if s.MemHighBytes != nil || s.MemMaxBytes != nil || s.CPULimit != nil {
+			withLimit = true
+		}
+		if s.CPULimit != nil {
+			withCPULimit = true
+		}
+		if s.DiskUsedBytes != nil || s.HostDiskBytes != nil {
+			withDisk = true
 		}
 		if s.Kind == KindDistro && s.Init != "" {
 			withInit = true
 		}
 	}
 
-	headers := []string{"NAME", "KIND", "MEMORY"}
+	second := "KIND"
+	if containers {
+		second = "IMAGE"
+	}
+	headers := []string{"NAME", second, "MEMORY"}
 	if withCgroup {
 		headers = append(headers, "ANON")
 	}
@@ -926,6 +1029,17 @@ func rowsTable(rows []Sample, withCgroup, withRates bool) table {
 	} else {
 		headers = append(headers, "PROCESSES")
 	}
+	// Only when some row has one: most machines have no limits, and a column
+	// of dashes costs width and says nothing.
+	if withLimit {
+		headers = append(headers, "LIMIT")
+	}
+	if withCPULimit && withRates {
+		headers = append(headers, "THROTTLED")
+	}
+	if withDisk {
+		headers = append(headers, "DISK USED/FILE")
+	}
 	if withInit {
 		headers = append(headers, "INIT")
 	}
@@ -936,6 +1050,9 @@ func rowsTable(rows []Sample, withCgroup, withRates bool) table {
 		kind := "distro"
 		if s.Kind != KindDistro {
 			kind = string(s.Kind)
+		}
+		if containers {
+			kind = shortImage(s.Image)
 		}
 		if s.Err != nil {
 			row := []string{name, kind}
@@ -970,6 +1087,21 @@ func rowsTable(rows []Sample, withCgroup, withRates bool) table {
 		} else {
 			row = append(row, strconv.Itoa(s.Processes))
 		}
+		if withLimit {
+			row = append(row, formatLimit(s))
+		}
+		if withCPULimit && withRates {
+			// With no CPU limit there is nothing to be throttled by, and a
+			// 0.0% would read as a measurement.
+			throttled := "-"
+			if s.CPULimit != nil {
+				throttled = formatPercent(s.Rates.Throttled)
+			}
+			row = append(row, throttled)
+		}
+		if withDisk {
+			row = append(row, formatDisk(s))
+		}
 		if withInit {
 			init := ""
 			if s.Kind == KindDistro {
@@ -992,6 +1124,12 @@ func renderOthers(w io.Writer, h *Host) {
 	for _, v := range h.Others {
 		total += v.WorkingSetBytes
 	}
+	if h.Utility == nil {
+		// With no distribution measured there is no boot time to match the
+		// utility VM's vmmem by, so it may be one of these.
+		fmt.Fprintf(w, "%d VM(s) hold %s: the utility VM, a wslc session, or any other Hyper-V VM\n", len(h.Others), FormatSize(total))
+		return
+	}
 	fmt.Fprintf(w, "%d other VM(s) hold %s more: a wslc session, or any other Hyper-V VM\n", len(h.Others), FormatSize(total))
 }
 
@@ -1003,6 +1141,75 @@ func displayName(s Sample) string {
 		return "WSL itself"
 	}
 	return s.Distro
+}
+
+// formatUptime is an uptime in its two largest units: "3 h 12 m", "42 s".
+// shortImage keeps an image name to a column's width by cutting from the
+// front: the end, name and tag, is what tells two images apart, and a
+// registry path like mcr.microsoft.com/devcontainers/base is mostly prefix.
+func shortImage(image string) string {
+	const width = 30
+	r := []rune(image)
+	switch {
+	case len(r) == 0:
+		return "-"
+	case len(r) <= width:
+		return image
+	default:
+		return "…" + string(r[len(r)-width+1:])
+	}
+}
+
+// formatUptime is an uptime in its two largest units: "3 h 12 m", "42 s".
+func formatUptime(sec uint64) string {
+	d, h, m := sec/86400, sec%86400/3600, sec%3600/60
+	switch {
+	case d > 0:
+		return fmt.Sprintf("%d d %d h", d, h)
+	case h > 0:
+		return fmt.Sprintf("%d h %d m", h, m)
+	case m > 0:
+		return fmt.Sprintf("%d m", m)
+	default:
+		return fmt.Sprintf("%d s", sec)
+	}
+}
+
+// formatLimit is a row's caps: the memory limit that bites first, memory.high
+// being where throttling starts and memory.max where the OOM killer does, and
+// the CPU quota. "-" is none.
+func formatLimit(s Sample) string {
+	var parts []string
+	mem := s.MemHighBytes
+	if mem == nil || (s.MemMaxBytes != nil && *s.MemMaxBytes < *mem) {
+		mem = s.MemMaxBytes
+	}
+	if mem != nil {
+		parts = append(parts, FormatSize(*mem))
+	}
+	if s.CPULimit != nil {
+		parts = append(parts, strconv.FormatFloat(*s.CPULimit, 'f', -1, 64)+" CPU")
+	}
+	if len(parts) == 0 {
+		return "-"
+	}
+	return strings.Join(parts, ", ")
+}
+
+// formatDisk is a distribution's disk: used inside it, and the size of its
+// .vhdx file on Windows, which only grows and is what it costs the host.
+func formatDisk(s Sample) string {
+	used, file := "-", "-"
+	if s.DiskUsedBytes != nil {
+		used = FormatSize(*s.DiskUsedBytes)
+	}
+	if s.HostDiskBytes != nil {
+		file = FormatSize(*s.HostDiskBytes)
+	}
+	if used == "-" && file == "-" {
+		return "-"
+	}
+	return used + " / " + file
 }
 
 func optSize(p *uint64) string {
@@ -1027,13 +1234,22 @@ func sampleJSON(s Sample, nameKey string) map[string]any {
 	if s.CgroupPath != "" {
 		o["cgroup_path"] = s.CgroupPath
 	}
+	if s.Image != "" {
+		o["image"] = s.Image
+	}
 	for k, v := range map[string]*uint64{
-		"peak_bytes":  s.PeakBytes,
-		"swap_bytes":  s.SwapBytes,
-		"oom_kills":   s.OOMKills,
-		"pids":        s.PIDs,
-		"read_bytes":  s.ReadBytes,
-		"write_bytes": s.WriteBytes,
+		"peak_bytes":        s.PeakBytes,
+		"swap_bytes":        s.SwapBytes,
+		"oom_kills":         s.OOMKills,
+		"pids":              s.PIDs,
+		"read_bytes":        s.ReadBytes,
+		"write_bytes":       s.WriteBytes,
+		"memory_high_bytes": s.MemHighBytes,
+		"memory_max_bytes":  s.MemMaxBytes,
+		"throttled_usec":    s.ThrottledUsec,
+		"disk_used_bytes":   s.DiskUsedBytes,
+		"disk_size_bytes":   s.DiskSizeBytes,
+		"vhdx_bytes":        s.HostDiskBytes,
 	} {
 		if v != nil {
 			o[k] = *v
@@ -1050,6 +1266,12 @@ func sampleJSON(s Sample, nameKey string) map[string]any {
 	}
 	if p := s.Rates.Write; p != nil {
 		o["write_bytes_per_second"] = *p
+	}
+	if p := s.CPULimit; p != nil {
+		o["cpu_limit"] = *p
+	}
+	if p := s.Rates.Throttled; p != nil {
+		o["throttled_percent"] = *p
 	}
 	return o
 }
@@ -1092,6 +1314,10 @@ func vmJSON(v VM) map[string]any {
 		"anon_bytes":      v.AnonBytes,
 		"cpus":            v.CPUs,
 		"uptime_seconds":  v.UptimeSec,
+	}
+	if v.SwapTotalBytes > 0 {
+		vm["swap_total_bytes"] = v.SwapTotalBytes
+		vm["swap_free_bytes"] = v.SwapFreeBytes
 	}
 	if v.HasNet {
 		vm["net_rx_bytes"] = v.NetRxBytes

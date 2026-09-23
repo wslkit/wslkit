@@ -76,7 +76,7 @@ func TestWSL27RendersWhatItCanAndSaysWhatItCannot(t *testing.T) {
 			t.Errorf("a %s column on a WSL that cannot fill it:\n%s", col, got)
 		}
 	}
-	for _, want := range []string{"PROCESSES", upperFirst(processesNote), upperFirst(cgroupOnlyNote), "stalled over the last 10 s"} {
+	for _, want := range []string{"PROCESSES", "stalled over the last 10 s"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q:\n%s", want, got)
 		}

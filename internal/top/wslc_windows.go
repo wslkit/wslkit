@@ -76,3 +76,12 @@ func (r WSLRunner) ContainerNames(ctx context.Context, name string) (string, err
 	}
 	return out, nil
 }
+
+// SessionDisk is the size of a session's storage.vhdx on Windows.
+func (r WSLRunner) SessionDisk(name string) (uint64, bool) {
+	st, err := os.Stat(filepath.Join(wslcsess.Root(), name, "storage.vhdx"))
+	if err != nil {
+		return 0, false
+	}
+	return uint64(st.Size()), true
+}
