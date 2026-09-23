@@ -45,7 +45,7 @@ type Result struct {
 	FixID      string   `json:"fix_id,omitempty"`
 	FixHint    string   `json:"fix_hint,omitempty"`
 	Refs       []string `json:"refs,omitempty"`
-	Elevate    bool     `json:"needs_elevation,omitempty"` // re-run with --elevated would help
+	Elevate    bool     `json:"needs_elevation,omitempty"` // re-running from an elevated terminal would help
 }
 
 type Probe interface {
@@ -77,7 +77,7 @@ func (b Base) Res(status Status, confidence float64, summary string) Result {
 // NeedsElevation builds the standard UNKNOWN result for admin-only data.
 func (b Base) NeedsElevation(what string) Result {
 	r := b.Res(Unknown, 0.1, fmt.Sprintf("%s cannot be read without elevation", what))
-	r.FixHint = "wslkit doctor check --elevated   (from an elevated terminal)"
+	r.FixHint = "run wslkit doctor from an elevated terminal (elevation is detected; no flag needed)"
 	r.Elevate = true
 	return r
 }

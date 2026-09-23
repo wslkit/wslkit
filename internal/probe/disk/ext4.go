@@ -79,7 +79,7 @@ func (p Filesystem) Run(e *env.Env) probe.Result {
 		for _, u := range unreadable {
 			if strings.Contains(u, "elevation") {
 				r.Elevate = true
-				r.FixHint = "wslkit doctor check --elevated   (from an elevated terminal)"
+				r.FixHint = "run wslkit doctor from an elevated terminal (elevation is detected; no flag needed)"
 				break
 			}
 		}

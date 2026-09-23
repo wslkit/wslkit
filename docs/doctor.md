@@ -28,7 +28,7 @@ fine and hidden unless you ask for it.
 ```
 wslkit doctor --verbose          show the checks that passed too
 wslkit doctor --only M1          only checks in one milestone
-wslkit doctor --elevated         re-read the facts that need an administrator
+wslkit doctor --elevated         fail unless the terminal is elevated (for scripts)
 wslkit doctor --json             machine-readable, schema wslkit/result/v1
 ```
 
@@ -190,7 +190,7 @@ would actually undo.
 | `--verbose` | show OK and skipped findings too |
 | `--only M1[,M2]` | run only checks tagged with these milestones |
 | `--from-snapshot FILE` | run against a saved machine instead of this one |
-| `--elevated` | require an elevated console and re-read admin-only facts |
+| `--elevated` | fail unless the console is elevated. Elevation is detected either way, and the facts that need an administrator are read whenever the console has one; the flag only makes a script stop instead of reporting them UNKNOWN |
 | `--allow-vm-wake` | permit checks that would start the WSL VM |
 | `--timeout DURATION` | per-collector deadline, default five seconds |
 | `--online` | check the published WSL releases instead of the built-in list |

@@ -137,7 +137,7 @@ func Report(w io.Writer, e *env.Env, results []probe.Result, o Options) {
 	sb.WriteString("```\n\n")
 	sb.WriteString("Collected " + e.CollectedAt.UTC().Format("2006-01-02 15:04 UTC"))
 	if !e.Elevated {
-		sb.WriteString(", not elevated (UNKNOWN items may resolve with `wslkit doctor check --elevated`)")
+		sb.WriteString(", not elevated (UNKNOWN items may resolve when run from an elevated terminal)")
 	}
 	sb.WriteString(".\n")
 	sb.WriteString("Deeper traces: https://github.com/microsoft/WSL/blob/master/diagnostics/collect-wsl-logs.ps1\n")
@@ -200,7 +200,7 @@ func footer(e *env.Env, results []probe.Result) string {
 	}
 	s := fmt.Sprintf("%d fail, %d warn, %d unknown, %d ok, %d skipped.", fail, warn, unknown, ok, skipped)
 	if unknown > 0 && !e.Elevated {
-		s += "  Re-run from an elevated terminal with --elevated to resolve UNKNOWN items."
+		s += "  Re-run from an elevated terminal to resolve UNKNOWN items; elevation is detected, no flag needed."
 	}
 	return s + "\n"
 }

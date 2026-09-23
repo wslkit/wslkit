@@ -171,7 +171,8 @@ check / explain flags:
   --verbose               show details for OK and SKIPPED findings too
   --only M1[,M2]          run only probes tagged with these milestones (check)
   --from-snapshot FILE    run probes on a saved --json output instead of this machine
-  --elevated              require an elevated terminal (re-checks admin-only data)
+  --elevated              fail unless the terminal is elevated; elevation itself
+                          is detected, and admin-only facts are read whenever it is
   --allow-vm-wake         permit probes that would start the WSL VM (none yet)
   --online                check the published WSL releases (one request, cached
                           for a day); off by default, nothing else uses the network
