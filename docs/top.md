@@ -8,10 +8,10 @@ for each.
 It reads only, and it measures nothing that is not already running.
 
 ```
-wslkit top             memory, CPU, disk and pressure per distribution
-wslkit top --watch     the same, redrawn every interval until Ctrl+C
-wslkit top --once      one sample, and no rates
-wslkit top --json      integer bytes
+wslkit top             memory, CPU, disk and pressure, refreshed until Ctrl+C
+wslkit top --once      one report, then exit
+wslkit top --json      one report as JSON, integer bytes
+wslkit top --watch     keep refreshing even when piped
 wslkit top Ubuntu      only these distributions
 ```
 
@@ -170,16 +170,23 @@ counter by the same five seconds. The measurements are in
 
 ## Rates
 
-A rate needs two samples separated by time. Asked for one with `--once`, the
-report omits the rate columns rather than printing a number that means
-something else.
+A rate needs two samples separated by time. Asked for a single instant sample,
+with `--interval 0`, the report omits the rate columns rather than printing a
+number that means something else.
 
 Rates divide by the VM's own clock between the two samples, not by `--interval`.
 Measuring every distribution takes time too, about 190 ms a sweep on the machine
 this was written on. Dividing by the interval alone made a two-second CPU rate
 read about 9% high.
 
-`--watch` measures once per interval and compares each sample with the one
+## Refreshing, or one report
+
+On a console top refreshes, as `top`, `htop` and `docker stats` do. Anywhere
+else, a pipe, a file, or `--json`, it prints one report and exits, so a script
+never waits on a command that does not end. `--once` prints one report on a
+console too, and `--watch` keeps refreshing when piped.
+
+Refreshing measures once per interval and compares each sample with the one
 before it. On a console it draws on the alternate screen, as `top` and `htop`
 do: one frame in place, and the screen you had comes back when you press
 Ctrl+C. A frame taller than the window is cut to fit, with a line saying how
@@ -191,9 +198,9 @@ report after another, or with `--json` one object per line.
 | Flag | What it does |
 |---|---|
 | `--json` | machine-readable output, sizes in bytes |
-| `--interval D` | gap between the samples a rate is measured over, default two seconds |
-| `--once` | take one sample and report no rates, rather than waiting |
-| `--watch` | keep measuring and redraw every interval, until Ctrl+C |
+| `--interval D` | gap between the samples a rate is measured over, default two seconds; `0` is one instant sample with no rates |
+| `--once` | print one report and exit, instead of refreshing on a console |
+| `--watch` | keep refreshing every interval even when piped or redirected; with `--json`, one object per line |
 | `--raw` | print what the measurement printed inside each distribution, unparsed, labelled with the WSL version |
 
 `--raw` is for when the numbers look wrong. Its output is exactly what top's

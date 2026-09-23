@@ -23,9 +23,9 @@ func (a *App) top(args []string) int {
 	fs := flag.NewFlagSet("top", flag.ContinueOnError)
 	fs.SetOutput(a.Stderr)
 	jsonOut := fs.Bool("json", false, "machine-readable output on stdout")
-	interval := fs.Duration("interval", 2*time.Second, "gap between the two samples a rate is measured over")
-	once := fs.Bool("once", false, "take one sample and report no rates, rather than waiting")
-	watch := fs.Bool("watch", false, "keep measuring and redraw every interval, until interrupted")
+	interval := fs.Duration("interval", 2*time.Second, "gap between the samples a rate is measured over; 0 is one instant sample with no rates")
+	once := fs.Bool("once", false, "print one report and exit, instead of refreshing on a console")
+	watch := fs.Bool("watch", false, "keep refreshing every interval even when not on a console")
 	timeout := fs.Duration("timeout", top.DefaultTimeout, "bound on each measurement inside a distribution")
 	raw := fs.Bool("raw", false, "print what the measurement printed inside each distribution, unparsed, for a bug report")
 	if err := fs.Parse(args); err != nil {
@@ -37,26 +37,21 @@ func (a *App) top(args []string) int {
 		fmt.Fprintln(a.Stderr, "--interval must not be negative")
 		return ExitUsage
 	}
-	if *watch && *once {
-		fmt.Fprintln(a.Stderr, "--watch and --once ask for opposite things")
-		return ExitUsage
-	}
-	if *watch && *interval == 0 {
-		fmt.Fprintln(a.Stderr, "--watch needs an --interval above zero")
-		return ExitUsage
-	}
 	o := top.Options{Interval: *interval, Timeout: *timeout, Only: only}
-	if *once {
-		// A rate needs two samples separated by time. Asked for one, report
-		// what can be read at an instant and say nothing about rates rather
-		// than printing a number that means something else.
-		o.Interval = 0
-	}
-
 	if *raw {
 		return a.topRaw(o)
 	}
-	if *watch {
+
+	onConsole := false
+	if f, ok := a.Stdout.(*os.File); ok {
+		onConsole = console.IsConsole(f)
+	}
+	mode, err := chooseTopMode(*once, *watch, *jsonOut, onConsole, *interval)
+	if err != nil {
+		fmt.Fprintln(a.Stderr, err)
+		return ExitUsage
+	}
+	if mode == topWatch {
 		return a.topWatch(o, *jsonOut)
 	}
 
