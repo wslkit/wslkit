@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/wslkit/wslkit/internal/agent/config"
+	"github.com/wslkit/wslkit/internal/winapi/console"
 )
 
 // ProfileScript is the profile.d file the presets' environment lands in.
@@ -271,6 +272,7 @@ func wsl(ctx context.Context, args []string, stdin []byte) (string, error) {
 	cctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(cctx, "wsl.exe", args...)
+	console.OwnConsole(cmd)
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}

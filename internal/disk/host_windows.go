@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf16"
+
+	"github.com/wslkit/wslkit/internal/winapi/console"
 )
 
 // WindowsHost runs wsl.exe.
@@ -103,6 +105,7 @@ func (h *WindowsHost) RunAsRoot(ctx context.Context, distro string, argv []strin
 // run executes wsl.exe and decodes its output.
 func (h *WindowsHost) run(ctx context.Context, args ...string) (stdout, stderr string, code int, err error) {
 	cmd := exec.CommandContext(ctx, h.exe(), args...)
+	console.OwnConsole(cmd)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	runErr := cmd.Run()
