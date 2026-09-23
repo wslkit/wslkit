@@ -22,7 +22,7 @@ wslkit top Ubuntu      only these distributions
 ```
 ── utility VM ────────────────────────────────────────────────────────────────
 1.2 GiB of 7.6 GiB in use, 6.3 GiB free, 4 CPUs, CPU 22.0%
-616.5 MiB page cache, which Windows can reclaim; 179.3 MiB anonymous, which it cannot
+616.5 MiB page cache (reclaimable), 179.3 MiB anonymous (unreclaimable)
 stalled over the last 10 s: memory 0.0%, I/O 15.2%, CPU 3.4%
 network: 691 B/s in, 696 B/s out
 
@@ -30,7 +30,7 @@ NAME          KIND    MEMORY     ANON       CPU    READ       WRITE      PIDS  S
 Ubuntu        distro  469.6 MiB  105.4 MiB  15.3%  1.6 KiB/s  1.6 KiB/s  88    0.0% / 6.8%   systemd
 skrog-engine  distro  199.2 MiB  66.6 MiB   6.2%   0 B/s      0 B/s      90    0.0% / 4.5%   init(skrog-engi
 docker        cgroup  16.7 MiB   4.9 MiB    0.0%   0 B/s      0 B/s      6     0.0% / 0.0%
-wsl           wsl     696.0 KiB  116.0 KiB  0.6%   0 B/s      0 B/s      1     0.0% / 0.0%
+WSL itself    wsl     696.0 KiB  116.0 KiB  0.6%   0 B/s      0 B/s      1     0.0% / 0.0%
 ```
 
 The first line is what Task Manager shows against `vmmem`. The split underneath
@@ -78,7 +78,7 @@ even when no distribution is running.
 ```
 ── wslc session wslc-cli-user (preview) ──────────────────────────────────────
 548.4 MiB of 7.6 GiB in use, 7.0 GiB free, 4 CPUs, CPU 103.2%
-238.3 MiB page cache, which Windows can reclaim; 55.4 MiB anonymous, which it cannot
+238.3 MiB page cache (reclaimable), 55.4 MiB anonymous (unreclaimable)
 stalled over the last 10 s: memory 0.0%, I/O 2.5%, CPU 0.6%
 network: 24 B/s in, 24 B/s out
 Windows charges it 786.0 MiB (vmmem pid 39264)
@@ -133,7 +133,7 @@ explanation and note comes once, in a notes section after the last one.
 
 ### The rows that are not distributions
 
-- **`wsl`** is WSL's own processes inside the VM (`wsl-user/non-distro`).
+- **`WSL itself`** is WSL's own processes inside the VM (`wsl-user/non-distro`), which belong to no distribution. Its KIND is `wsl`, and in `--json` it is the group named `wsl`.
 - **A `cgroup` row** is a cgroup at the VM's root that belongs to no
   distribution. `/docker` is where Docker Engine without systemd puts its
   containers, and those containers are **not** inside the distribution that

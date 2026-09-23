@@ -716,7 +716,7 @@ const (
 	cgroupNote    = "per-distribution figures come from each distribution's own cgroup, which accounts for it alone. They still do not sum to the VM total: page cache and kernel memory belong to the VM."
 	processesNote = "this WSL has no per-distribution cgroup, so per-distribution memory is the resident set of the processes each distribution can see. Shared pages are counted once per process that maps them, and page cache and kernel memory are not counted at all."
 	// groupsNote explains the rows that are not distributions.
-	groupsNote = "wsl is WSL's own processes. A cgroup row sits at the VM's root and belongs to no distribution: /docker is where Docker Engine without systemd puts its containers."
+	groupsNote = "WSL itself is WSL's own processes in the VM, which belong to no distribution. A cgroup row sits at the VM's root and belongs to no distribution: /docker is where Docker Engine without systemd puts its containers."
 	// cgroupOnlyNote says why the I/O and pressure columns are missing.
 	cgroupOnlyNote = "disk I/O, PIDs and pressure per distribution need the per-distribution cgroup, which arrived in WSL 2.9, so they are not shown."
 )
@@ -881,7 +881,7 @@ func renderVM(w io.Writer, vm VM, host *Host) {
 	}
 	fmt.Fprintln(w, head)
 	if vm.CachedBytes > 0 || vm.AnonBytes > 0 {
-		fmt.Fprintf(w, "%s page cache, which Windows can reclaim; %s anonymous, which it cannot\n",
+		fmt.Fprintf(w, "%s page cache (reclaimable), %s anonymous (unreclaimable)\n",
 			FormatSize(vm.CachedBytes), FormatSize(vm.AnonBytes))
 	}
 	if p := vm.Pressure; p != nil {
@@ -932,19 +932,20 @@ func rowsTable(rows []Sample, withCgroup, withRates bool) table {
 
 	t := table{headers: headers}
 	for _, s := range rows {
+		name := displayName(s)
 		kind := "distro"
 		if s.Kind != KindDistro {
 			kind = string(s.Kind)
 		}
 		if s.Err != nil {
-			row := []string{s.Distro, kind}
+			row := []string{name, kind}
 			for range headers[3:] {
 				row = append(row, "-")
 			}
 			t.rows = append(t.rows, append(row, "could not be measured"))
 			continue
 		}
-		row := []string{s.Distro, kind, FormatSize(s.MemoryBytes)}
+		row := []string{name, kind, FormatSize(s.MemoryBytes)}
 		if withCgroup {
 			row = append(row, optSize(s.AnonBytes))
 		}
@@ -992,6 +993,16 @@ func renderOthers(w io.Writer, h *Host) {
 		total += v.WorkingSetBytes
 	}
 	fmt.Fprintf(w, "%d other VM(s) hold %s more: a wslc session, or any other Hyper-V VM\n", len(h.Others), FormatSize(total))
+}
+
+// displayName is how a row is named in the table. WSL's own cgroup is named
+// `wsl` in the data, which next to a KIND of `wsl` said nothing; on screen it is
+// "WSL itself". The JSON keeps the data's name.
+func displayName(s Sample) string {
+	if s.Kind == KindWSL {
+		return "WSL itself"
+	}
+	return s.Distro
 }
 
 func optSize(p *uint64) string {
