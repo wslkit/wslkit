@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sys/windows/registry"
+
 	"github.com/wslkit/wslkit/internal/top"
 	"github.com/wslkit/wslkit/internal/winapi/console"
 )
@@ -26,6 +28,7 @@ func (a *App) top(args []string) int {
 	watch := fs.Bool("watch", false, "keep measuring and redraw every interval, until interrupted")
 	timeout := fs.Duration("timeout", top.DefaultTimeout, "bound on each measurement inside a distribution")
 	wslc := fs.Bool("wslc", false, "also measure wslc sessions and their containers; starts a stopped session VM")
+	raw := fs.Bool("raw", false, "print what the measurement printed inside each distribution, unparsed, for a bug report")
 	if err := fs.Parse(args); err != nil {
 		return ExitUsage
 	}
@@ -51,6 +54,9 @@ func (a *App) top(args []string) int {
 		o.Interval = 0
 	}
 
+	if *raw {
+		return a.topRaw(o)
+	}
 	if *watch {
 		return a.topWatch(o, *jsonOut)
 	}
@@ -153,6 +159,69 @@ func (a *App) topWatch(o top.Options, jsonOut bool) int {
 			return ExitFindings
 		}
 	}
+}
+
+// topRaw prints the measurement script's own output for each running
+// distribution, unparsed, under a line naming it and the WSL version.
+//
+// It is what a test fixture is made from, and what to attach to a report
+// when top's numbers look wrong on a WSL nobody here runs: the parser can
+// then be tested against exactly what that machine printed.
+func (a *App) topRaw(o top.Options) int {
+	ctx := context.Background()
+	r := top.WSLRunner{}
+	names, err := r.Running(ctx)
+	if err != nil {
+		fmt.Fprintf(a.Stderr, "error: %v\n", err)
+		return ExitFindings
+	}
+	if len(o.Only) > 0 {
+		var keep []string
+		for _, n := range names {
+			for _, w := range o.Only {
+				if strings.EqualFold(n, w) {
+					keep = append(keep, n)
+				}
+			}
+		}
+		names = keep
+	}
+	if len(names) == 0 {
+		fmt.Fprintln(a.Stderr, "no distributions are running")
+		return ExitFindings
+	}
+	timeout := o.Timeout
+	if timeout == 0 {
+		timeout = top.DefaultTimeout
+	}
+	failed := false
+	for _, n := range names {
+		out, err := r.Sample(ctx, n, timeout)
+		fmt.Fprintf(a.Stdout, "# distribution=%s wsl=%s\n", n, wslVersionLine())
+		fmt.Fprint(a.Stdout, strings.ReplaceAll(out, "\r\n", "\n"))
+		if err != nil {
+			fmt.Fprintf(a.Stdout, "# error: %v\n", err)
+			failed = true
+		}
+	}
+	if failed {
+		return ExitFindings
+	}
+	return ExitOK
+}
+
+// wslVersionLine is the installed WSL version, for labelling a capture, or
+// "unknown". It is the MSI's own record, which is where doctor reads it too.
+func wslVersionLine() string {
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss\MSI`, registry.READ)
+	if err != nil {
+		return "unknown"
+	}
+	defer k.Close()
+	if v, _, err := k.GetStringValue("Version"); err == nil && v != "" {
+		return v
+	}
+	return "unknown"
 }
 
 // fitFrame cuts a frame to the console's height, so a refreshing display

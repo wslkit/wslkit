@@ -197,6 +197,11 @@ report after another, or with `--json` one object per line.
 | `--once` | take one sample and report no rates, rather than waiting |
 | `--watch` | keep measuring and redraw every interval, until Ctrl+C |
 | `--wslc` | also measure wslc sessions and their containers; starts a stopped session VM |
+| `--raw` | print what the measurement printed inside each distribution, unparsed, labelled with the WSL version |
+
+`--raw` is for when the numbers look wrong. Its output is exactly what top's
+parser reads, so a copy of it in a bug report can become a test fixture: the
+2.7 tests were made from it.
 | `--timeout D` | bound on each measurement inside a distribution |
 
 ## Limits

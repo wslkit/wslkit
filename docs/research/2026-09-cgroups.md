@@ -230,3 +230,21 @@ skrog-engine kept `distro-108` throughout, because dockerd holds it up.
 Nothing may cache the mapping. It has to be resolved from inside the
 distribution each time, which is what makes `/proc/self/cgroup` the right source
 rather than a convenience.
+
+## Re-measured on WSL 2.7.14 (2026-09-22)
+
+The machine was taken back to 2.7.14, the stable release, to capture real
+output from the process method for the tests (#100), then returned to 2.9.
+
+- **There is no `wsl-user`,** as on 2.7.13. Ubuntu's processes are in
+  `0::/init.scope`, and skrog-engine's in `0::/`.
+- **Ubuntu's systemd had laid out the VM's root cgroup.** `init.scope`,
+  `system.slice`, `user.slice` and five `.mount` units sit at the root, and
+  skrog-engine, which has no systemd, sees them too.
+- **That is why top reports no root cgroups without `wsl-user`.** A build with
+  that guard removed reported all nine as rows, 378.5 MiB of them, and 353 MiB
+  of that was `system.slice`, which is Ubuntu's own memory counted a second
+  time. With the guard, top reports none.
+
+The captures are `internal/top/testdata/wsl-2.7.14-systemd.txt` and
+`wsl-2.7.14-no-systemd.txt`, made with `wslkit top --raw`.

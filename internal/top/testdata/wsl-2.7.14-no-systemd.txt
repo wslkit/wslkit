@@ -1,0 +1,22 @@
+# distribution=skrog-engine wsl=2.7.14.0
+clock_hz=100
+method=processes
+at_csec=5044
+memory_kb=151108
+cpu_ticks=310
+processes=13
+init=init(skrog-engi
+vm_at_csec=5045
+mem_total_kb=7977576
+mem_free_kb=6710740
+mem_available_kb=7396436
+mem_cached_kb=724756
+mem_anon_kb=144996
+cpus=4
+uptime_sec=50
+vm_cpu_ticks=1458
+net_rx_bytes=8582
+net_tx_bytes=7454
+vm_psi_cpu=1.48
+vm_psi_memory=0.00
+vm_psi_io=11.77
