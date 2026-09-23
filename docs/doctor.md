@@ -38,6 +38,19 @@ One broken fact should not produce a page of misleading findings.
 [Every check](probes.md) is listed in the reference, generated from the same
 registry the binary runs.
 
+### wslc containers
+
+```
+wslkit doctor --wslc             also check DNS inside wslc containers
+```
+
+wslc, the container CLI in the WSL 2.9 pre-releases, runs its containers in a
+VM of its own, whose DNS can fail when everything else on the machine works.
+`WSC001` asks each DNS server a container would be given, from inside that VM,
+and compares the answer with a public resolver's. It is off by default because
+asking the VM anything starts it if it was stopped. It stops again once idle.
+It never creates a session: with none, there is nothing to check.
+
 ### Working on someone else's machine
 
 `--json` output is also an input. Save it, and every check can be re-run
@@ -181,4 +194,5 @@ would actually undo.
 | `--allow-vm-wake` | permit checks that would start the WSL VM |
 | `--timeout DURATION` | per-collector deadline, default five seconds |
 | `--online` | check the published WSL releases instead of the built-in list |
+| `--wslc` | also check that wslc containers can resolve names (`WSC001`); starts a stopped wslc session VM |
 | `--no-redact` | leave usernames and paths in the output |

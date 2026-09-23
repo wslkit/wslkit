@@ -48,6 +48,7 @@ func Run(ctx context.Context, o Options) (*env.Env, error) {
 	e := env.New(o.Tool)
 	e.Elevated = isElevated()
 	e.VMWakeOK = o.AllowVMWake
+	e.WSLCAllowed = o.WSLC
 	e.UserProfile, _ = os.UserHomeDir()
 	e.Hostname, _ = os.Hostname()
 	e.Host.Arch = hostArch()
@@ -70,6 +71,7 @@ func Run(ctx context.Context, o Options) (*env.Env, error) {
 		{"hotfixes", collectHotfixes},
 		{"policy", collectPolicy},
 		{"agent", collectAgent},
+		{"wslc", collectWSLC},
 	})
 	return e, nil
 }

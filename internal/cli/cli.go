@@ -175,6 +175,8 @@ check / explain flags:
   --allow-vm-wake         permit probes that would start the WSL VM (none yet)
   --online                check the published WSL releases (one request, cached
                           for a day); off by default, nothing else uses the network
+  --wslc                  also test DNS inside wslc containers (WSC001); starts a
+                          stopped wslc session VM, so off by default
   --timeout DURATION      per-collector deadline (default 5s)
   --no-redact             do not scrub user paths from human/json output
 
@@ -195,9 +197,9 @@ func fixIDs() string {
 
 // runFlags are shared by check and explain.
 type runFlags struct {
-	jsonOut, report, verbose, elevated, vmWake, noRedact, online bool
-	only, snapshot                                               string
-	timeout                                                      time.Duration
+	jsonOut, report, verbose, elevated, vmWake, noRedact, online, wslc bool
+	only, snapshot                                                     string
+	timeout                                                            time.Duration
 }
 
 func (a *App) bind(fs *flag.FlagSet) *runFlags {
@@ -212,6 +214,7 @@ func (a *App) bind(fs *flag.FlagSet) *runFlags {
 	fs.DurationVar(&rf.timeout, "timeout", 5*time.Second, "")
 	fs.BoolVar(&rf.noRedact, "no-redact", false, "")
 	fs.BoolVar(&rf.online, "online", false, "")
+	fs.BoolVar(&rf.wslc, "wslc", false, "")
 	// --offline is the default and is accepted so a script can say so.
 	fs.Bool("offline", false, "")
 	return rf
@@ -234,9 +237,14 @@ func (a *App) environment(rf *runFlags) (*env.Env, int) {
 		}
 		return e, ExitOK
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), rf.timeout*4)
+	limit := rf.timeout * 4
+	if rf.wslc && limit < 90*time.Second {
+		// The wslc collector may boot a VM, and has a minute of its own.
+		limit = 90 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), limit)
 	defer cancel()
-	e, err := collect.Run(ctx, collect.Options{Tool: a.toolName(), AllowVMWake: rf.vmWake, Online: rf.online, Timeout: rf.timeout})
+	e, err := collect.Run(ctx, collect.Options{Tool: a.toolName(), AllowVMWake: rf.vmWake, Online: rf.online, WSLC: rf.wslc, Timeout: rf.timeout})
 	if err != nil {
 		fmt.Fprintf(a.Stderr, "%v\n", err)
 		return nil, ExitCollector

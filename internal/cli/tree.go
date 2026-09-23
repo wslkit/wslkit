@@ -39,7 +39,7 @@ func withDiskFlags(extra ...string) []string {
 // runFlagNames are the flags the doctor's read-only commands take.
 var runFlagNames = []string{
 	"--json", "--report", "--verbose", "--only", "--from-snapshot",
-	"--elevated", "--allow-vm-wake", "--timeout", "--no-redact",
+	"--elevated", "--allow-vm-wake", "--timeout", "--no-redact", "--online", "--wslc",
 }
 
 // Shells lists what completion can be generated for.

@@ -17,7 +17,10 @@ type Options struct {
 	// Online permits the one network request this tool makes: the published
 	// WSL release list. Off unless asked for, so an ordinary run touches
 	// nothing outside the machine.
-	Online      bool
+	Online bool
+	// WSLC permits the wslc collector, which boots a stopped wslc session VM to
+	// test the DNS its containers get. Off unless asked for.
+	WSLC        bool
 	Timeout     time.Duration // per collector
 	EventWindow time.Duration
 }
@@ -63,6 +66,12 @@ type collector struct {
 	run  func(ctx context.Context, e *env.Env, o Options) error
 }
 
+// collectorTimeouts replace Options.Timeout for the collectors that need longer:
+// the wslc one boots a VM before it can answer.
+var collectorTimeouts = map[string]time.Duration{
+	"wslc": 60 * time.Second,
+}
+
 // runAll executes collectors concurrently. Each writes only its own fields of
 // Env; nothing reads Env until all have returned. A collector that exceeds its
 // deadline is abandoned (its goroutine may finish later and write into fields
@@ -75,7 +84,11 @@ func runAll(ctx context.Context, e *env.Env, o Options, cs []collector) {
 		wg.Add(1)
 		go func(c collector) {
 			defer wg.Done()
-			cctx, cancel := context.WithTimeout(ctx, o.Timeout)
+			limit := o.Timeout
+			if t, ok := collectorTimeouts[c.name]; ok {
+				limit = t
+			}
+			cctx, cancel := context.WithTimeout(ctx, limit)
 			defer cancel()
 			start := time.Now()
 			done := make(chan error, 1)
@@ -95,7 +108,7 @@ func runAll(ctx context.Context, e *env.Env, o Options, cs []collector) {
 				}
 			case <-cctx.Done():
 				stat.TimedOut = true
-				stat.Err = "timed out after " + o.Timeout.String()
+				stat.Err = "timed out after " + limit.String()
 			}
 			stat.DurationMS = time.Since(start).Milliseconds()
 			mu.Lock()
