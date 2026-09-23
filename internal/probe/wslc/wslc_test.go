@@ -11,13 +11,12 @@ import (
 
 func withSessions(sessions ...env.WSLCSession) *env.Env {
 	e := env.New("test")
-	e.WSLCAllowed = true
 	e.WSLC = env.Ok(env.WSLCInfo{Version: "2.9.12.0", Sessions: sessions}, "test")
 	return e
 }
 
 func session(public string, resolvers ...string) env.WSLCSession {
-	s := env.WSLCSession{Name: "s", Public: env.WSLCResolver{Addr: "1.1.1.1", Status: public}}
+	s := env.WSLCSession{Name: "s", Running: true, Public: env.WSLCResolver{Addr: "1.1.1.1", Status: public}}
 	for i := 0; i+1 < len(resolvers); i += 2 {
 		s.Resolvers = append(s.Resolvers, env.WSLCResolver{Addr: resolvers[i], Status: resolvers[i+1]})
 	}
@@ -39,21 +38,24 @@ func TestWarnsWhenContainersCannotResolve(t *testing.T) {
 	}
 }
 
-// Without --wslc nothing was asked, and the probe must say how to ask rather
-// than look like a pass.
-func TestSkipsUnlessAskedFor(t *testing.T) {
-	e := env.New("test")
-	r := (DNS{}).Run(e)
-	if r.Status != probe.Skipped || !strings.Contains(r.Summary, "--wslc") {
+// A session whose VM is stopped was not asked anything, because asking would
+// have started it. That is not a pass, and the probe says so.
+func TestSkipsWhenNoSessionVMIsRunning(t *testing.T) {
+	stopped := env.WSLCSession{Name: "s", Resolvers: []env.WSLCResolver{}}
+	r := (DNS{}).Run(withSessions(stopped))
+	if r.Status != probe.Skipped || !strings.Contains(r.Summary, "not start one") {
 		t.Errorf("%s: %s", r.Status, r.Summary)
+	}
+	// A running one beside it is still judged.
+	r = (DNS{}).Run(withSessions(stopped, session("NOERROR", "192.168.1.1", "SERVFAIL")))
+	if r.Status != probe.Warn {
+		t.Errorf("the running session was not judged: %s: %s", r.Status, r.Summary)
 	}
 }
 
 func TestSkipsWhatItCannotJudge(t *testing.T) {
 	older := env.New("test")
-	older.WSLCAllowed = true
 	absent := env.New("test")
-	absent.WSLCAllowed = true
 	absent.WSLC = env.Absent[env.WSLCInfo]("wslc.exe")
 	none := withSessions()
 
@@ -63,7 +65,6 @@ func TestSkipsWhatItCannotJudge(t *testing.T) {
 		}
 	}
 	failed := env.New("test")
-	failed.WSLCAllowed = true
 	failed.WSLC = env.Fail[env.WSLCInfo](env.ErrOther, "wslc info", errors.New("boom"))
 	if r := (DNS{}).Run(failed); r.Status != probe.Unknown {
 		t.Errorf("a wslc that would not answer: %s", r.Status)

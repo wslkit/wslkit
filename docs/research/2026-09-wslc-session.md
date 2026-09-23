@@ -153,4 +153,21 @@ fine.
 Not established: whether wslc DNS worked on this machine before the 2.7 round
 trip, and which part of the device host produces the SERVFAIL.
 
-`wslkit doctor --wslc` checks for this (`WSC001`).
+`wslkit doctor` checks for this (`WSC001`), for sessions whose VM is running.
+
+## Telling a running session VM from a stopped one (2026-09-23)
+
+Asking wslc anything boots a stopped session VM, so a check has to know first.
+Measured on WSL 2.9.12, across several boots and idle stops, without elevation:
+
+| signal | running | stopped | usable |
+|---|---|---|---|
+| Restart Manager: who holds `sessions\<name>\storage.vhdx` | `System` | nobody | **yes**, per session, and it holds no handle |
+| `sessions\<name>\swap.vhdx` exists | yes | no | as corroboration; a crash could leave it behind |
+| exclusive open of `storage.vhdx` | sharing violation | opens | no: the handle could stop a VM booting at that instant |
+| `swap.vhdx` creation time against the VM's `vmmem` | | | no: NTFS tunneling hands a re-created `swap.vhdx` its predecessor's creation time |
+| the `WslDeviceHost` `dllhost.exe` | present | **present** | no: it outlives the VM |
+| an extra `vmmem` | present | absent | no: any Hyper-V VM has one |
+
+Restart Manager answers the same way for a distribution's disk: a running
+skrog-engine's `ext4.vhdx` was held by `System` and `WSL Service`.

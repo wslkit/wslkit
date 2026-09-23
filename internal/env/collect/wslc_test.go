@@ -15,27 +15,6 @@ func fixture(t *testing.T, name string) string {
 	return string(b)
 }
 
-// Captured on WSL 2.9.12, with the user name in the session and the path
-// replaced.
-func TestParseWSLCSessions(t *testing.T) {
-	v, names, err := parseWSLCSessions(fixture(t, "wslc-2.9.12-info.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if v != "2.9.12.0" || len(names) != 1 || names[0] != "wslc-cli-user" {
-		t.Errorf("version %q names %v", v, names)
-	}
-	// After a reinstall wslc had no session at all; that is an empty list,
-	// not an error, and nothing is created to fill it.
-	_, names, err = parseWSLCSessions(`{"Client":{"Version":"2.9.12.0"},"Server":{"Sessions":[]}}`)
-	if err != nil || len(names) != 0 {
-		t.Errorf("names %v err %v", names, err)
-	}
-	if _, _, err := parseWSLCSessions("Session not found"); err == nil {
-		t.Error("text that is not JSON should be an error")
-	}
-}
-
 // Captured from the session VM on the machine the bug was found on: the host's
 // resolver answered SERVFAIL, a public one NOERROR.
 func TestParseWSLCDNS(t *testing.T) {

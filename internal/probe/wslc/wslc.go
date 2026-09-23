@@ -1,6 +1,6 @@
 // Package wslc holds probes (WSC***) for wslc, the container CLI in the WSL 2.9
-// pre-releases. Their data is collected only with doctor --wslc, because
-// asking a wslc session anything boots its VM.
+// pre-releases. Asking a wslc session anything boots its VM, so only sessions
+// whose VM is already running are tested, and a stopped one is left stopped.
 package wslc
 
 import (
@@ -37,11 +37,6 @@ func (p DNS) Needs() []string   { return p.base().Needs() }
 
 func (p DNS) Run(e *env.Env) probe.Result {
 	b := p.base()
-	if !e.WSLCAllowed {
-		r := b.Res(probe.Skipped, 0, "skipped: run with --wslc to test DNS in wslc containers")
-		r.Detail = "Off by default: testing it runs a command in the wslc session VM, which starts that VM if it was stopped. It stops again once idle."
-		return r
-	}
 	if !e.WSLC.Collected() {
 		return b.Res(probe.Skipped, 0, "skipped: wslc was not checked (older snapshot)")
 	}
@@ -51,9 +46,21 @@ func (p DNS) Run(e *env.Env) probe.Result {
 	if !e.WSLC.OK() {
 		return b.Res(probe.Unknown, 0.1, "could not ask wslc about its sessions: "+e.WSLC.Err)
 	}
-	sessions := e.WSLC.Value.Sessions
-	if len(sessions) == 0 {
+	all := e.WSLC.Value.Sessions
+	if len(all) == 0 {
 		return b.Res(probe.Skipped, 0, "skipped: no wslc session exists yet, so there are no containers to check")
+	}
+	// Only a running session was tested; a stopped one was left stopped.
+	var sessions []env.WSLCSession
+	for _, s := range all {
+		if s.Running || s.Err != "" {
+			sessions = append(sessions, s)
+		}
+	}
+	if len(sessions) == 0 {
+		r := b.Res(probe.Skipped, 0, "skipped: no wslc session VM is running, and doctor does not start one")
+		r.Detail = "Testing a session means running a command in its VM, which would start it. Run doctor while a wslc container is up to check its DNS."
+		return r
 	}
 
 	var broken, unknown []string

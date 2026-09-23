@@ -17,10 +17,7 @@ type Options struct {
 	// Online permits the one network request this tool makes: the published
 	// WSL release list. Off unless asked for, so an ordinary run touches
 	// nothing outside the machine.
-	Online bool
-	// WSLC permits the wslc collector, which boots a stopped wslc session VM to
-	// test the DNS its containers get. Off unless asked for.
-	WSLC        bool
+	Online      bool
 	Timeout     time.Duration // per collector
 	EventWindow time.Duration
 }
@@ -67,9 +64,9 @@ type collector struct {
 }
 
 // collectorTimeouts replace Options.Timeout for the collectors that need longer:
-// the wslc one boots a VM before it can answer.
+// the wslc one gives each DNS server three seconds to answer, inside a VM.
 var collectorTimeouts = map[string]time.Duration{
-	"wslc": 60 * time.Second,
+	"wslc": 15 * time.Second,
 }
 
 // runAll executes collectors concurrently. Each writes only its own fields of

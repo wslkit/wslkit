@@ -1,8 +1,6 @@
 package collect
 
 import (
-	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/wslkit/wslkit/internal/env"
@@ -29,29 +27,6 @@ for ns in $(awk '$1 == "nameserver" && $2 ~ /^[0-9.]+$/ {print $2}' /etc/resolv.
 done
 q ` + wslcPublicResolver + ` public
 `
-
-// parseWSLCSessions reads the session names out of `wslc info --format json`.
-func parseWSLCSessions(out string) (version string, names []string, err error) {
-	var info struct {
-		Client struct {
-			Version string `json:"Version"`
-		} `json:"Client"`
-		Server struct {
-			Sessions []struct {
-				Name string `json:"Name"`
-			} `json:"Sessions"`
-		} `json:"Server"`
-	}
-	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &info); err != nil {
-		return "", nil, fmt.Errorf("wslc info printed something unexpected: %w", err)
-	}
-	for _, s := range info.Server.Sessions {
-		if s.Name != "" {
-			names = append(names, s.Name)
-		}
-	}
-	return info.Client.Version, names, nil
-}
 
 // parseWSLCDNS reads what wslcDNSScript printed.
 func parseWSLCDNS(name, out string) env.WSLCSession {

@@ -22,7 +22,7 @@ func Probes() []probe.Probe {
 	out = append(out, net.All()...)  // NET004, NET002
 	out = append(out, perf.All()...) // MEM001
 	out = append(out, evt.All()...)  // EVT001
-	out = append(out, wslc.All()...) // WSC001, only with --wslc
+	out = append(out, wslc.All()...) // WSC001, running wslc sessions only
 	return out
 }
 
