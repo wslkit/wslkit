@@ -145,6 +145,7 @@ func TestSessionsAreSampledOnlyWhenRunning(t *testing.T) {
 		t.Fatalf("sessions %+v after %d calls", report.Sessions, r.sampled)
 	}
 }
+
 // A session VM holds memory with no distribution running, and top must still
 // show it.
 func TestSessionsWithNoDistributionRunning(t *testing.T) {
