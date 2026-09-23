@@ -74,9 +74,10 @@ func ParseSession(name, out, list string) (Session, error) {
 			continue
 		}
 		c := Sample{Distro: shortID(id), Kind: KindWSLC, Method: MethodCgroup, CgroupPath: "/docker/" + id}
-		for short, n := range names {
+		for short, info := range names {
 			if strings.HasPrefix(id, short) {
-				c.Distro = n
+				c.Distro = info.Name
+				c.Image = info.Image
 				break
 			}
 		}
@@ -89,8 +90,8 @@ func ParseSession(name, out, list string) (Session, error) {
 // containerNames maps a container ID, as `wslc list` truncates it, to its
 // name. The output is one JSON object per line. A line that does not parse is
 // skipped: a container is then shown by its ID rather than not at all.
-func containerNames(list string) map[string]string {
-	out := map[string]string{}
+func containerNames(list string) map[string]containerInfo {
+	out := map[string]containerInfo{}
 	for _, line := range strings.Split(list, "\n") {
 		line = strings.TrimSpace(line)
 		if !strings.HasPrefix(line, "{") {
@@ -99,6 +100,7 @@ func containerNames(list string) map[string]string {
 		var c struct {
 			ID    string `json:"ID"`
 			Names string `json:"Names"`
+			Image string `json:"Image"`
 		}
 		if json.Unmarshal([]byte(line), &c) != nil || c.ID == "" {
 			continue
@@ -107,9 +109,15 @@ func containerNames(list string) map[string]string {
 		if name == "" {
 			name = shortID(c.ID)
 		}
-		out[c.ID] = name
+		out[c.ID] = containerInfo{Name: name, Image: c.Image}
 	}
 	return out
+}
+
+// containerInfo is what `wslc list` says about one container.
+type containerInfo struct {
+	Name  string
+	Image string
 }
 
 func shortID(id string) string {

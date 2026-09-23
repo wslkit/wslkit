@@ -120,6 +120,7 @@ waiting.
 
 | Column | What it is |
 |---|---|
+| `IMAGE` | in the wslc tables, in place of `KIND`: the container's image, as `wslc list` names it. wslc names containers at random, so this is what says what is running. A long registry path is cut from the front |
 | `MEMORY` | everything charged to the row, including the page cache its reads and writes pulled in |
 | `ANON` | the part of that Windows can never reclaim |
 | `SWAP` | swapped-out memory; shown only when something has swapped |

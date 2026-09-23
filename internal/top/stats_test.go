@@ -142,3 +142,43 @@ func TestTheSessionShowsItsDisk(t *testing.T) {
 		t.Errorf("got:\n%s", b.String())
 	}
 }
+
+// wslc names containers at random, so the image is what says what is running.
+// It is in the wslc list output top already reads for the names (captured on
+// WSL 2.9.12), and takes KIND's place in a table where every row is wslc.
+func TestContainersShowTheirImage(t *testing.T) {
+	out, list := sessionFixture(t)
+	s, err := ParseSession("s", out, list)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range s.Containers {
+		if c.Image != "busybox" {
+			t.Errorf("%s: image %q", c.Distro, c.Image)
+		}
+	}
+	got := rowsTable(s.Containers, true, false).String()
+	if h := strings.Fields(strings.SplitN(got, "\n", 2)[0]); len(h) < 2 || h[1] != "IMAGE" || strings.Contains(got, " wslc ") {
+		t.Errorf("the wslc table does not name the image:\n%s", got)
+	}
+	d, _, _ := ParseSample("skrog-engine", realOutput(t))
+	if h := strings.Fields(strings.SplitN(rowsTable([]Sample{d}, true, false).String(), "\n", 2)[0]); h[1] != "KIND" {
+		t.Errorf("the distribution table lost KIND: %v", h)
+	}
+	if o := sampleJSON(s.Containers[0], "name"); o["image"] != "busybox" {
+		t.Errorf("JSON image %v", o["image"])
+	}
+}
+
+func TestShortImageKeepsTheEnd(t *testing.T) {
+	for in, want := range map[string]string{
+		"busybox":     "busybox",
+		"alpine:3.20": "alpine:3.20",
+		"":            "-",
+		"mcr.microsoft.com/devcontainers/base:ubuntu-24.04": "…vcontainers/base:ubuntu-24.04", // 30 runes, the column's width
+	} {
+		if got := shortImage(in); got != want {
+			t.Errorf("shortImage(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

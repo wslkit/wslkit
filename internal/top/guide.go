@@ -26,6 +26,7 @@ var ReadingGuide = strings.Join([]string{
 	),
 	section("wslc",
 		sessionsNote,
+		"In a wslc table IMAGE takes KIND's place, since every row there is a container: wslc names them at random, and the image is what says what each one is.",
 		"A session is shown only while its VM is running. top never starts one: it tells a running VM from a stopped one by whether Windows reports the session's disk in use, without asking wslc.",
 	),
 }, "\n")

@@ -73,7 +73,7 @@ written as zero. Rows also carry, where measured, `memory_high_bytes`,
 `memory_max_bytes`, `cpu_limit`, `throttled_usec` and `throttled_percent`, and a
 distribution `disk_used_bytes`, `disk_size_bytes` and `vhdx_bytes`; the `vm`
 block `swap_total_bytes` and `swap_free_bytes`, and a wslc session
-`storage_vhdx_bytes`. A `host` block carries what Windows charges: `utility_vm`
+`storage_vhdx_bytes`; a wslc container also has its `image`. A `host` block carries what Windows charges: `utility_vm`
 (the matched `vmmem`) and `other_vms`, each with `pid`, `working_set_bytes` and
 `created`; it is present even when no distribution is running. A
 `wslc_sessions` list holds each wslc session whose VM was running: its `vm`,

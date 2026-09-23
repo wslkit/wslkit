@@ -143,6 +143,8 @@ type Sample struct {
 	Init string
 	// CgroupPath is the node the numbers came from, when there was one.
 	CgroupPath string
+	// Image is a wslc container's image, as `wslc list` names it.
+	Image string
 	// Err explains a distribution that could not be measured, so one that is
 	// shutting down does not hide the rest.
 	Err error
@@ -981,7 +983,13 @@ func renderVM(w io.Writer, vm VM, host *Host) {
 // rowsTable lays out rows with the columns their measurement supports.
 func rowsTable(rows []Sample, withCgroup, withRates bool) table {
 	var withSwap, withInit, withLimit, withCPULimit, withDisk bool
+	// A table of wslc containers names each one's image where the others say
+	// what kind of row it is: every row there is the same kind.
+	containers := len(rows) > 0
 	for _, s := range rows {
+		if s.Kind != KindWSLC {
+			containers = false
+		}
 		if s.SwapBytes != nil && *s.SwapBytes > 0 {
 			withSwap = true
 		}
@@ -999,7 +1007,11 @@ func rowsTable(rows []Sample, withCgroup, withRates bool) table {
 		}
 	}
 
-	headers := []string{"NAME", "KIND", "MEMORY"}
+	second := "KIND"
+	if containers {
+		second = "IMAGE"
+	}
+	headers := []string{"NAME", second, "MEMORY"}
 	if withCgroup {
 		headers = append(headers, "ANON")
 	}
@@ -1017,6 +1029,8 @@ func rowsTable(rows []Sample, withCgroup, withRates bool) table {
 	} else {
 		headers = append(headers, "PROCESSES")
 	}
+	// Only when some row has one: most machines have no limits, and a column
+	// of dashes costs width and says nothing.
 	if withLimit {
 		headers = append(headers, "LIMIT")
 	}
@@ -1036,6 +1050,9 @@ func rowsTable(rows []Sample, withCgroup, withRates bool) table {
 		kind := "distro"
 		if s.Kind != KindDistro {
 			kind = string(s.Kind)
+		}
+		if containers {
+			kind = shortImage(s.Image)
 		}
 		if s.Err != nil {
 			row := []string{name, kind}
@@ -1127,6 +1144,23 @@ func displayName(s Sample) string {
 }
 
 // formatUptime is an uptime in its two largest units: "3 h 12 m", "42 s".
+// shortImage keeps an image name to a column's width by cutting from the
+// front: the end, name and tag, is what tells two images apart, and a
+// registry path like mcr.microsoft.com/devcontainers/base is mostly prefix.
+func shortImage(image string) string {
+	const width = 30
+	r := []rune(image)
+	switch {
+	case len(r) == 0:
+		return "-"
+	case len(r) <= width:
+		return image
+	default:
+		return "…" + string(r[len(r)-width+1:])
+	}
+}
+
+// formatUptime is an uptime in its two largest units: "3 h 12 m", "42 s".
 func formatUptime(sec uint64) string {
 	d, h, m := sec/86400, sec%86400/3600, sec%3600/60
 	switch {
@@ -1199,6 +1233,9 @@ func sampleJSON(s Sample, nameKey string) map[string]any {
 	}
 	if s.CgroupPath != "" {
 		o["cgroup_path"] = s.CgroupPath
+	}
+	if s.Image != "" {
+		o["image"] = s.Image
 	}
 	for k, v := range map[string]*uint64{
 		"peak_bytes":        s.PeakBytes,
