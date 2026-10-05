@@ -186,8 +186,51 @@ func lintWslConf(distro, text string, table *data.WslConfKeys, e *env.Env) (find
 			findings = append(findings, f)
 			details = append(details, detail)
 		}
+		if id == "automount.cgroups" && strings.EqualFold(strings.Trim(strings.TrimSpace(entry.Value), `"'`), "v1") {
+			if f, detail := cgroupV1Conflict(distro, entry.Line, e); f != "" {
+				findings = append(findings, f)
+				details = append(details, detail)
+			}
+		}
 	}
 	return findings, details
+}
+
+// The two runtimes that change what automount.cgroups=v1 does while
+// wsl2.isolateDistroCgroup is on (#84). From 2.9.8 each distribution has a
+// cgroup of its own, and WSL's init cannot mount v1 over it: measured on
+// 2.9.11, the distribution never starts. From 2.9.13 (microsoft/WSL#41512) WSL
+// uses v2 instead, with a warning: measured on 3.0.1.
+var (
+	isolationFrom  = wslver.MustParse("2.9.8")
+	v1OverrideFrom = wslver.MustParse("2.9.13")
+)
+
+// cgroupV1Conflict is the rule that needs both files: v1 in wsl.conf only
+// works with isolateDistroCgroup=false in .wslconfig, and each half is
+// valid alone.
+func cgroupV1Conflict(distro string, line int, e *env.Env) (finding, detail string) {
+	have, ok := runtimeVersion(e)
+	if !ok || have.Less(isolationFrom) {
+		return "", ""
+	}
+	if e.Config.WslConfig.OK() {
+		cfg := wslconfig.Parse(e.Config.WslConfig.Value)
+		if v, set := cfg.Get("wsl2", "isolateDistroCgroup"); set {
+			if on, valid := wslconfig.ParseBool(v); valid && !on {
+				return "", ""
+			}
+		}
+	}
+	const remedy = "Set isolateDistroCgroup=false under [wsl2] in .wslconfig and run wsl --shutdown, or remove the line."
+	if have.Less(v1OverrideFrom) {
+		return fmt.Sprintf("%s: automount.cgroups=v1 will stop it starting", distro),
+			fmt.Sprintf("%s:%d  automount.cgroups=v1 with isolateDistroCgroup on, which is the default: on WSL %s the distribution fails to start the next time it does, with \"Cgroup v1 is incompatible with per-distribution cgroup isolation\" and Wsl/Service/E_UNEXPECTED. %s",
+				distro, line, have, remedy)
+	}
+	return fmt.Sprintf("%s: automount.cgroups=v1 does nothing", distro),
+		fmt.Sprintf("%s:%d  automount.cgroups=v1 with isolateDistroCgroup on, which is the default: WSL %s warns and uses cgroup v2. %s",
+			distro, line, have, remedy)
 }
 
 // nearestHint suggests the key someone probably meant.

@@ -227,6 +227,7 @@ func readFullRegistration(e Env, r Registration) (Registration, error) {
 		{"OsVersion", func(v string) { out.OsVersion = v }},
 		{"ShortcutPath", func(v string) { out.ShortcutPath = v }},
 		{"TerminalProfilePath", func(v string) { out.TerminalProfilePath = v }},
+		{"PackageFamilyName", func(v string) { out.PackageFamilyName = v }},
 	} {
 		v, present, err := e.Registry.ReadString(r.GUID, f.name)
 		if err != nil {

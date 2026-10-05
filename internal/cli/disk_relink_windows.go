@@ -189,6 +189,7 @@ func (a *App) diskRelink(args []string) int {
 	fs.SetOutput(a.Stderr)
 	var f diskFlags
 	f.register(fs)
+	f.registerForce(fs)
 
 	// Two positionals, either before or after the flags.
 	var positional []string
@@ -222,6 +223,9 @@ func (a *App) relinkWith(f diskFlags, name, target string) int {
 	}
 	r, err := disk.Resolve(list, name)
 	if err != nil {
+		return a.diskFail(f, err)
+	}
+	if err := disk.GuardPackaged(r, "relink", f.force); err != nil {
 		return a.diskFail(f, err)
 	}
 

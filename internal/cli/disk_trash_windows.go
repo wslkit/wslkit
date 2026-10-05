@@ -26,6 +26,7 @@ func (a *App) diskTrash(args []string) int {
 	fs.SetOutput(a.Stderr)
 	var f diskFlags
 	f.register(fs)
+	f.registerForce(fs)
 	list := fs.Bool("list", false, "show what is in the trash")
 	purge := fs.Bool("purge", false, "delete trashed distributions permanently")
 	olderThan := fs.String("older-than", "", "with --purge, only entries at least this old, e.g. 30d")
@@ -81,6 +82,9 @@ func (a *App) trashOne(f diskFlags, name string, shutdown bool) int {
 	}
 	r, err := disk.Resolve(list, name)
 	if err != nil {
+		return a.diskFail(f, err)
+	}
+	if err := disk.GuardPackaged(r, "trash", f.force); err != nil {
 		return a.diskFail(f, err)
 	}
 

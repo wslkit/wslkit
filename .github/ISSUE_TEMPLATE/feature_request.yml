@@ -1,0 +1,22 @@
+name: Feature request
+description: Something WSL makes hard that wslkit could make easy.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do, and where WSL gets in the way.
+    validations:
+      required: true
+  - type: input
+    id: upstream
+    attributes:
+      label: The microsoft/WSL issue, if there is one
+      description: Most of what wslkit does is an answer to an upstream issue. A link, and its vote count, says how many people share the problem.
+      placeholder: https://github.com/microsoft/WSL/issues/...
+  - type: textarea
+    id: today
+    attributes:
+      label: What you do today instead
+      description: The workaround, the script, or the manual steps.

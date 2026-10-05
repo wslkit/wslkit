@@ -98,6 +98,7 @@ func readRegistration(dk registry.Key, guid, defaultGUID string) (Registration, 
 	r.OsVersion, _, _ = dk.GetStringValue("OsVersion")
 	r.ShortcutPath, _, _ = dk.GetStringValue("ShortcutPath")
 	r.TerminalProfilePath, _, _ = dk.GetStringValue("TerminalProfilePath")
+	r.PackageFamilyName, _, _ = dk.GetStringValue("PackageFamilyName")
 
 	// Version defaults to 2: a registration written before the value
 	// existed is a WSL 2 distribution.

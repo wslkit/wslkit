@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://wslkit.github.io/wslkit/
+    about: How each command works, and what each doctor check means.
+  - name: A bug in WSL itself
+    url: https://github.com/microsoft/WSL/issues
+    about: If wslkit doctor explain names an upstream issue, adding to it helps more than a new one here.

@@ -16,6 +16,7 @@ func (a *App) diskMove(args []string) int {
 	fs.SetOutput(a.Stderr)
 	var f diskFlags
 	f.register(fs)
+	f.registerForce(fs)
 	keep := fs.Bool("keep-source", false, "leave the original file where it is")
 
 	// Two positionals, either before or after the flags.
@@ -43,6 +44,9 @@ func (a *App) diskMove(args []string) int {
 	}
 	r, err := disk.Resolve(list, name)
 	if err != nil {
+		return a.diskFail(f, err)
+	}
+	if err := disk.GuardPackaged(r, "move", f.force); err != nil {
 		return a.diskFail(f, err)
 	}
 

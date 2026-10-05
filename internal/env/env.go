@@ -227,21 +227,24 @@ type Runtime struct {
 
 // Distro mirrors one HKCU\...\Lxss\{guid} key plus VHDX facts.
 type Distro struct {
-	GUID        string         `json:"guid"`
-	Name        string         `json:"name"`
-	IsDefault   bool           `json:"is_default"`
-	BasePath    string         `json:"base_path"`
-	VhdFileName string         `json:"vhd_file_name,omitempty"`
-	Version     int            `json:"version"` // 1 or 2
-	State       int            `json:"state"`   // 1 normal, 3 installing, 4 uninstalling (Lxss)
-	Flags       int            `json:"flags"`
-	DefaultUid  int            `json:"default_uid"`
-	RunOOBE     int            `json:"run_oobe"`
-	Modern      int            `json:"modern"`
-	Flavor      string         `json:"flavor,omitempty"`
-	OsVersion   string         `json:"os_version,omitempty"`
-	ValueNames  []string       `json:"value_names,omitempty"`
-	Vhd         Field[VhdInfo] `json:"vhd"`
+	GUID        string `json:"guid"`
+	Name        string `json:"name"`
+	IsDefault   bool   `json:"is_default"`
+	BasePath    string `json:"base_path"`
+	VhdFileName string `json:"vhd_file_name,omitempty"`
+	Version     int    `json:"version"` // 1 or 2
+	State       int    `json:"state"`   // 1 normal, 3 installing, 4 uninstalling (Lxss)
+	Flags       int    `json:"flags"`
+	DefaultUid  int    `json:"default_uid"`
+	RunOOBE     int    `json:"run_oobe"`
+	Modern      int    `json:"modern"`
+	Flavor      string `json:"flavor,omitempty"`
+	OsVersion   string `json:"os_version,omitempty"`
+	// PackageFamilyName names the Windows package (the Store, any appx)
+	// that installed the distribution, when one did.
+	PackageFamilyName string         `json:"package_family_name,omitempty"`
+	ValueNames        []string       `json:"value_names,omitempty"`
+	Vhd               Field[VhdInfo] `json:"vhd"`
 	// Ext4 is the guest filesystem's own account of itself, read out of the
 	// VHDX at a fixed offset. It is the one thing a stopped distribution
 	// still answers: the kernel writes its errors into the superblock, and

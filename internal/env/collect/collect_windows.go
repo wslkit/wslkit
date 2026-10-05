@@ -399,6 +399,7 @@ func collectDistros(ctx context.Context, e *env.Env, o Options) error {
 		d.VhdFileName, _, _ = dk.GetStringValue("VhdFileName")
 		d.Flavor, _, _ = dk.GetStringValue("Flavor")
 		d.OsVersion, _, _ = dk.GetStringValue("OsVersion")
+		d.PackageFamilyName, _, _ = dk.GetStringValue("PackageFamilyName")
 		d.Version = intValue(dk, "Version")
 		d.State = intValue(dk, "State")
 		d.Flags = intValue(dk, "Flags")

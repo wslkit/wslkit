@@ -1,0 +1,36 @@
+name: Bug report
+description: wslkit did something wrong, or said something untrue about your machine.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+      description: The exact command you ran, what it printed or did, and what you expected instead.
+      placeholder: |
+        wslkit disk move -d Ubuntu D:\wsl
+        ...
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: wslkit doctor --report
+      description: |
+        Paste the output of `wslkit doctor --report`. Usernames, hostnames and account identifiers are scrubbed by default; `--no-redact` turns that off, so leave it off for an issue.
+      render: markdown
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: wslkit version
+      description: The output of `wslkit version`, so a stale binary is obvious.
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: |
+        If `wslkit top` looks wrong, `wslkit top --raw` is what it measured before parsing. A `wslkit doctor --json > machine.json` attachment turns this machine into a regression test. See https://wslkit.github.io/wslkit/report-a-bug/.
