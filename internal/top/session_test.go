@@ -157,7 +157,7 @@ func TestSessionsWithNoDistributionRunning(t *testing.T) {
 	}
 	var b bytes.Buffer
 	Render(&b, report)
-	for _, want := range []string{"no distributions are running", "wslc session s (preview)", "wk-spike-busy"} {
+	for _, want := range []string{"no distributions are running", "wslc session s", "wk-spike-busy"} {
 		if !strings.Contains(b.String(), want) {
 			t.Errorf("missing %q:\n%s", want, b.String())
 		}
@@ -179,7 +179,7 @@ func TestEachVMIsASectionAndTheExplanationsAreInTheGuide(t *testing.T) {
 	got := b.String()
 
 	utility := strings.Index(got, rule("utility VM"))
-	session := strings.Index(got, rule("wslc session s (preview)"))
+	session := strings.Index(got, rule("wslc session s"))
 	if utility != 0 || session <= utility {
 		t.Fatalf("sections out of order (utility %d, session %d):\n%s", utility, session, got)
 	}
@@ -252,7 +252,7 @@ func TestOnlyTheWSLCSection(t *testing.T) {
 	var b bytes.Buffer
 	Render(&b, report)
 	got := b.String()
-	if !strings.HasPrefix(got, rule("wslc session s (preview)")) || strings.Contains(got, "utility VM") {
+	if !strings.HasPrefix(got, rule("wslc session s")) || strings.Contains(got, "utility VM") {
 		t.Errorf("got:\n%s", got)
 	}
 	o := JSON(report)

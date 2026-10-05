@@ -31,8 +31,9 @@ set flags:
 
 WSL caps the whole utility VM in .wslconfig and nothing else, so one
 distribution running a runaway build takes memory from every other one. From
-WSL 2.9 each distribution has its own cgroup, and these are the ordinary cgroup
-v2 controls in it.
+WSL 2.9.8 each distribution has its own cgroup, and these are the ordinary cgroup
+v2 controls in it. From 2.9.13 that cgroup is in a namespace of its own, which
+refuses writes from inside, so wslkit writes through WSL's init with nsenter.
 
 The limits do not survive a restart of the distribution: the cgroup is named
 after its init process and a new one is made each time it starts. wslkit limit
@@ -200,6 +201,9 @@ func (a *App) limitSet(args []string) int {
 	for _, w := range writes {
 		fmt.Fprintf(a.Stdout, "  %-16s %-24s %s\n", w.File, w.Value, w.Why)
 	}
+	if code, stop := a.limitUnwritable(c, *distro, *dryRun); stop {
+		return code
+	}
 	if *dryRun {
 		fmt.Fprintln(a.Stdout, "\n--dry-run: nothing was written")
 		return ExitOK
@@ -210,6 +214,22 @@ func (a *App) limitSet(args []string) int {
 	}
 	fmt.Fprintf(a.Stdout, "\napplied. These go when %s next restarts: the cgroup is named after its\ninit process and a new one is made each time it starts.\n", *distro)
 	return ExitOK
+}
+
+// limitUnwritable says so before writing when the cgroup can be read but no
+// write would reach it. A dry run still shows the plan, with the reason it
+// would fail.
+func (a *App) limitUnwritable(c limit.Current, distro string, dryRun bool) (int, bool) {
+	if c.Writable {
+		return 0, false
+	}
+	err := limit.ErrNoNsenter{Distro: distro}
+	if dryRun {
+		fmt.Fprintf(a.Stdout, "\n--dry-run: nothing was written, and a real run would fail: %v\n", err)
+		return ExitOK, true
+	}
+	fmt.Fprintf(a.Stderr, "%v\n", err)
+	return ExitCollector, true
 }
 
 func (a *App) limitClear(args []string) int {
@@ -237,6 +257,9 @@ func (a *App) limitClear(args []string) int {
 	fmt.Fprintf(a.Stdout, "%s  (%s)\n", *distro, c.Node)
 	for _, w := range writes {
 		fmt.Fprintf(a.Stdout, "  %-16s %-24s %s\n", w.File, w.Value, w.Why)
+	}
+	if code, stop := a.limitUnwritable(c, *distro, *dryRun); stop {
+		return code
 	}
 	if *dryRun {
 		fmt.Fprintln(a.Stdout, "\n--dry-run: nothing was written")

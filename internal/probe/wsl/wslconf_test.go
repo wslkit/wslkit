@@ -208,6 +208,33 @@ func TestWslConfMalformedLineDiscardsTheRestOfTheFile(t *testing.T) {
 	}
 }
 
+// From WSL 2.9.13 a malformed wsl.conf line is skipped and the rest applies
+// (microsoft/WSL#41606; measured on 3.0.1). Telling a 3.0 user their settings
+// below it are lost would send them hunting for a problem they do not have.
+// Each bad line is then its own finding, since none hides the next.
+func TestWslConfMalformedLineOnASkippingRuntimeCostsOnlyItself(t *testing.T) {
+	e := envWithWslConf("[boot]\nsystemd=true\nthis is not a setting\n\n[interop]\nenabled=false\nalso bad\n")
+	e.Runtime.Version = env.Ok("3.0.1.0", "t")
+	r := (WslConf{}).Run(e)
+	if r.Status != probe.Warn {
+		t.Fatalf("status %s", r.Status)
+	}
+	if !strings.Contains(r.Summary, "line 3 is malformed") || !strings.Contains(r.Summary, "line 7 is malformed") {
+		t.Errorf("each bad line should be named: %q", r.Summary)
+	}
+	if strings.Contains(r.Summary, "being ignored") || strings.Contains(r.Detail, "stops reading") {
+		t.Errorf("3.0.1 loses nothing below a bad line: %q / %q", r.Summary, r.Detail)
+	}
+	if !strings.Contains(r.Detail, "WSL 3.0.1 skips this line") {
+		t.Errorf("the detail should say what this runtime does: %q", r.Detail)
+	}
+	// The boundary itself: 2.9.12 still abandons the file.
+	e.Runtime.Version = env.Ok("2.9.12.0", "t")
+	if r := (WslConf{}).Run(e); !strings.Contains(r.Detail, "stops reading") {
+		t.Errorf("2.9.12 still stops at the bad line: %q", r.Detail)
+	}
+}
+
 // A malformed line with nothing after it costs nothing extra, and should not
 // claim it did.
 func TestWslConfMalformedLastLineClaimsNoLostSettings(t *testing.T) {

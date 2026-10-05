@@ -226,8 +226,10 @@ func checkWslConf(a Archive) probe.Result {
 	var findings, details []string
 	if len(cfg.Problems) > 0 {
 		p := cfg.Problems[0]
-		// The same rule as the live check: WSL abandons the file at the
-		// first line it cannot parse, so everything below is lost.
+		// The same rule as the live check: WSL before 2.9.13 abandons the
+		// file at the first line it cannot parse, so everything below is
+		// lost. 2.9.13 and newer skip only that line (microsoft/WSL#41606).
+		// An archive is checked for whatever runtime installs it, so both.
 		lost := 0
 		for _, entry := range cfg.Entries {
 			if entry.Line > p.Line {
@@ -236,10 +238,10 @@ func checkWslConf(a Archive) probe.Result {
 		}
 		f := fmt.Sprintf("line %d is malformed", p.Line)
 		if lost > 0 {
-			f += fmt.Sprintf(", and the %d setting(s) below it will be ignored", lost)
+			f += fmt.Sprintf(", and on WSL before 2.9.13 the %d setting(s) below it will be ignored", lost)
 		}
 		findings = append(findings, f)
-		details = append(details, fmt.Sprintf("  line %d: %s  (%s). WSL stops reading wsl.conf at the first line it cannot parse.", p.Line, strings.TrimSpace(p.Raw), p.Msg))
+		details = append(details, fmt.Sprintf("  line %d: %s  (%s). WSL before 2.9.13 stops reading wsl.conf at the first line it cannot parse; 2.9.13 and newer skip just that line.", p.Line, strings.TrimSpace(p.Raw), p.Msg))
 	}
 	for _, entry := range cfg.Entries {
 		if _, known := tbl.Lookup(entry.Section, entry.Key); !known {
@@ -336,7 +338,7 @@ func checkRuntime(a Archive, e *env.Env) probe.Result {
 			if since, perr := wslver.Parse(cap.Since); perr == nil && cur.Less(since) {
 				r := b.Res(probe.Fail, 0.9, fmt.Sprintf("systemd %s needs WSL %s or newer; this machine has %s", a.SystemdVersion, since, cur))
 				r.Detail = cap.Description + "\nThe install will appear to succeed. The distribution will then fail to start, with an error that says nothing about cgroups."
-				r.FixHint = "wslkit doctor fix update, or set automount.cgroups=v1 in the distribution's wsl.conf (WSL 2.6.2 and newer)"
+				r.FixHint = "wslkit doctor fix update"
 				r.Refs = cap.Refs
 				return r
 			}

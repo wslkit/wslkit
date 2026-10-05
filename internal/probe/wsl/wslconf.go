@@ -127,9 +127,20 @@ func lintWslConf(distro, text string, table *data.WslConfKeys, e *env.Env) (find
 	// default. That is the single most damaging thing wrong with this file
 	// and it is reported first, with what it cost.
 	//
-	// This is where wsl.conf differs from .wslconfig, which is parsed with
-	// the flag that skips a bad line and carries on.
-	if len(cfg.Problems) > 0 {
+	// This is where wsl.conf differed from .wslconfig, which is parsed with
+	// the flag that skips a bad line and carries on. From 2.9.13
+	// (microsoft/WSL#41606) wsl.conf is too: measured on 3.0.1, a bad line 2
+	// draws "Expected '=' in /etc/wsl.conf:2" and a hostname below it still
+	// applies. There each bad line costs only itself.
+	if skipsBadLines(e) {
+		have, _ := runtimeVersion(e)
+		for _, p := range cfg.Problems {
+			findings = append(findings, fmt.Sprintf("%s: wsl.conf line %d is malformed", distro, p.Line))
+			details = append(details, fmt.Sprintf(
+				"%s:%d  %s  (%s). WSL %s skips this line, with a warning as the distribution starts; the rest of the file still applies.",
+				distro, p.Line, strings.TrimSpace(p.Raw), p.Msg, have))
+		}
+	} else if len(cfg.Problems) > 0 {
 		first := cfg.Problems[0]
 		lost := settingsAfter(cfg, first.Line)
 		finding := fmt.Sprintf("%s: wsl.conf line %d is malformed", distro, first.Line)
@@ -330,6 +341,18 @@ func runtimeVersion(e *env.Env) (wslver.Version, bool) {
 		}
 	}
 	return wslver.Version{}, false
+}
+
+// skipsBadLinesFrom is the first runtime that skips a malformed wsl.conf line
+// rather than abandoning the rest of the file (microsoft/WSL#41606).
+var skipsBadLinesFrom = wslver.MustParse("2.9.13")
+
+// skipsBadLines reports whether the running WSL skips a malformed wsl.conf
+// line. An unknown runtime is taken as an older one: saying settings may be
+// lost is the safer mistake.
+func skipsBadLines(e *env.Env) bool {
+	have, ok := runtimeVersion(e)
+	return ok && !have.Less(skipsBadLinesFrom)
 }
 
 func orUnset(s string) string {
