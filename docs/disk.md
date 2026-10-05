@@ -314,7 +314,7 @@ stops everything.
 wslkit disk automount add D:\disks\data.vhdx --name data
 wslkit disk automount list
 wslkit disk automount now          from an elevated terminal
-wslkit disk automount install      from an elevated terminal, once
+wslkit disk automount install --force   from an elevated terminal, once
 wslkit disk automount rm D:\disks\data.vhdx
 wslkit disk automount uninstall    remove the logon task
 ```
@@ -333,6 +333,10 @@ filesystem two writers.
 runs with highest privileges. Registering a task like that needs an elevated
 terminal once. The task writes what it did to
 `%LOCALAPPDATA%\wslkit\automount.log`.
+
+`install` needs `--force` for now: Microsoft Defender currently quarantines an
+unsigned wslkit that registers a scheduled task running itself. `now` is not
+affected. See [Microsoft Defender](install.md#microsoft-defender).
 
 ### Distributions the Store installed
 

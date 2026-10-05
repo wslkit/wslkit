@@ -22,11 +22,16 @@ sequence people have worked out for themselves. That is what this automates.
 ## Use it
 
 ```
-wslkit guard install               run it on resume and at logon
-wslkit guard install --elevated    and permit the two steps that need admin
-wslkit guard status                what is installed, and what the last run did
-wslkit guard uninstall             remove it
+wslkit guard install --force               run it on resume and at logon
+wslkit guard install --elevated --force    and permit the two steps that need admin
+wslkit guard status                        what is installed, and what the last run did
+wslkit guard uninstall                     remove it
 ```
+
+**`install` needs `--force` for now.** Microsoft Defender currently quarantines
+an unsigned wslkit that registers a scheduled task running itself, and removes
+the task too; see [Microsoft Defender](install.md#microsoft-defender) for what
+was measured and how to restore it. `run-once` is not affected.
 
 Or, when it has already happened and you just want your shell back:
 

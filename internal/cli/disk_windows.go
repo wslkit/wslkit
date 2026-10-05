@@ -90,6 +90,10 @@ snapshot and restore flags:
                       a distribution has run, the utility VM keeps its disk
                       open while any other one runs
 
+automount install --force:
+                      needed for now: Microsoft Defender quarantines an
+                      unsigned wslkit that registers a task running itself
+
 automount add flags:
   --name N            mount under /mnt/wsl/N instead of the default name
   --bare              attach the disk without mounting it
