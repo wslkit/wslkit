@@ -110,7 +110,7 @@ func CommandTree() []cmdNode {
 					{Name: "list", Desc: "The table, and what is attached", Flags: withDiskFlags()},
 					{Name: "rm", Desc: "Remove a disk from the table", Flags: withDiskFlags(), Positional: []argKind{argPath}},
 					{Name: "now", Desc: "Attach the table now (elevated)", Flags: withDiskFlags()},
-					{Name: "install", Desc: "Attach the table at every logon (elevated, once)", Flags: withDiskFlags()},
+					{Name: "install", Desc: "Attach the table at every logon (elevated, once)", Flags: withDiskFlags("--force")},
 					{Name: "uninstall", Desc: "Remove the logon task", Flags: withDiskFlags()},
 				}},
 				{Name: "config", Desc: "Show or change the disk settings", Flags: withDiskFlags(), Subs: []cmdNode{
@@ -136,7 +136,7 @@ func CommandTree() []cmdNode {
 			Desc: "Get WSL answering again after the machine has slept",
 			Subs: []cmdNode{
 				{Name: "run-once", Desc: "Probe now, and recover if it is needed", Flags: []string{"--dry-run", "--elevated", "--max-step", "--quiet"}},
-				{Name: "install", Desc: "Run it on resume and at logon", Flags: []string{"--elevated", "--max-step"}},
+				{Name: "install", Desc: "Run it on resume and at logon", Flags: []string{"--elevated", "--max-step", "--force"}},
 				{Name: "uninstall", Desc: "Remove the scheduled tasks"},
 				{Name: "status", Desc: "What is installed, and what the last run did"},
 			},

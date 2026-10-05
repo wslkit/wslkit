@@ -115,7 +115,8 @@ func (a *App) automountAdd(args []string) int {
 	}
 	fmt.Fprintf(a.Stdout, "added %s to %s\n", entry.Path, file)
 	fmt.Fprintln(a.Stdout, "attach it now with an elevated: wslkit disk automount now")
-	fmt.Fprintln(a.Stdout, "and at every logon with an elevated: wslkit disk automount install")
+	fmt.Fprintln(a.Stdout, "and at every logon with an elevated: wslkit disk automount install --force")
+	fmt.Fprintln(a.Stdout, "(--force because Defender may quarantine an unsigned wslkit that registers a task; see the install page)")
 	return ExitOK
 }
 
@@ -267,6 +268,7 @@ func (a *App) automountInstall(args []string) int {
 	fs.SetOutput(a.Stderr)
 	var f diskFlags
 	f.register(fs)
+	force := fs.Bool("force", false, "register the task even though Defender may quarantine wslkit for it")
 	if err := fs.Parse(args); err != nil {
 		return ExitUsage
 	}
@@ -287,6 +289,9 @@ func (a *App) automountInstall(args []string) int {
 		p := disk.Plan{Subject: AutomountTaskName, SubjectKey: "task"}
 		p.Add("register the logon task %q, running %s disk automount now with highest privileges", AutomountTaskName, self)
 		return a.renderPlan(f, p)
+	}
+	if a.refuseScheduledTask("wslkit disk automount install", *force) {
+		return ExitDiskPreflight
 	}
 	// A task with highest privileges can only be registered from an
 	// elevated process; schtasks would say "Access is denied", which reads

@@ -18,7 +18,10 @@ func (a *App) guardUsage() {
 	fmt.Fprint(a.Stderr, `wslkit guard: get WSL answering again after the machine has slept.
 
   wslkit guard run-once [--dry-run]    probe now, and recover if it is needed
-  wslkit guard install [--elevated]    run it on resume and at logon
+  wslkit guard install [--elevated] --force
+                                       run it on resume and at logon. Needs
+                                       --force for now: Defender quarantines an
+                                       unsigned wslkit that registers a task
   wslkit guard uninstall               remove the scheduled tasks
   wslkit guard status                  what is installed, and what the last run did
 
@@ -166,6 +169,7 @@ func (a *App) guardInstall(args []string) int {
 	fs.SetOutput(a.Stderr)
 	elevated := fs.Bool("elevated", false, "also register a task with administrator rights")
 	maxStep := fs.String("max-step", "", "stop after this step: shutdown, force, kill, restart")
+	force := fs.Bool("force", false, "register the task even though Defender may quarantine wslkit for it")
 	if err := fs.Parse(args); err != nil {
 		return ExitUsage
 	}
@@ -173,6 +177,9 @@ func (a *App) guardInstall(args []string) int {
 	if !ok {
 		fmt.Fprintf(a.Stderr, "--max-step %q is not a step\n", *maxStep)
 		return ExitUsage
+	}
+	if a.refuseScheduledTask("wslkit guard install", *force) {
+		return ExitCollector
 	}
 
 	names, err := guard.Install(context.Background(), guard.InstallOptions{Elevated: *elevated, MaxRung: rung})

@@ -30,6 +30,26 @@ commit that produced it:
 gh attestation verify wslkit_0.1.0_windows_amd64.zip --repo wslkit/wslkit
 ```
 
+## Microsoft Defender
+
+Two commands register a scheduled task that runs wslkit: `wslkit guard install`
+and `wslkit disk automount install`. **Microsoft Defender currently quarantines
+wslkit when it does that**, and removes the task as well.
+
+Measured on 2026-10-05, Windows 10 22H2, security intelligence 1.459.561.0:
+`guard install` was flagged as `Behavior:Win32/Persistence.A!ml` run from
+`%TEMP%`, and as `Behavior:Win32/Execution.A!ml` run from
+`%LOCALAPPDATA%\Programs`, within seconds either way. On 2026-09-14 the same
+command was not flagged. It is a behaviour verdict on an unsigned binary with
+little reputation, and signing ([#19](https://github.com/wslkit/wslkit/issues/19))
+is the lasting fix. Nothing else wslkit does has been flagged.
+
+Until then both commands refuse and explain why, unless you add `--force`. If
+you do and Defender flags it, open *Windows Security > Virus & threat
+protection > Protection history*, choose the entry for `wslkit.exe`, and
+*Allow on device*. That restores the file; run the install command again
+afterwards, because the task was removed with it.
+
 ## From source
 
 Go 1.27 or later and nothing else; there is no C compiler in the picture,
