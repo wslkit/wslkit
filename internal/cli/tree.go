@@ -97,6 +97,22 @@ func CommandTree() []cmdNode {
 				{Name: "rebuild", Desc: "Export and import a distribution into a fresh disk", Flags: withDiskFlags("--work-dir", "--keep-archive", "--restart", "--transfer-timeout", "--force"), Positional: []argKind{argDistro}},
 				{Name: "trash", Desc: "Unregister a distribution but keep its disk", Flags: withDiskFlags("--list", "--purge", "--older-than", "--shutdown", "--force"), Positional: []argKind{argDistro}},
 				{Name: "undelete", Desc: "Register a trashed distribution again", Flags: withDiskFlags(), Positional: []argKind{argOther}},
+				{Name: "rename", Desc: "Rename a distribution", Flags: withDiskFlags("--force"), Positional: []argKind{argDistro, argOther}},
+				{Name: "flags", Desc: "Show or change interop, the Windows PATH and drive mounting", Flags: withDiskFlags("--interop", "--append-path", "--automount"), Positional: []argKind{argDistro}},
+				{Name: "default-user", Desc: "Set the user a distribution opens as", Flags: withDiskFlags(), Positional: []argKind{argDistro, argOther}},
+				{Name: "snapshot", Desc: "Copy a distribution's disk aside, to restore later", Flags: withDiskFlags("--name", "--shutdown"), Positional: []argKind{argDistro}, Subs: []cmdNode{
+					{Name: "list", Desc: "The snapshots kept", Flags: withDiskFlags(), Positional: []argKind{argDistro}},
+					{Name: "rm", Desc: "Delete a snapshot", Flags: withDiskFlags(), Positional: []argKind{argDistro, argOther}},
+				}},
+				{Name: "restore", Desc: "Put a snapshot back", Flags: withDiskFlags(), Positional: []argKind{argDistro, argOther}},
+				{Name: "automount", Desc: "Attach extra disks when WSL starts", Subs: []cmdNode{
+					{Name: "add", Desc: "Add a disk to the table", Flags: withDiskFlags("--name", "--bare", "--type", "--options", "--partition"), Positional: []argKind{argPath}},
+					{Name: "list", Desc: "The table, and what is attached", Flags: withDiskFlags()},
+					{Name: "rm", Desc: "Remove a disk from the table", Flags: withDiskFlags(), Positional: []argKind{argPath}},
+					{Name: "now", Desc: "Attach the table now (elevated)", Flags: withDiskFlags()},
+					{Name: "install", Desc: "Attach the table at every logon (elevated, once)", Flags: withDiskFlags()},
+					{Name: "uninstall", Desc: "Remove the logon task", Flags: withDiskFlags()},
+				}},
 				{Name: "config", Desc: "Show or change the disk settings", Flags: withDiskFlags(), Subs: []cmdNode{
 					{Name: "path", Desc: "Print the path of the settings file"},
 					{Name: "get", Desc: "Print one setting, or all of them", Positional: []argKind{argOther}},

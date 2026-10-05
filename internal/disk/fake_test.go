@@ -335,14 +335,21 @@ func (f *fakeFS) MkdirAll(path string) error {
 	if _, ok := f.dirs[path]; !ok {
 		f.dirs[path] = nil
 	}
-	parent := DirOf(path)
-	for _, e := range f.dirs[parent] {
-		if e.Path == path {
+	// Every level is created, as a real MkdirAll does, so each shows up in
+	// its parent's listing.
+	for child := path; ; {
+		parent := DirOf(child)
+		if parent == "" || parent == child {
 			return nil
 		}
+		for _, e := range f.dirs[parent] {
+			if e.Path == child {
+				return nil
+			}
+		}
+		f.dirs[parent] = append(f.dirs[parent], DirEntry{Path: child, IsDir: true})
+		child = parent
 	}
-	f.dirs[parent] = append(f.dirs[parent], DirEntry{Path: path, IsDir: true})
-	return nil
 }
 
 func (f *fakeRegistry) ReadDWORD(guid, name string) (uint32, bool, error) {

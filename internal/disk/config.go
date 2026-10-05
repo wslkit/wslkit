@@ -21,6 +21,44 @@ type Config struct {
 	// UnlockTimeoutSeconds is how long compact waits for the utility VM to
 	// release a disk.
 	UnlockTimeoutSeconds uint32
+	// Automount is the table `disk automount` keeps: extra disks to attach
+	// whenever it is applied. Written as [[automount]] blocks, and changed
+	// with `disk automount add` and `rm` rather than `config set`.
+	Automount []AutomountEntry
+}
+
+// automountSection is the internal name for the section an [[automount]]
+// header opens. It contains characters no real section name can, so a hand
+// edit cannot collide with it.
+const automountSection = "[[automount]]"
+
+// setAutomountField stores one key of an [[automount]] block.
+func setAutomountField(a *AutomountEntry, key, value string) error {
+	switch key {
+	case "path":
+		a.Path = value
+	case "name":
+		a.Name = value
+	case "type":
+		a.Type = value
+	case "options":
+		a.Options = value
+	case "bare":
+		b, err := parseStrictBool(value)
+		if err != nil {
+			return fmt.Errorf("bare takes true or false, not %q", value)
+		}
+		a.Bare = b
+	case "partition":
+		n, err := strconv.Atoi(strings.TrimSpace(value))
+		if err != nil || n < 0 {
+			return fmt.Errorf("partition takes a partition number, not %q", value)
+		}
+		a.Partition = n
+	}
+	// An unknown key is ignored, as everywhere else in the file, so a file
+	// written by a later version still loads.
+	return nil
 }
 
 // DefaultConfig is a complete configuration. A missing file is not an error,
@@ -142,6 +180,17 @@ func ParseConfig(text string) (Config, error) {
 		if s == "" || strings.HasPrefix(s, "#") {
 			continue
 		}
+		if strings.HasPrefix(s, "[[") {
+			// An array of tables: each header starts another entry.
+			if !strings.HasSuffix(s, "]]") {
+				return c, fmt.Errorf("%w: line %d is not a valid section header: %q", ErrRefused, line, s)
+			}
+			section = "[[" + strings.TrimSpace(s[2:len(s)-2]) + "]]"
+			if section == automountSection {
+				c.Automount = append(c.Automount, AutomountEntry{})
+			}
+			continue
+		}
 		if strings.HasPrefix(s, "[") {
 			if !strings.HasSuffix(s, "]") {
 				return c, fmt.Errorf("%w: line %d is not a valid section header: %q", ErrRefused, line, s)
@@ -155,6 +204,16 @@ func ParseConfig(text string) (Config, error) {
 		}
 		name := strings.TrimSpace(s[:eq])
 		value := strings.TrimSpace(s[eq+1:])
+		if section == automountSection {
+			parsed, err := parseTOMLValue(value)
+			if err != nil {
+				return c, fmt.Errorf("%w: line %d: automount.%s is %v", ErrRefused, line, name, err)
+			}
+			if err := setAutomountField(&c.Automount[len(c.Automount)-1], name, parsed); err != nil {
+				return c, fmt.Errorf("%w: line %d: %v", ErrRefused, line, err)
+			}
+			continue
+		}
 		key := name
 		if section != "" {
 			key = section + "." + name
@@ -300,6 +359,31 @@ func RenderConfig(c Config) string {
 	b.WriteString("# How long `compact` waits for the utility VM to release the disk\n")
 	b.WriteString("# after the distribution stops.\n")
 	fmt.Fprintf(&b, "unlock_timeout_seconds = %d\n", c.UnlockTimeoutSeconds)
+
+	if len(c.Automount) > 0 {
+		b.WriteString("\n# Extra disks `wslkit disk automount now` attaches, and the logon task\n")
+		b.WriteString("# from `wslkit disk automount install`. Change them with `disk automount\n")
+		b.WriteString("# add` and `rm`.\n")
+	}
+	for _, a := range c.Automount {
+		b.WriteString("\n[[automount]]\n")
+		fmt.Fprintf(&b, "path = %s\n", quote(a.Path))
+		if a.Name != "" {
+			fmt.Fprintf(&b, "name = %s\n", quote(a.Name))
+		}
+		if a.Bare {
+			b.WriteString("bare = true\n")
+		}
+		if a.Type != "" {
+			fmt.Fprintf(&b, "type = %s\n", quote(a.Type))
+		}
+		if a.Options != "" {
+			fmt.Fprintf(&b, "options = %s\n", quote(a.Options))
+		}
+		if a.Partition > 0 {
+			fmt.Fprintf(&b, "partition = %d\n", a.Partition)
+		}
+	}
 	return b.String()
 }
 

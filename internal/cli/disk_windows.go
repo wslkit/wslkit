@@ -30,6 +30,13 @@ func (a *App) diskUsage() {
   wslkit disk config [path|get|set|edit]   show or change the settings
   wslkit disk trash <distro>              unregister a distribution but keep its disk
   wslkit disk undelete <distro>           register a trashed distribution again
+  wslkit disk rename <distro> <new-name>  rename a distribution
+  wslkit disk flags <distro> [--interop=off ...]   show or change interop and automount
+  wslkit disk default-user <distro> <uid|name>     the user it opens as
+  wslkit disk snapshot <distro> [--name L]  copy its disk aside, to restore later
+  wslkit disk snapshot list|rm            what is kept, and removing it
+  wslkit disk restore <distro> <id>       put a snapshot back
+  wslkit disk automount add|list|rm|now|install|uninstall   attach extra disks when WSL starts
 
 Flags common to every disk subcommand:
   --json        machine-readable output, one object per line, sizes in bytes
@@ -65,6 +72,27 @@ rebuild flags:
 
 move flags:
   --keep-source       leave the original file where it is
+
+--force (move, relink, rebuild, trash, rename):
+                      act on a distribution a Windows package (the Store)
+                      installed. Refused without it: the app expects to find
+                      it by name, with its disk in the package's directory
+
+flags flags:
+  --interop on|off        launch Windows programs from inside it
+  --append-path on|off    add the Windows PATH to its PATH
+  --automount on|off      mount the Windows drives under /mnt
+
+snapshot flags:
+  --name LABEL        a label to recognise it by
+  --shutdown          permit stopping every distribution to free the disk
+
+automount add flags:
+  --name N            mount under /mnt/wsl/N instead of the default name
+  --bare              attach the disk without mounting it
+  --type FS           filesystem type, default ext4
+  --options O         mount options
+  --partition N       which partition to mount
 
 usage flags:
   --top N             show only the largest N entries
@@ -139,6 +167,18 @@ func (a *App) disk(args []string) int {
 		return a.diskTrash(args[1:])
 	case "undelete":
 		return a.diskUndelete(args[1:])
+	case "rename":
+		return a.diskRename(args[1:])
+	case "flags":
+		return a.diskFlagsCmd(args[1:])
+	case "default-user":
+		return a.diskDefaultUser(args[1:])
+	case "snapshot":
+		return a.diskSnapshot(args[1:])
+	case "restore":
+		return a.diskRestore(args[1:])
+	case "automount":
+		return a.diskAutomount(args[1:])
 	case "help", "--help", "-h":
 		a.diskUsage()
 		return ExitOK

@@ -46,7 +46,7 @@ const (
 func Run(ctx context.Context, o Options) (*env.Env, error) {
 	o = o.withDefaults()
 	e := env.New(o.Tool)
-	e.Elevated = isElevated()
+	e.Elevated = IsElevated()
 	e.VMWakeOK = o.AllowVMWake
 	e.UserProfile, _ = os.UserHomeDir()
 	e.Hostname, _ = os.Hostname()
@@ -75,7 +75,8 @@ func Run(ctx context.Context, o Options) (*env.Env, error) {
 	return e, nil
 }
 
-func isElevated() bool {
+// IsElevated reports whether this process runs elevated, as an administrator.
+func IsElevated() bool {
 	var sid *windows.SID
 	if err := windows.AllocateAndInitializeSid(&windows.SECURITY_NT_AUTHORITY, 2,
 		windows.SECURITY_BUILTIN_DOMAIN_RID, windows.DOMAIN_ALIAS_RID_ADMINS,
