@@ -101,6 +101,21 @@ func TestLintCleanFile(t *testing.T) {
 	}
 }
 
+// #82: consomme is a valid networkingMode from 2.9.3, and virtioproxy is its
+// former name, still an alias in 3.0.1. Neither may be a warning: the fix for
+// a WSL005 warning comments the line out, which would turn a working setting
+// into the default.
+func TestLintAcceptsConsomme(t *testing.T) {
+	host := Host{WindowsBuild: 26100, Runtime: wslver.MustParse("3.0.1"), TotalRAM: 32 << 30}
+	for _, mode := range []string{"consomme", "Consomme", "virtioproxy"} {
+		for _, f := range Lint(Parse("[wsl2]\nnetworkingMode="+mode+"\n"), table(t), host) {
+			if f.Severity != Info {
+				t.Errorf("%s: unexpected %s: %+v", mode, f.Severity, f)
+			}
+		}
+	}
+}
+
 func TestCommentOut(t *testing.T) {
 	cfg := Parse("[wsl2]\nbogus=1\nmemory=4GB\n")
 	fs := Lint(cfg, table(t), Host{})

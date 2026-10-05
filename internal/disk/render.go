@@ -103,12 +103,17 @@ func (r Row) state() string {
 	return "stopped"
 }
 
-// displayName marks the default distribution.
+// displayName marks the default distribution, and one a Windows package owns,
+// so the refusal in move, relink, trash and rebuild is visible beforehand.
 func (r Row) displayName() string {
+	name := r.Reg.Name
 	if r.Reg.IsDefault {
-		return r.Reg.Name + " *"
+		name += " *"
 	}
-	return r.Reg.Name
+	if PackageOf(r.Reg).Owned {
+		name += " [store]"
+	}
+	return name
 }
 
 // RenderList writes the human-readable listing.
@@ -201,6 +206,14 @@ func RenderInfo(w io.Writer, r Row, registryKey string) {
 	}
 	d.Add("default uid", fmt.Sprintf("%d", r.Reg.DefaultUID))
 	d.Add("flags", fmt.Sprintf("%d (%s)", r.Reg.Flags, DecodeFlags(r.Reg.Flags)))
+	pkg := PackageOf(r.Reg)
+	if pkg.Owned {
+		owner := pkg.Family
+		if owner == "" {
+			owner = "a Windows package (no PackageFamilyName)"
+		}
+		d.Add("installed by", owner+"; move, relink, trash and rebuild refuse it without --force")
+	}
 
 	i := r.Info
 	if i.VirtualSize != nil {
@@ -237,6 +250,9 @@ func RenderInfo(w io.Writer, r Row, registryKey string) {
 		d.Add("parent disk", i.ParentPath)
 	}
 	fmt.Fprint(w, d.String())
+	if pkg.Mismatch != "" {
+		fmt.Fprintf(w, "note: %s\n", pkg.Mismatch)
+	}
 	for _, n := range i.Notes {
 		fmt.Fprintf(w, "note: %s\n", n)
 	}
@@ -263,6 +279,12 @@ func ListJSON(r Row) map[string]any {
 	}
 	if r.Reg.OsVersion != "" {
 		o["os_version"] = r.Reg.OsVersion
+	}
+	if p := PackageOf(r.Reg); p.Owned {
+		o["package_owned"] = true
+		if p.Family != "" {
+			o["package_family_name"] = p.Family
+		}
 	}
 	i := r.Info
 	putU64(o, "virtual_size", i.VirtualSize)

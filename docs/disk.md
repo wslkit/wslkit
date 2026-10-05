@@ -233,6 +233,29 @@ is running.
 `relink` writes registry values and touches no file. It starts the distribution
 to check the new path works, and puts the registry back if it does not.
 
+### Distributions the Store installed
+
+A distribution installed from the Store, or from any app package, belongs to
+that package as well as to WSL. Its registration names the package
+(`PackageFamilyName`), its disk lives in
+`%LOCALAPPDATA%\Packages\<package>\LocalState`, and the app's launcher finds it
+by name. Moving the disk, repointing it, rebuilding it under a new GUID or
+unregistering it leaves the app launching into nothing, and WSL itself does
+not refuse any of them: `wsl --manage --move` checks only that the
+distribution is stopped.
+
+So `move`, `relink`, `rebuild` and `trash` refuse such a distribution, before
+anything has changed, and say how to remove it properly: through
+*Settings > Apps*, which removes the app and the distribution together.
+`--force` overrides the refusal, for when you know the app no longer needs it.
+
+`disk list` marks these distributions `[store]`, and `disk info` names the
+package. The disk counts as the package's if either the registration names a
+package or the disk is in a package directory. When only one of the two says
+so, `info` adds a note: a package name with the disk elsewhere means it has
+already been moved out from under the package, and the doctor's DSK002 warns
+about that too.
+
 ## Undoing an unregister
 
 `wsl --unregister` deletes the disk along with the registration, without asking,

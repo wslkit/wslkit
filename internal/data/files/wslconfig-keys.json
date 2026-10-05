@@ -142,6 +142,8 @@
       "section": "wsl2",
       "key": "isolateDistroCgroup",
       "type": "bool",
+      "default": "true",
+      "note": "Gives each distribution a cgroup of its own, wsl-user/distro-N, from WSL 2.9.8 (inside a cgroup namespace of its own from 2.9.13). wslkit limit and the per-distribution figures in wslkit top need it. automount.cgroups=v1 in a wsl.conf needs it off: on 2.9.8 to 2.9.12 a distribution asking for v1 with this on never starts, and from 2.9.13 WSL uses v2 instead.",
       "documented": false,
       "in_source": true
     },
@@ -247,12 +249,12 @@
     {
       "section": "wsl2",
       "key": "networkingMode",
-      "type": "enum:none,nat,bridged,mirrored,virtioproxy",
+      "type": "enum:none,nat,bridged,mirrored,consomme,virtioproxy",
       "default": "nat",
       "documented": true,
       "in_source": true,
       "min_windows_build": 22000,
-      "note": "mirrored needs Windows 11 22H2 (22621); bridged deprecated since 2.4.5"
+      "note": "mirrored needs Windows 11 22H2 (22621); bridged deprecated since 2.4.5; consomme is the user-mode NAT from OpenVMM, from 2.9.3 (virtioproxy is its former name, still accepted as an alias in 3.0.1)"
     },
     {
       "section": "wsl2",
@@ -422,7 +424,7 @@
     {
       "section": "experimental",
       "key": "networkingMode",
-      "type": "enum:none,nat,bridged,mirrored,virtioproxy",
+      "type": "enum:none,nat,bridged,mirrored,consomme,virtioproxy",
       "documented": false,
       "in_source": true,
       "alias_of": "wsl2.networkingMode"

@@ -235,6 +235,45 @@ func TestWslConfMalformedLineOnASkippingRuntimeCostsOnlyItself(t *testing.T) {
 	}
 }
 
+// #84: automount.cgroups=v1 is only right together with
+// isolateDistroCgroup=false in .wslconfig, and what the wrong half costs
+// depends on the runtime: before 2.9.8 nothing (no isolation), 2.9.8-2.9.12
+// the distribution never starts (measured on 2.9.11), 2.9.13+ v2 instead
+// (measured on 3.0.1).
+func TestWslConfCgroupV1NeedsIsolationOff(t *testing.T) {
+	for _, tc := range []struct {
+		runtime, wslconfig, want string
+	}{
+		{"2.9.11.0", "", "will stop it starting"},
+		{"2.9.11.0", "[wsl2]\nisolateDistroCgroup=true\n", "will stop it starting"},
+		{"3.0.1.0", "", "automount.cgroups=v1 does nothing"},
+		{"2.9.11.0", "[wsl2]\nisolateDistroCgroup=false\n", ""},
+		{"3.0.1.0", "[wsl2]\nisolateDistroCgroup=false\n", ""},
+		{"2.7.14.0", "", ""},
+	} {
+		e := envWithWslConf("[automount]\ncgroups=v1\n")
+		e.Runtime.Version = env.Ok(tc.runtime, "t")
+		if tc.wslconfig != "" {
+			e.Config.WslConfig = env.Ok(tc.wslconfig, "t")
+		} else {
+			e.Config.WslConfig = env.Absent[string]("t")
+		}
+		r := (WslConf{}).Run(e)
+		if tc.want == "" {
+			if strings.Contains(r.Summary, "cgroups=v1") {
+				t.Errorf("%s %q: no finding expected, got %q", tc.runtime, tc.wslconfig, r.Summary)
+			}
+			continue
+		}
+		if !strings.Contains(r.Summary, tc.want) {
+			t.Errorf("%s %q: summary %q, want %q", tc.runtime, tc.wslconfig, r.Summary, tc.want)
+		}
+		if !strings.Contains(r.Detail, "isolateDistroCgroup=false") {
+			t.Errorf("%s: the remedy is the pair: %q", tc.runtime, r.Detail)
+		}
+	}
+}
+
 // A malformed line with nothing after it costs nothing extra, and should not
 // claim it did.
 func TestWslConfMalformedLastLineClaimsNoLostSettings(t *testing.T) {

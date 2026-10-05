@@ -11,6 +11,7 @@ import (
 	"github.com/wslkit/wslkit/internal/env"
 	"github.com/wslkit/wslkit/internal/probe"
 	"github.com/wslkit/wslkit/internal/wslconfig"
+	"github.com/wslkit/wslkit/internal/wslver"
 )
 
 func All() []probe.Probe { return []probe.Probe{Mirrored{}, DNS{}} }
@@ -27,6 +28,22 @@ func Mode(e *env.Env) (mode string, explicit bool, fromPolicy bool) {
 		policy = e.Net.Policy.Value["DefaultNetworkingMode"]
 	}
 	return wslconfig.NetworkingMode(cfgText, policy)
+}
+
+// userModeNATFrom is the first runtime that knows each name of the user-mode
+// NAT networking mode.
+var userModeNATFrom = map[string]wslver.Version{
+	"virtioproxy": wslver.MustParse("2.9.0"),
+	"consomme":    wslver.MustParse("2.9.3"),
+}
+
+// runtimeVersion is the installed WSL runtime, when it is known.
+func runtimeVersion(e *env.Env) (wslver.Version, bool) {
+	if !e.Runtime.Version.OK() {
+		return wslver.Version{}, false
+	}
+	v, err := wslver.Parse(e.Runtime.Version.Value)
+	return v, err == nil && !v.IsZero()
 }
 
 func configBool(e *env.Env, key string) (val bool, set bool) {
@@ -104,7 +121,16 @@ func (p Mirrored) Run(e *env.Env) probe.Result {
 		warns = append(warns, "bridged networking is deprecated since WSL 2.4.5; use mirrored (Windows 11 22H2+) or NAT")
 	case "none":
 		warns = append(warns, "networkingMode=none: the VM has no network at all (this is a deliberate setting, or a leftover from a failed mirrored configuration)")
-	case "nat", "virtioproxy":
+	case "nat", "consomme", "virtioproxy":
+		// consomme is the user-mode NAT from OpenVMM, named virtioproxy in
+		// 2.9.0-2.9.2 and consomme from 2.9.3 (microsoft/WSL#40873); 3.0.1
+		// still takes the old name as an alias (WslCoreConfig.h). A runtime
+		// from before the name existed does not know it and uses NAT.
+		if since, gated := userModeNATFrom[mode]; gated {
+			if rt, ok := runtimeVersion(e); ok && rt.Less(since) {
+				warns = append(warns, fmt.Sprintf("networkingMode=%s needs WSL %s or newer; WSL %s does not know it and uses NAT", mode, since, rt))
+			}
+		}
 		if firewallSet && firewallWanted && fw.OK() && !fw.Value.V2 {
 			warns = append(warns, "firewall=true with NAT needs the enterprise Hyper-V firewall (MSFT_NetFirewallHyperVProfile); this host only has "+fwLevel(fw.Value)+", so WSL prints \"Hyper-V firewall is not supported\"")
 		}

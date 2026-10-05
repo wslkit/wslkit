@@ -160,6 +160,15 @@ type diskFlags struct {
 	// logFile is parsed here so the flag is accepted, but acted on before
 	// dispatch: see startLog.
 	logFile string
+	// force overrides the refusal to rehome or unregister a distribution a
+	// Windows package owns. Registered only by the commands that have it.
+	force bool
+}
+
+// registerForce adds --force, for the commands that refuse a package-owned
+// distribution (#91).
+func (f *diskFlags) registerForce(fs *flag.FlagSet) {
+	fs.BoolVar(&f.force, "force", false, "act on a distribution a Windows package (the Store) installed")
 }
 
 func (f *diskFlags) register(fs *flag.FlagSet) {

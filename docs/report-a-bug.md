@@ -41,6 +41,18 @@ wslkit doctor explain "<the error wsl.exe printed>"
 If a check explains it, you have a configuration problem rather than a bug, and
 the finding says what to do.
 
+When a distribution fails to launch and you do file upstream, the doctor report
+is worth adding beside Microsoft's logs. It names the runtime, the Windows
+build and the state the failure came from in one block:
+
+````
+**`wslkit doctor --report`**
+
+```
+<paste the output here>
+```
+````
+
 ## Making it reproducible
 
 The most useful thing you can attach is the machine itself:
@@ -75,7 +87,8 @@ thinking about before you paste the result anywhere.
 
 ## Where to file
 
-Against wslkit: <https://github.com/wslkit/wslkit/issues>.
+Against wslkit: <https://github.com/wslkit/wslkit/issues>. The bug form asks
+for the `--report` block and `wslkit version`.
 
 Against WSL itself: <https://github.com/microsoft/WSL/issues>, with their log
 collector output. If `wslkit doctor explain` matched your error to a known

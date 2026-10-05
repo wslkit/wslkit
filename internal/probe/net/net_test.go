@@ -32,6 +32,25 @@ func withVPN(e *env.Env) *env.Env {
 	return e
 }
 
+// #82: WSL 2.9.3 renamed virtioproxy to consomme, and 3.0.1 takes both. A
+// correct setting must not be called unknown, and on a runtime from before
+// the name existed it must say why WSL is using NAT.
+func TestConsommeIsAKnownMode(t *testing.T) {
+	for _, mode := range []string{"consomme", "Consomme", "virtioproxy"} {
+		e := netEnv(19045, "[wsl2]\nnetworkingMode="+mode+"\n")
+		e.Runtime.Version = env.Ok("3.0.1.0", "t")
+		if r := (Mirrored{}).Run(e); r.Status != probe.OK {
+			t.Errorf("%s on 3.0.1: %s %q", mode, r.Status, r.Summary)
+		}
+	}
+	e := netEnv(19045, "[wsl2]\nnetworkingMode=consomme\n")
+	e.Runtime.Version = env.Ok("2.7.14.0", "t")
+	r := (Mirrored{}).Run(e)
+	if r.Status != probe.Warn || !strings.Contains(r.Summary, "needs WSL 2.9.3") {
+		t.Errorf("consomme on 2.7.14: %s %q", r.Status, r.Summary)
+	}
+}
+
 func TestMirroredOnWindows10Fails(t *testing.T) {
 	r := (Mirrored{}).Run(netEnv(19045, "[wsl2]\nnetworkingMode=mirrored\n"))
 	if r.Status != probe.Fail || !strings.Contains(r.Summary, "22H2") || r.FixID != "wslconfig" {

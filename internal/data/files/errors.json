@@ -700,6 +700,16 @@
         },
         {
           "probes": [
+            "WSL006"
+          ],
+          "refs": [
+            "https://github.com/wslkit/wslkit/issues/84",
+            "https://github.com/microsoft/WSL/pull/41512"
+          ],
+          "summary": "on WSL 2.9.8 to 2.9.12, automount.cgroups=v1 in the distribution's wsl.conf without isolateDistroCgroup=false in .wslconfig: WSL prints \"Cgroup v1 is incompatible with per-distribution cgroup isolation\" and the distribution never starts. Set both, or remove the wsl.conf line. From 2.9.13 WSL uses cgroup v2 instead and starts"
+        },
+        {
+          "probes": [
             "DSK002",
             "DSK004"
           ],

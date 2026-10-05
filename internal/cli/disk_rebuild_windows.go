@@ -24,6 +24,7 @@ func (a *App) diskRebuild(args []string) int {
 	fs.SetOutput(a.Stderr)
 	var f diskFlags
 	f.register(fs)
+	f.registerForce(fs)
 	workDir := fs.String("work-dir", "", "where to write the intermediate archive (default: beside the disk)")
 	keepArchive := fs.Bool("keep-archive", false, "keep the archive afterwards, as a backup")
 	restart := fs.Bool("restart", false, "start the distribution again afterwards if it was running")
@@ -45,6 +46,9 @@ func (a *App) diskRebuild(args []string) int {
 	}
 	r, err := disk.Resolve(list, name)
 	if err != nil {
+		return a.diskFail(f, err)
+	}
+	if err := disk.GuardPackaged(r, "rebuild", f.force); err != nil {
 		return a.diskFail(f, err)
 	}
 

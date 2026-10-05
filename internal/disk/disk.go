@@ -39,6 +39,9 @@ type Registration struct {
 	OsVersion           string `json:"os_version,omitempty"`
 	ShortcutPath        string `json:"shortcut_path,omitempty"`
 	TerminalProfilePath string `json:"terminal_profile_path,omitempty"`
+	// PackageFamilyName names the Windows package that installed the
+	// distribution, for one from the Store or any appx. See package.go.
+	PackageFamilyName string `json:"package_family_name,omitempty"`
 }
 
 // Lxss distribution states, as written by the WSL service.

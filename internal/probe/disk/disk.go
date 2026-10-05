@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	wsldisk "github.com/wslkit/wslkit/internal/disk"
 	"github.com/wslkit/wslkit/internal/env"
 	"github.com/wslkit/wslkit/internal/probe"
 )
@@ -72,6 +73,23 @@ func (p Integrity) Run(e *env.Env) probe.Result {
 		r := b.Res(probe.Fail, 0.85, bad[0])
 		r.Detail = strings.Join(append(bad, lines...), "\n") + "\nThis presents as: launch fails immediately, or 'The system cannot find the file specified'."
 		r.FixHint = "if the file was moved, fix BasePath in HKCU\\...\\Lxss\\{guid}; otherwise restore from backup or wsl --unregister and reinstall"
+		return r
+	}
+	// A distribution a Windows package installed, whose disk is no longer in
+	// that package's directory: somebody moved it out from under the package
+	// (wsl --manage --move does not refuse this), and the app's own launcher
+	// and its uninstall may not find it (#91).
+	var moved []string
+	for _, d := range distros {
+		p := wsldisk.PackageOf(wsldisk.Registration{Name: d.Name, BasePath: d.BasePath, PackageFamilyName: d.PackageFamilyName})
+		if p.Family != "" && p.Mismatch != "" {
+			moved = append(moved, fmt.Sprintf("%s: installed by %s, but its disk is at %s, outside the package's directory", d.Name, p.Family, d.BasePath))
+		}
+	}
+	if len(moved) > 0 {
+		r := b.Res(probe.Warn, 0.5, moved[0])
+		r.Detail = strings.Join(append(moved, lines...), "\n") + "\nThe distribution itself still works. The Store app that installed it expects its disk in %LOCALAPPDATA%\\Packages\\<package>\\LocalState, so its launcher, its reset and its uninstall may not act on this disk."
+		r.FixHint = "wslkit disk move --force <distro> back into the package's LocalState directory, or leave it and remove the app only through Settings > Apps"
 		return r
 	}
 	r := b.Res(probe.OK, 0.6, "All distro VHDX files present with valid headers")
