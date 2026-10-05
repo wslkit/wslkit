@@ -27,7 +27,7 @@ the stronger check anyway — it ties the archive to the exact workflow run and
 commit that produced it:
 
 ```powershell
-gh attestation verify wslkit_0.1.0_windows_amd64.zip --repo wslkit/wslkit
+gh attestation verify wslkit_0.2.0_windows_amd64.zip --repo wslkit/wslkit
 ```
 
 ## Microsoft Defender
