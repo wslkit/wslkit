@@ -4,7 +4,21 @@
 > document remains the specification of that feature; read `wsldoctor check` as
 > `wslkit doctor` and `wsldoctor fix` as `wslkit doctor fix`.
 
-> Status: **not started**. This document is the specification. It exists so a fresh
+> **Status, 2026-10-05: shipped as `wslkit doctor`** (v0.1.0 on 2026-09-14). What runs is
+> listed on the generated [probes](https://wslkit.github.io/wslkit/probes/) and
+> [fixes](https://wslkit.github.io/wslkit/fixes/) pages, which are the source of truth;
+> §5 below is the original plan and is not kept current. Where it differs:
+> - Shipped under IDs this plan did not have: HST005, PLG001, DSK006, NET004, WSC001,
+>   AGT001, ZON001, MNT001, and PRE001–PRE006 in `wslkit doctor preflight`. The systemd
+>   check planned as WSL007 shipped as **SYS001**.
+> - DSK004 reads the ext4 superblock straight out of the VHDX, with nothing started; the
+>   `fsck -n` through the system distribution is still open (#14).
+> - DSK001 does not point at wsldisk: compaction is `wslkit disk compact`.
+> - The fixes are `update`, `shutdown`, `wslconfig`, `defender` and `zone`. There is no
+>   `oobe` fix.
+> - Go is ratified (ADR 0001), and the repository is public.
+>
+> This document is the specification. It exists so a fresh
 > contributor can pick up development with full context.
 > Development phases, spikes and feature research live in [ROADMAP.md](ROADMAP.md);
 > language, code layout, CI/CD and testing in [ARCHITECTURE.md](ARCHITECTURE.md).

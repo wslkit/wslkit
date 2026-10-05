@@ -195,6 +195,12 @@ func readNav(path string) (navData, error) {
 }
 
 // stage reads the hand-written pages.
+// notOnSite names the loose pages in docs/ that are deliberately not
+// published: working documents kept in the repository only.
+var notOnSite = map[string]bool{
+	"wsldisk-parity": true, // the record of the wsldisk port
+}
+
 func stage(docs string, nav navData) (map[string]page, error) {
 	entries, err := os.ReadDir(docs)
 	if err != nil {
@@ -206,10 +212,12 @@ func stage(docs string, nav navData) (map[string]page, error) {
 			continue
 		}
 		slug := strings.TrimSuffix(e.Name(), ".md")
-		// Pages that are not part of the site: the research notes and the
-		// decision records have their own index pages, and the parity
-		// checklist is a working document.
-		if _, wanted := nav.order[slug]; !wanted {
+		// Pages that are not part of the site. The research notes and the
+		// decision records are in directories of their own, with their own
+		// index pages, so only loose pages need naming here. Anything else
+		// missing from nav is caught as an orphan, which skipping every page
+		// not in nav would have made impossible.
+		if notOnSite[slug] {
 			continue
 		}
 		b, err := os.ReadFile(filepath.Join(docs, e.Name()))

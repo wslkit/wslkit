@@ -40,7 +40,7 @@ end on a machine with WSL 2: `wslkit agent install -d <distro>`, `wslkit agent s
 | `internal/probe/*` | probes: pure functions `Env -> Result` | anywhere |
 | `internal/fix`, `internal/fix/actions` | fix planning (pure); `internal/fix/exec` runs plans | anywhere / Windows |
 | `internal/render`, `internal/redact` | human, JSON, report output | anywhere |
-| `internal/data/files/*.json` | compat matrix, error dictionary; CI refreshes `latest_stable` weekly | anywhere |
+| `internal/data/files/*.json` | compat matrix, error dictionary, `.wslconfig` and `wsl.conf` key tables, disk-cache and file-watcher tables; CI refreshes `latest_stable` weekly | anywhere |
 | `tools/gen-errors`, `tools/gen-wslconfig-keys` | regenerate the source-derived parts of `errors.json` and `wslconfig-keys.json` from a microsoft/WSL checkout: `go run ./tools/gen-errors -wsl <dir>` | anywhere |
 | `testdata/snapshots/<case>/` | one real environment per bug class, plus `expected.json` | anywhere |
 | `docs/decisions/` | ADRs, including the Phase 0 spike results | |
@@ -52,7 +52,9 @@ Rule enforced by CI: anything under `internal/probe`, `internal/render`, `intern
 
 ## Adding a probe
 
-1. Pick the ID from PLAN.md §5 (or add a row there first).
+1. Pick an ID that is not taken. The generated
+   [probes page](https://wslkit.github.io/wslkit/probes/) lists every one that ships;
+   PLAN.md §5 was the original plan and is not kept current.
 2. If the probe needs a fact that `Env` does not carry yet, add the field to `internal/env/env.go`
    as a `Field[T]` and fill it in a collector. Record provenance in `Source`. Use
    `env.ErrNeedsElevation` when access is denied unelevated; never turn that into OK or FAIL.
@@ -73,7 +75,7 @@ adds `testdata/snapshots/<short-name>/env.json`, `expected.json` and a one-parag
 
 Fixes emit a `Plan` (steps plus rollback) and never touch the machine while planning.
 `wslkit doctor fix <id>` prints the plan; `--apply` writes an undo journal entry to
-`%LOCALAPPDATA%\wsldoctor\undo\` and then executes. `wslkit doctor undo <id>` replays the
+`%LOCALAPPDATA%\wslkit\undo\` and then executes. `wslkit doctor undo <id>` replays the
 rollback. Test fixes with `fix.Recording`, never with the real executor
 (`WSLKIT_TEST=1` makes the real executor panic).
 

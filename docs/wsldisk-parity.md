@@ -35,9 +35,9 @@ wired to a flag in wsldisk and which ADR 0003 rules out.
 
 | Flag | Commands | Status |
 |---|---|---|
-| `--json` | all but `completion` | **done** for list, info |
-| `--verbose`, `-v` | all | **done** for list, info |
-| `--dry-run` | all | **done** for list, info, trim, compact, usage |
+| `--json` | all but `completion` | **done**, on every disk subcommand |
+| `--verbose`, `-v` | all | **done**, on every disk subcommand |
+| `--dry-run` | all | **done**, on every disk subcommand |
 | `--yes`, `-y` | all | **done** |
 | `--log FILE` | all | **done** |
 | `--probe` | `list`, `info` | **done** |
@@ -48,7 +48,7 @@ wired to a flag in wsldisk and which ADR 0003 rules out.
 
 ## Settings
 
-`%APPDATA%wslkitnfig.toml`, written by `wslkit disk config set` and safe to
+`%APPDATA%\wslkit\config.toml`, written by `wslkit disk config set` and safe to
 edit by hand. Unknown keys are ignored so a file from a later version still
 loads.
 
@@ -129,6 +129,6 @@ reason in a comment next to the code.
 ## Repository
 
 - [x] The cache catalogue is carried over and embedded, as JSON rather than TOML.
-- [x] The README covers every disk subcommand. Site pages are tracked separately
+- [x] The disk page (docs/disk.md) covers every disk subcommand. Site pages are tracked separately
       in the documentation site issue.
 - [x] `wsldisk` is archived and its README points at wslkit.

@@ -15,9 +15,12 @@ can branch without parsing prose.
 
 ## The ones worth branching on
 
-**`0` and `1` are both normal for `doctor`.** One means it found nothing, the
-other means it found something. A script that treats `1` as a crash will treat
-every useful run as a failure.
+**`0` and `1` are both normal for `doctor`.** `1` means at least one check
+failed. Warnings alone exit `0`, so a run that prints WARN lines can still be a
+`0`. A script that treats `1` as a crash will treat every useful run as a
+failure. For `doctor`, `3` also covers the doctor failing to run at all: the
+machine could not be read, a fix could not be planned, or the undo journal
+could not be written.
 
 **`3` means nothing changed.** A precondition declined before the command
 started: the distribution is WSL 1, the disk is not where the registry says it

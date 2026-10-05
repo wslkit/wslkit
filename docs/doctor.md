@@ -36,11 +36,13 @@ A check whose dependency failed is reported as skipped rather than guessed at.
 One broken fact should not produce a page of misleading findings.
 
 [Every check](probes.md) is listed in the reference, generated from the same
-registry the binary runs.
+registry the binary runs. For a distribution with systemd, `SYS001` reports on
+the system, the user session and `XDG_RUNTIME_DIR`; the
+[systemd guide](systemd-session.md) explains each finding.
 
 ### wslc containers
 
-wslc, the container CLI in the WSL 2.9 pre-releases, runs its containers in a
+wslc, the container CLI that is generally available from WSL 3.0.1, runs its containers in a
 VM of its own, whose DNS can fail when everything else on the machine works.
 `WSC001` asks each DNS server a container would be given, from inside that VM,
 and compares the answer with a public resolver's.
@@ -191,7 +193,7 @@ would actually undo.
 | `--only M1[,M2]` | run only checks tagged with these milestones |
 | `--from-snapshot FILE` | run against a saved machine instead of this one |
 | `--elevated` | fail unless the console is elevated. Elevation is detected either way, and the facts that need an administrator are read whenever the console has one; the flag only makes a script stop instead of reporting them UNKNOWN |
-| `--allow-vm-wake` | permit checks that would start the WSL VM |
+| `--allow-vm-wake` | permit checks that would start the WSL VM. Reserved: no check uses it yet |
 | `--timeout DURATION` | per-collector deadline, default five seconds |
 | `--online` | check the published WSL releases instead of the built-in list |
 | `--no-redact` | leave usernames and paths in the output |

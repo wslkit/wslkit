@@ -4,13 +4,16 @@
 distributions. It is the Go reimplementation of
 [wsldisk](https://github.com/wslkit/wsldisk), which is archived.
 
-Nothing here needs an administrator.
+Nothing here needs an administrator, except attaching extra disks with
+`automount now` and `automount install`.
 
 ```
 wslkit disk list                     what each distribution costs
 wslkit disk usage Ubuntu             where the space inside it went
 wslkit disk compact Ubuntu           trim, stop, then shrink the file
 wslkit disk trash Ubuntu             unregister it, but keep the disk
+wslkit disk rename Ubuntu Work       rename it
+wslkit disk snapshot Ubuntu          copy its disk aside, to restore later
 ```
 
 ## Which number is which
@@ -111,6 +114,7 @@ wslkit disk compact Ubuntu --dry-run
 | `--restart` | start the distribution again afterwards if it was running |
 | `--shutdown` | permit stopping every distribution to free the disk |
 | `--unlock-timeout D` | how long to wait for the utility VM to let go |
+| `--trim-timeout D` | how long to let fstrim run |
 
 Stopping a distribution does not free its disk. The utility VM holds it for
 about a minute afterwards, so the command waits. While any other distribution is
@@ -300,8 +304,9 @@ restore is itself undoable, by `wslkit doctor undo` or by restoring that one.
 
 The disk has to be free to copy it. Once a distribution has run, the WSL utility
 VM keeps its disk open until no distribution is running at all (measured on
-3.0.1: still held 40 seconds after it stopped, while another one ran). So
-`--shutdown` is often needed, and it stops everything.
+3.0.1: still held 40 seconds after it stopped, while another one ran). So both
+`snapshot` and `restore` take `--shutdown`, which is often needed, and which
+stops everything.
 
 ### Attaching extra disks
 
@@ -310,6 +315,8 @@ wslkit disk automount add D:\disks\data.vhdx --name data
 wslkit disk automount list
 wslkit disk automount now          from an elevated terminal
 wslkit disk automount install      from an elevated terminal, once
+wslkit disk automount rm D:\disks\data.vhdx
+wslkit disk automount uninstall    remove the logon task
 ```
 
 `wsl --mount <disk> --vhd` attaches a disk until WSL next shuts down, and there

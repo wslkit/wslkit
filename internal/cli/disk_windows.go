@@ -44,6 +44,7 @@ Flags common to every disk subcommand:
   --dry-run     show what would happen and change nothing
   -y, --yes     do not prompt for confirmation
   --log FILE    append a transcript to this file as well as stderr
+  --timeout D   bound on each command run inside a distribution (default 30s)
 
   --probe       start a stopped distribution to read the usage inside it.
                 Off by default: starting a distribution to measure it changes
@@ -83,9 +84,11 @@ flags flags:
   --append-path on|off    add the Windows PATH to its PATH
   --automount on|off      mount the Windows drives under /mnt
 
-snapshot flags:
-  --name LABEL        a label to recognise it by
-  --shutdown          permit stopping every distribution to free the disk
+snapshot and restore flags:
+  --name LABEL        (snapshot) a label to recognise it by
+  --shutdown          permit stopping every distribution to free the disk. Once
+                      a distribution has run, the utility VM keeps its disk
+                      open while any other one runs
 
 automount add flags:
   --name N            mount under /mnt/wsl/N instead of the default name
@@ -114,6 +117,7 @@ compact flags:
   --restart           start the distribution again afterwards if it was running
   --shutdown          permit stopping every distribution to free the disk
   --unlock-timeout D  how long to wait for the utility VM to let go (default 1m30s)
+  --trim-timeout D    how long to let fstrim run (trim and compact)
 
 Sizes: "size on disk" is what the volume actually spends, which is the number
 that changes when you free space. "virtual size" is the maximum the disk may

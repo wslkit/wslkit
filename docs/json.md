@@ -60,6 +60,9 @@ wslkit disk list --json
 {"allocated_bytes":2707423232,"default":true,"file_size":2707423232,"flavor":"ubuntu","guid":"{...}","name":"Ubuntu","os_version":"26.04","size_on_disk":2707423232,"sparse":false,"version":2,"vhdx_path":"C:\...\ext4.vhdx","virtual_size":1099511627776}
 ```
 
+A distribution a Windows package installed also carries `"package_owned": true`
+and, when its registration names one, `package_family_name`.
+
 `reclaimable` appears only when both of the numbers it is derived from could be
 measured, and it is floored at zero: on a compressed volume the guest's figure
 can legitimately exceed what the file costs.
@@ -68,7 +71,8 @@ can legitimately exceed what the file costs.
 
 One object, with a `vm` block, a list of distributions, and a list of `groups`:
 the cgroups that belong to no distribution, such as WSL's own processes and
-`/docker`. Counters a distribution could not report are left out rather than
+`/docker`. From WSL 2.9.13 those are out of sight from inside a distribution,
+and `groups` is an empty list. Counters a distribution could not report are left out rather than
 written as zero. Rows also carry, where measured, `memory_high_bytes`,
 `memory_max_bytes`, `cpu_limit`, `throttled_usec` and `throttled_percent`, and a
 distribution `disk_used_bytes`, `disk_size_bytes` and `vhdx_bytes`; the `vm`

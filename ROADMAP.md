@@ -5,6 +5,21 @@
 > other planned subcommands (`sock`, `limit`, `top`, `guard`, `disk`, `proxy`) lives in
 > `docs/research/2026-09-subcommands.md`.
 
+> **Status, 2026-10-05.** WSL 3.0.1 is the stable release (2.9.13 the pre-release); the
+> dates and versions below are from 2026-09-12. Since then:
+> - Every subcommand named above has shipped: `sock`, `limit`, `top`, `guard`, `disk`,
+>   `proxy`. wsldisk is archived and `wslkit disk` replaces it, compaction and moves
+>   included, so the "owned by wsldisk" scope line below no longer holds.
+> - Released as v0.1.0 on 2026-09-14, with Scoop and winget manifests. Code signing is
+>   still not done (#19).
+> - Phase 3: WSL005, NET002, NET004, ZON001, DSK003, DSK005, DSK006, `explain`,
+>   `preflight` and the `zone` and `wslconfig` fixes shipped. NET001, NET005, NET006,
+>   HIB001/PWR001 and an `oobe` fix did not.
+> - Phase 4: DSK004 shipped as a superblock read from the VHDX rather than `fsck` (#14
+>   tracks the rest); the systemd check shipped as SYS001.
+> - wslc is generally available in 3.0.1, and WSC001 checks its DNS.
+> - Open work is tracked as issues, not here.
+
 > Companion to [PLAN.md](PLAN.md) and [ARCHITECTURE.md](ARCHITECTURE.md). PLAN.md is the specification (what the probes are and
 > why). This document is the *how and when*: engineering phases, spikes that must land
 > before code, and research into features the plan does not yet cover.
@@ -142,7 +157,7 @@ PLAN §12 checklist plus:
 | WMI vs. direct API | Direct Win32 where it exists (services, registry, event log, file attributes, VHDX header). WMI only for optional features, hypervisor presence, Defender. | WMI adds 100–300 ms per query and a COM apartment; keep it to three probes. |
 | Waking the VM | Never by default. `wsl.exe` calls are behind `--allow-vm-wake`; the renderer marks probes skipped for that reason. Per-probe context deadline, default 5 s. | A wedged `vmmem` means `wsl.exe` hangs. `check` must finish regardless. |
 | Testing | Snapshot corpus is the primary test; live runs are smoke only. | You cannot CI a broken WSL. You can CI a JSON file describing one. |
-| Fix safety | Every `fix` writes `%LOCALAPPDATA%\wsldoctor\undo\<timestamp>.json` with prior values, and `wslkit doctor undo <id>` replays it. | PLAN requires a printed rollback; a stored one is stronger and costs little. |
+| Fix safety | Every `fix` writes `%LOCALAPPDATA%\wslkit\undo\<timestamp>.json` with prior values, and `wslkit doctor undo <id>` replays it. | PLAN requires a printed rollback; a stored one is stronger and costs little. |
 | Redaction | `--report` redacts by default; `--no-redact` opt-out. Redact before rendering, not after, so JSON and markdown agree. | Output is destined for public issues. |
 
 ## 3. Feature research

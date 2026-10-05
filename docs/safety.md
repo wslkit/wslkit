@@ -7,7 +7,9 @@ about it.
 ## Reading is always safe
 
 `wslkit doctor`, `wslkit disk list`, `wslkit disk info`, `wslkit disk usage`,
-`wslkit disk orphans` and `wslkit top` change nothing.
+`wslkit disk orphans`, `wslkit disk flags <distro>` with no switches,
+`wslkit disk snapshot list`, `wslkit disk automount list`, `wslkit limit show`
+and `wslkit top` change nothing.
 
 They also do not start anything. Starting a distribution to measure it changes
 the thing being measured, and it costs you the seconds and the memory of a VM
@@ -34,13 +36,15 @@ writing.
 
 ## Destroying asks twice
 
-Two commands can lose data, and both stop and ask:
+Three commands can lose data, and all of them stop and ask:
 
 - `wslkit disk orphans --delete` asks once for the whole set, having first
   printed what it found and warned that a disk nothing claims is not
   necessarily a disk nothing needs.
 - `wslkit disk trash --purge` asks again, because it is the only place in the
   kit where a distribution is destroyed beyond recovery.
+- `wslkit disk snapshot rm` deletes one snapshot for good, and says so before
+  it does.
 
 End of input counts as no. A piped command with nothing to answer with has not
 consented to anything. `--yes` skips the question when you mean it to.
@@ -64,7 +68,10 @@ audit, and it does not break the output of a `--json` consumer by restarting
 itself mid-run.
 
 Almost nothing needs one. Compacting a disk, moving it, reading every check the
-doctor runs: all of it works from an ordinary console.
+doctor runs: all of it works from an ordinary console. The exceptions are
+`wslkit disk automount now` and `install`, because `wsl --mount` itself needs
+an elevated process, and the few doctor checks that read what Windows only
+shows an administrator, which report UNKNOWN rather than guessing.
 
 ## Nothing leaves your machine
 

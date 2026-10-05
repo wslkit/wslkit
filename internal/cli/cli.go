@@ -141,7 +141,7 @@ in one binary. Every group prints its own help: wslkit <command> help.
   wslkit doctor ...                    diagnose why WSL is broken or slow, then fix it (wslkit doctor help)
   wslkit agent ...                     guest agent: install into a distro, run the Windows daemon (wslkit agent help)
   wslkit sock ...                      bridge Windows sockets into a distro: ssh-agent, gpg-agent (wslkit sock help)
-  wslkit disk ...                      inspect and maintain distribution disks: list, info (wslkit disk help)
+  wslkit disk ...                      move, snapshot and maintain distribution disks (wslkit disk help)
   wslkit top [--once] [--json]         what the VMs are using, refreshed until Ctrl+C
   wslkit limit ...                     cap what one distro may use (wslkit limit help)
   wslkit proxy ...                     get a Windows proxy working inside a distro (wslkit proxy help)

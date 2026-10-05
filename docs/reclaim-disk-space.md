@@ -69,8 +69,9 @@ space scattered in small holes leaves every block partly occupied and there is
 nothing to remove.
 
 An export and re-import rewrites the filesystem from scratch and can reclaim
-what compaction cannot, at the cost of the registration and a lot of I/O. It is
-tracked as a possible `rebuild` command.
+what compaction cannot, at the cost of a lot of I/O. Done by hand it also loses
+the registration's settings; `wslkit disk rebuild <distro>` does it and puts
+them back. See [rebuild](disk.md#rebuild).
 
 ## When something is holding the disk
 

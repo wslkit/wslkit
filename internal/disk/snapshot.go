@@ -347,7 +347,10 @@ type RestoreResult struct {
 
 // Restore puts a snapshot back. The current disk is moved aside, not deleted,
 // until the restored copy has booted; if it does not, everything is put back.
-func Restore(ctx context.Context, e Env, r Registration, s SnapshotEntry, root string, running bool, pr Progress) (RestoreResult, error) {
+//
+// shutdown permits stopping every distribution to free the disk: once a
+// distribution has run, the utility VM holds its disk while any other one runs.
+func Restore(ctx context.Context, e Env, r Registration, s SnapshotEntry, root string, running, shutdown bool, pr Progress) (RestoreResult, error) {
 	if pr == nil {
 		pr = DiscardProgress{}
 	}
@@ -355,8 +358,8 @@ func Restore(ctx context.Context, e Env, r Registration, s SnapshotEntry, root s
 	live := r.VhdPath()
 	aside := live + beforeRestoreSuffix
 
-	if running {
-		if err := stopForDisk(ctx, e, r, false, pr); err != nil {
+	if running || shutdown {
+		if err := stopForDisk(ctx, e, r, shutdown, pr); err != nil {
 			return res, err
 		}
 	} else if e.FS.Exists(live) {
