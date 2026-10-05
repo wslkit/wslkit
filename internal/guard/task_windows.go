@@ -3,16 +3,13 @@
 package guard
 
 import (
-	"bytes"
 	"context"
-	"encoding/xml"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
-	"strings"
-	"time"
+
+	"github.com/wslkit/wslkit/internal/schtask"
 )
 
 // The recovery has to run when nobody is watching, which means a scheduled task
@@ -86,13 +83,12 @@ func Install(ctx context.Context, o InstallOptions) ([]string, error) {
 func Uninstall(ctx context.Context) ([]string, error) {
 	var removed []string
 	for _, name := range []string{TaskName, ElevatedTaskName} {
-		out, err := schtasks(ctx, "/delete", "/tn", name, "/f")
-		switch {
-		case err == nil:
+		gone, err := schtask.Delete(ctx, name)
+		if err != nil {
+			return removed, fmt.Errorf("guard: %w", err)
+		}
+		if gone {
 			removed = append(removed, name)
-		case strings.Contains(out, "cannot find") || strings.Contains(out, "does not exist"):
-		default:
-			return removed, fmt.Errorf("guard: removing the task %q: %w: %s", name, err, strings.TrimSpace(out))
 		}
 	}
 	return removed, nil
@@ -102,47 +98,21 @@ func Uninstall(ctx context.Context) ([]string, error) {
 func Status(ctx context.Context) map[string]bool {
 	out := map[string]bool{}
 	for _, name := range []string{TaskName, ElevatedTaskName} {
-		_, err := schtasks(ctx, "/query", "/tn", name)
-		out[name] = err == nil
+		out[name] = schtask.Exists(ctx, name)
 	}
 	return out
 }
 
-// registerTask writes the XML to a temporary file and hands it to schtasks.
+// registerTask hands the definition to schtasks.
 //
 // The XML form rather than the flag form: /create /sc ONEVENT can express one
 // trigger, and this needs three, on two different channels, plus a logon
 // trigger. Nothing else about the task is unusual.
 func registerTask(ctx context.Context, name, xmlText string) error {
-	f, err := os.CreateTemp("", "wslkit-guard-*.xml")
-	if err != nil {
+	if err := schtask.Register(ctx, name, xmlText); err != nil {
 		return fmt.Errorf("guard: %w", err)
-	}
-	defer func() { _ = os.Remove(f.Name()) }()
-	// UTF-16 with a byte-order mark: schtasks rejects anything else, with a
-	// message that does not say so.
-	if _, err := f.Write(utf16BOM(xmlText)); err != nil {
-		_ = f.Close()
-		return fmt.Errorf("guard: %w", err)
-	}
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("guard: %w", err)
-	}
-	out, err := schtasks(ctx, "/create", "/tn", name, "/xml", f.Name(), "/f")
-	if err != nil {
-		return fmt.Errorf("guard: registering the task %q: %w: %s", name, err, strings.TrimSpace(out))
 	}
 	return nil
-}
-
-func schtasks(ctx context.Context, args ...string) (string, error) {
-	cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(cctx, "schtasks.exe", args...)
-	var out bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &out, &out
-	err := cmd.Run()
-	return decodeWSL(out.Bytes()), err
 }
 
 // taskXML builds the task definition.
@@ -249,25 +219,7 @@ func rungFlag(r Rung) string {
 	return "all"
 }
 
-func xmlEscape(s string) string {
-	var b bytes.Buffer
-	_ = xml.EscapeText(&b, []byte(s))
-	return b.String()
-}
-
-// utf16BOM encodes the XML the way schtasks insists on reading it.
-func utf16BOM(s string) []byte {
-	var b bytes.Buffer
-	b.Write([]byte{0xff, 0xfe})
-	for _, r := range s {
-		if r > 0xffff {
-			r = '?'
-		}
-		b.WriteByte(byte(r))
-		b.WriteByte(byte(r >> 8))
-	}
-	return b.Bytes()
-}
+func xmlEscape(s string) string { return schtask.XMLEscape(s) }
 
 // LogPath is where a run records what it did. A recovery that runs unattended
 // and leaves no account of itself is one nobody can trust or debug.

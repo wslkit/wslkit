@@ -233,6 +233,100 @@ is running.
 `relink` writes registry values and touches no file. It starts the distribution
 to check the new path works, and puts the registry back if it does not.
 
+### rename
+
+```
+wslkit disk rename Ubuntu Work
+```
+
+WSL has no command for this (microsoft/WSL#4241). The name is one value in the
+distribution's registry key, and the WSL service reads it live: measured on
+WSL 3.0.1, the new name works at once and the old one stops resolving.
+`rename` writes it, starts the distribution under the new name to prove it, and
+puts the old name back if that fails. `wslkit doctor undo` reverses it later.
+
+Names follow WSL's own rule, measured against `wsl --import`: letters, digits,
+`.`, `-` and `_`. The distribution has to be stopped.
+
+What breaks is anything that uses the old name: `\\wsl.localhost\<old>` paths
+and scripts running `wsl -d <old>`. The Windows Terminal profile and the
+Start-menu shortcut WSL makes for a modern distribution keep working, because
+both launch it by GUID, and only go on showing the old name.
+
+### flags and default-user
+
+```
+wslkit disk flags Ubuntu                                   show them
+wslkit disk flags Ubuntu --append-path=off --automount=off
+wslkit disk default-user Ubuntu zoe                        or a uid
+```
+
+These are the switches on the distribution's registry key that `wsl.exe` has
+no command for. WSL reads them as the distribution starts, so a change to a
+running one applies after `wsl --terminate`. The undocumented fourth bit WSL
+sets is carried over untouched. Every change goes into the undo journal.
+
+Measured on WSL 3.0.1: `--append-path=off` takes the Windows directories out
+of `PATH`, and `--automount=off` leaves `/mnt/c` empty. `--interop=off` is
+weaker than it sounds. Sessions lose their own interop socket (`WSL_INTEROP`
+is empty), but `cmd.exe` still starts. To stop Windows programs launching, set
+`[interop] enabled=false` in the distribution's `/etc/wsl.conf`, which does.
+
+`default-user` takes a name only while the distribution is running, because
+turning a name into a uid means asking the distribution, and starting it to ask
+would be a side effect. A stopped one takes a uid, and is told the uid was not
+checked.
+
+### snapshot and restore
+
+```
+wslkit disk snapshot Ubuntu --name before-upgrade
+wslkit disk snapshot list
+wslkit disk restore Ubuntu before-upgrade      or an id, or latest
+wslkit disk snapshot rm Ubuntu <id>
+```
+
+A snapshot is a copy of the disk file, holes kept, in
+`%LOCALAPPDATA%\wslkit\snapshots\<guid>\<id>`, with a manifest beside it. They
+are copies rather than differencing disks: WSL attaches whatever file its
+registration names, and its own `--manage --move` and `--resize` would break a
+chain silently. They are kept by GUID, so a renamed distribution keeps them,
+and they are refused when the volume does not have room.
+
+`restore` moves the current disk aside, copies the snapshot into place, and
+starts the distribution to prove it boots. If it does not, the disk it replaced
+goes back. If it does, the replaced disk becomes a snapshot of its own, so a
+restore is itself undoable, by `wslkit doctor undo` or by restoring that one.
+
+The disk has to be free to copy it. Once a distribution has run, the WSL utility
+VM keeps its disk open until no distribution is running at all (measured on
+3.0.1: still held 40 seconds after it stopped, while another one ran). So
+`--shutdown` is often needed, and it stops everything.
+
+### Attaching extra disks
+
+```
+wslkit disk automount add D:\disks\data.vhdx --name data
+wslkit disk automount list
+wslkit disk automount now          from an elevated terminal
+wslkit disk automount install      from an elevated terminal, once
+```
+
+`wsl --mount <disk> --vhd` attaches a disk until WSL next shuts down, and there
+is no setting that attaches one every time (microsoft/WSL#11187). `automount`
+keeps a table of them in the settings file, as `[[automount]]` blocks, and
+attaches the table: now, or at every logon from a scheduled task.
+
+It only attaches. Nothing formats, partitions or writes to a disk. A disk the
+table's run finds already open is left alone, so running it twice is harmless.
+It refuses a registered distribution's own disk, which would give one ext4
+filesystem two writers.
+
+`wsl --mount` needs an elevated process, so `now` does too, and the logon task
+runs with highest privileges. Registering a task like that needs an elevated
+terminal once. The task writes what it did to
+`%LOCALAPPDATA%\wslkit\automount.log`.
+
 ### Distributions the Store installed
 
 A distribution installed from the Store, or from any app package, belongs to
@@ -244,7 +338,7 @@ unregistering it leaves the app launching into nothing, and WSL itself does
 not refuse any of them: `wsl --manage --move` checks only that the
 distribution is stopped.
 
-So `move`, `relink`, `rebuild` and `trash` refuse such a distribution, before
+So `move`, `relink`, `rebuild`, `trash` and `rename` refuse such a distribution, before
 anything has changed, and say how to remove it properly: through
 *Settings > Apps*, which removes the app and the distribution together.
 `--force` overrides the refusal, for when you know the app no longer needs it.

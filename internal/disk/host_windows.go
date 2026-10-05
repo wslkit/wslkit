@@ -143,6 +143,15 @@ func decodeWSLOutput(b []byte) string {
 	return strings.TrimRight(string(utf16.Decode(u)), "\x00")
 }
 
+// Mount runs `wsl.exe --mount ...` for disk automount. It needs an elevated
+// process; wsl.exe says so itself when it is not, and the caller checks first.
+func (h *WindowsHost) Mount(ctx context.Context, args []string) (CommandResult, error) {
+	cctx, cancel := context.WithTimeout(ctx, importTimeout)
+	defer cancel()
+	stdout, stderr, code, err := h.run(cctx, args...)
+	return CommandResult{ExitCode: code, Stdout: stdout, Stderr: stderr}, err
+}
+
 // Unregister removes a distribution from WSL.
 //
 // It deletes the disk along with the registration, and fires its notification

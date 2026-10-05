@@ -46,7 +46,7 @@ const (
 func Run(ctx context.Context, o Options) (*env.Env, error) {
 	o = o.withDefaults()
 	e := env.New(o.Tool)
-	e.Elevated = isElevated()
+	e.Elevated = IsElevated()
 	e.VMWakeOK = o.AllowVMWake
 	e.UserProfile, _ = os.UserHomeDir()
 	e.Hostname, _ = os.Hostname()
@@ -75,7 +75,8 @@ func Run(ctx context.Context, o Options) (*env.Env, error) {
 	return e, nil
 }
 
-func isElevated() bool {
+// IsElevated reports whether this process runs elevated, as an administrator.
+func IsElevated() bool {
 	var sid *windows.SID
 	if err := windows.AllocateAndInitializeSid(&windows.SECURITY_NT_AUTHORITY, 2,
 		windows.SECURITY_BUILTIN_DOMAIN_RID, windows.DOMAIN_ALIAS_RID_ADMINS,
@@ -440,9 +441,10 @@ func collectDistros(ctx context.Context, e *env.Env, o Options) error {
 	// is left of this collector's deadline, so they run together rather than
 	// one of them spending the budget the other needs.
 	var inside sync.WaitGroup
-	inside.Add(2)
+	inside.Add(3)
 	go func() { defer inside.Done(); scanZoneFilesFor(ctx, out, o.Timeout) }()
 	go func() { defer inside.Done(); readWatchersFor(ctx, out, o.Timeout) }()
+	go func() { defer inside.Done(); readSystemdFor(ctx, out, o.Timeout) }()
 	inside.Wait()
 	e.Distros = env.Ok(out, src)
 	return nil

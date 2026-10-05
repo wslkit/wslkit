@@ -19,6 +19,7 @@ func TestDiskCommandsGuardPackagedDistributions(t *testing.T) {
 		"disk_relink_windows.go":  "relink",
 		"disk_trash_windows.go":   "trash",
 		"disk_rebuild_windows.go": "rebuild",
+		"disk_rename_windows.go":  "rename",
 	} {
 		b, err := os.ReadFile(file)
 		if err != nil {
