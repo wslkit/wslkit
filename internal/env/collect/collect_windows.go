@@ -440,9 +440,10 @@ func collectDistros(ctx context.Context, e *env.Env, o Options) error {
 	// is left of this collector's deadline, so they run together rather than
 	// one of them spending the budget the other needs.
 	var inside sync.WaitGroup
-	inside.Add(2)
+	inside.Add(3)
 	go func() { defer inside.Done(); scanZoneFilesFor(ctx, out, o.Timeout) }()
 	go func() { defer inside.Done(); readWatchersFor(ctx, out, o.Timeout) }()
+	go func() { defer inside.Done(); readSystemdFor(ctx, out, o.Timeout) }()
 	inside.Wait()
 	e.Distros = env.Ok(out, src)
 	return nil
