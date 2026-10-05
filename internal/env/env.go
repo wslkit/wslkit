@@ -268,6 +268,42 @@ type Distro struct {
 	// on a mounted Windows drive where watching does not work. Read from
 	// /proc over \\wsl.localhost, running distributions only.
 	Watchers Field[[]WatchProc] `json:"watchers,omitempty"`
+	// Systemd is the state of systemd and of the default user's session,
+	// read by one script run as root in a running distribution. Same rule
+	// as WslConf: running distributions only.
+	Systemd Field[SystemdState] `json:"systemd,omitzero"`
+}
+
+// SystemdState is what SYS001 needs to tell a healthy systemd distribution
+// from the several ways its user session fails (microsoft/WSL#13826).
+type SystemdState struct {
+	// PID1 is /proc/1/comm: "systemd" when systemd is running as init.
+	PID1 string `json:"pid1"`
+	// System is `systemctl is-system-running`: running, degraded,
+	// starting, maintenance... Empty when PID 1 is not systemd.
+	System string `json:"system,omitempty"`
+	// Failed are the failed units, at most a handful.
+	Failed []string `json:"failed,omitempty"`
+	// UID is the distribution's default user (DefaultUid).
+	UID int `json:"uid"`
+	// UserKnown says that uid is in /etc/passwd.
+	UserKnown bool `json:"user_known"`
+	// UserService is `systemctl is-active user@<uid>.service`.
+	UserService string `json:"user_service,omitempty"`
+	// RunUser is /run/user/<uid>: exists, owner and mode.
+	RunUserExists bool   `json:"run_user_exists"`
+	RunUserOwner  int    `json:"run_user_owner,omitempty"`
+	RunUserMode   string `json:"run_user_mode,omitempty"`
+	// PAMSystemd says some file under /etc/pam.d loads pam_systemd, which
+	// is what starts the user session at login.
+	PAMSystemd bool `json:"pam_systemd"`
+	// UserProcs counts the default user's processes, and UserProcsXDG those
+	// of them with XDG_RUNTIME_DIR set; XDG is the first value seen. Read
+	// from existing processes rather than by logging in, because a login
+	// would start the user session and change what is being diagnosed.
+	UserProcs    int    `json:"user_procs"`
+	UserProcsXDG int    `json:"user_procs_xdg"`
+	XDG          string `json:"xdg_runtime_dir,omitempty"`
 }
 
 // WatchProc is one file-watching process working on the Windows filesystem.
