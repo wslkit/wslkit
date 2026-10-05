@@ -212,7 +212,7 @@ func RenderInfo(w io.Writer, r Row, registryKey string) {
 		if owner == "" {
 			owner = "a Windows package (no PackageFamilyName)"
 		}
-		d.Add("installed by", owner+"; move, relink, trash and rebuild refuse it without --force")
+		d.Add("installed by", owner+"; move, relink, trash, rebuild and rename refuse it without --force")
 	}
 
 	i := r.Info
