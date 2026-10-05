@@ -60,7 +60,7 @@ func ValidateAutomount(a AutomountEntry, table []AutomountEntry, registered []Re
 	switch {
 	case p == "":
 		return fmt.Errorf("%w: the disk path is empty", ErrRefused)
-	case !(len(p) > 2 && p[1] == ':') && !strings.HasPrefix(p, `\\`):
+	case (len(p) <= 2 || p[1] != ':') && !strings.HasPrefix(p, `\\`):
 		return fmt.Errorf("%w: %s is not an absolute Windows path; the task that applies the table runs from another directory", ErrRefused, p)
 	case !strings.HasSuffix(lower, ".vhdx") && !strings.HasSuffix(lower, ".vhd"):
 		return fmt.Errorf("%w: %s is not a .vhdx or .vhd; wsl --mount --vhd attaches only those", ErrRefused, p)
