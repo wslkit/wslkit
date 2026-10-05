@@ -215,7 +215,7 @@ func sessionRates(before, after []Session, interval time.Duration) []Session {
 // with every other note at the end, by renderNotes.
 func renderSessions(w io.Writer, r Report) {
 	for _, s := range r.Sessions {
-		fmt.Fprintf(w, "\n%s\n", rule("wslc session "+s.Name+" (preview)"))
+		fmt.Fprintf(w, "\n%s\n", rule("wslc session "+s.Name))
 		if s.Err != nil {
 			fmt.Fprintln(w, "could not be measured; see the notes")
 			continue
@@ -238,7 +238,7 @@ func renderSessions(w io.Writer, r Report) {
 }
 
 // sessionsNote says what the wslc sections are and how far to trust them.
-const sessionsNote = "wslc is a preview in the WSL 2.9 pre-releases. Each session runs its containers in a VM of its own, which is why it has its own totals."
+const sessionsNote = "wslc is generally available from WSL 3.0.1, and a preview in the 2.9 pre-releases. Each session runs its containers in a VM of its own, which is why it has its own totals."
 
 // sessionsJSON is the wslc_sessions list of --json.
 func sessionsJSON(sessions []Session) []map[string]any {

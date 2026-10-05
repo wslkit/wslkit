@@ -81,7 +81,7 @@ even when no distribution is running.
 ### wslc containers
 
 ```
-── wslc session wslc-cli-user (preview) ──────────────────────────────────────
+── wslc session wslc-cli-user ────────────────────────────────────────────────
 548.4 MiB of 7.6 GiB in use, 7.0 GiB free, 4 CPUs, CPU 103.2%
 238.3 MiB page cache (reclaimable), 55.4 MiB anonymous (unreclaimable)
 stalled over the last 10 s: memory 0.0%, I/O 2.5%, CPU 0.6%
@@ -93,7 +93,7 @@ wk-spike-busy  wslc  4.8 MiB    136.0 KiB  99.9%  0 B/s  0 B/s  1     0.0% / 0.1
 wk-spike-idle  wslc  724.0 KiB  132.0 KiB  0.0%   0 B/s  0 B/s  1     0.0% / 0.0%
 ```
 
-wslc, the container CLI in the WSL 2.9 pre-releases, runs each session's
+wslc, the container CLI that is generally available from WSL 3.0.1, runs each session's
 containers in a VM of its own. For each session whose VM is running, top adds
 a section: that VM's totals, what Windows charges for it, and one row per
 running container, with the same columns as everything else.
@@ -107,8 +107,8 @@ get in the way of a VM that is starting.
 
 The numbers come from the containers' own cgroups inside the session VM, read
 through `wslc system session run`, not from `wslc stats`. Those print display
-strings (`988KiB / 7.611GiB`) rather than numbers. wslc is a preview, and its
-output has changed in every 2.9 release so far. See
+strings (`988KiB / 7.611GiB`) rather than numbers. wslc was a preview through
+the 2.9 pre-releases, and its output changed in every one of them. See
 [the research note](https://github.com/wslkit/wslkit/blob/main/docs/research/2026-09-wslc-session.md).
 
 None of this is visible from `top` or `free` inside a distribution. They see
@@ -152,6 +152,11 @@ is in `wslkit top help`.
   runs dockerd. Without this row that memory would be in no row at all. For
   one row per container, use the engine's own tooling.
 
+Both rows exist only on WSL 2.9.8 to 2.9.12. From 2.9.13 each distribution has
+a cgroup namespace of its own, rooted at its own cgroup, so the VM's root and
+WSL's own group are out of sight from inside every distribution, and top leaves
+the rows out rather than guessing at them.
+
 Docker Engine using the systemd cgroup driver should put its containers under
 the distribution's own systemd slice instead, so they would count towards the
 distribution. That follows from how the driver works and has not been measured
@@ -174,8 +179,10 @@ rather than to any distribution.
 How a distribution is measured depends on your WSL version. `--json` says which
 was used, in its `method` and `note` fields:
 
-- On WSL 2.9, each distribution gets its own cgroup, which accounts for it
+- From WSL 2.9.8, each distribution gets its own cgroup, which accounts for it
   alone. That is true attribution, and it carries everything in the table.
+  From 2.9.13, and so in 3.0, that cgroup is the root of a cgroup namespace of
+  the distribution's own, and top reads it there.
 - Before that, on WSL 2.7, every distribution's processes share the VM's root
   cgroup, so cgroup accounting read from inside one returns VM-wide numbers.
   wslkit sums the resident set of each distribution's own processes instead.
@@ -185,9 +192,9 @@ was used, in its `method` and `note` fields:
   they are left out rather than approximated.
   VM-wide pressure is shown on both.
 
-At the time of writing WSL 2.9 is a pre-release and 2.7 is the current stable
-release. top decides which method to use by looking for the per-distribution
-cgroup, not by reading the version number.
+WSL 3.0.1 is the current stable release, and 2.7 the one before it. top
+decides which method to use by looking for the per-distribution cgroup, not by
+reading the version number.
 
 That difference was measured rather than assumed. Burning five seconds of CPU in
 one distribution on the older arrangement moves every other distribution's

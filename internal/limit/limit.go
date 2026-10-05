@@ -5,17 +5,21 @@
 // from Windows, and there is no setting anywhere that says "this distribution
 // gets four gigabytes".
 //
-// From WSL 2.9 there is somewhere to put one. mini_init creates a cgroup per
+// From WSL 2.9.8 there is somewhere to put one. mini_init creates a cgroup per
 // distribution under /sys/fs/cgroup/wsl-user/distro-<pid>, and the ordinary
 // cgroup v2 controls in it work: memory.max, memory.high and cpu.max are
-// exactly the knobs this needs, already mounted, already writable by root
-// inside the distribution.
+// exactly the knobs this needs, already mounted.
 //
 // Two things follow from where that node lives, and both shape the whole
 // design. It is named after the distribution's init pid, so it is a different
 // node after every restart and a limit written into it does not survive one.
 // And it is above the distribution's own view of itself, so the writing has to
 // happen from inside, as root, against a path resolved at that moment.
+//
+// From WSL 2.9.13 the distribution has a cgroup namespace rooted at that node,
+// and the kernel refuses writes to a namespace root from inside it. The writes
+// then go through WSL's own init for the distribution, which sits outside the
+// namespace, with nsenter. See FindNode.
 package limit
 
 import (
@@ -139,9 +143,12 @@ type Current struct {
 	// MemoryCurrent is what it is using now, which is what decides whether a
 	// new ceiling is about to kill something.
 	MemoryCurrent uint64
-	// Systemd says the distribution runs systemd, which puts its processes
-	// in a child of the distro node.
-	Systemd bool
+	// Namespaced says the distribution has a cgroup namespace of its own
+	// (WSL 2.9.13 and newer), so its cgroup is its /sys/fs/cgroup.
+	Namespaced bool
+	// Writable says a write can reach the cgroup. False only when it is
+	// namespaced and has no nsenter to write from outside the namespace.
+	Writable bool
 }
 
 // Unlimited reports whether a raw cgroup value means "no limit".

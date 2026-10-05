@@ -52,7 +52,7 @@
       "default": "v2",
       "documented": false,
       "desc": "Which cgroup hierarchy is mounted at /sys/fs/cgroup.",
-      "note": "v1 is incompatible with per-distribution cgroup isolation, which recent WSL enables by default, and that conflict is only a warning. v1 also mounts a fresh tmpfs over /sys/fs/cgroup, which can leave systemd with a layout it did not expect. If the kernel command line disables cgroup v1, WSL falls back to v2 and only logs it."
+      "note": "v1 is incompatible with per-distribution cgroup isolation, which recent WSL enables by default. Up to 2.9.12 that conflict is only a warning; from 2.9.13 WSL warns and mounts v2 anyway (measured on 3.0.1), so v1 needs wsl2.isolateDistroCgroup=false in .wslconfig as well. v1 also mounts a fresh tmpfs over /sys/fs/cgroup, which can leave systemd with a layout it did not expect. If the kernel command line disables cgroup v1, WSL falls back to v2 and only logs it."
     },
     {
       "section": "filesystem",

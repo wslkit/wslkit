@@ -5,7 +5,7 @@ has, so a runaway build in one distribution takes memory from every other one
 and from Windows, and there is nothing anywhere that says "this distribution
 gets four gigabytes".
 
-From WSL 2.9 there is somewhere to put one.
+From WSL 2.9.8, and so in 3.0, there is somewhere to put one.
 
 ```
 wslkit limit show                                   what everything is capped at
@@ -78,13 +78,28 @@ where that script writes the same values:
 
 ```sh
 #!/bin/sh
+# WSL 2.9.8 to 2.9.12: the node is in this process's own cgroup path.
 node=$(awk -F: '{print $3}' /proc/self/cgroup | sed -n 's,^\(/wsl-user/distro-[0-9]*\).*,\1,p')
-[ -n "$node" ] || exit 0
-echo 3221225472 > "/sys/fs/cgroup$node/memory.high"
-echo 200000 100000 > "/sys/fs/cgroup$node/cpu.max"
+dir="/sys/fs/cgroup$node"
+enter=""
+if [ -z "$node" ]; then
+  # 2.9.13 and newer: /sys/fs/cgroup is this distribution's cgroup, and it can
+  # only be written from outside its namespace. WSL's own init is outside it.
+  self=$(readlink /proc/self/ns/cgroup)
+  p=$$
+  while [ "$(readlink /proc/$p/ns/cgroup)" = "$self" ] && [ "$p" -gt 1 ]; do
+    p=$(awk '/^PPid:/{print $2}' /proc/$p/status)
+  done
+  enter="nsenter -t $p -C --"
+fi
+$enter sh -c "echo 3221225472 > $dir/memory.high"
+$enter sh -c "echo 200000 100000 > $dir/cpu.max"
 ```
 
-`wslkit limit set --dry-run` prints exactly the values to put in it.
+`wslkit limit set --dry-run` prints exactly the values to put in it. On WSL
+3.0.1 this was measured in Alpine without systemd: the limit is in place about
+half a second after the distribution starts. Under systemd it has not been
+measured.
 
 ## Which WSL you need
 
@@ -92,15 +107,25 @@ echo 200000 100000 > "/sys/fs/cgroup$node/cpu.max"
 
 ```
 limit: Ubuntu has no cgroup of its own (/sys/fs/cgroup/wsl-user/distro-N). That
-arrived between WSL 2.7.13 and 2.9.11; on an older runtime there is nowhere to
-put a per-distribution limit, and .wslconfig caps the whole VM instead
+arrived in WSL 2.9.8; on an older runtime there is nowhere to put a
+per-distribution limit, and .wslconfig caps the whole VM instead
 ```
 
 Measured, not guessed: on 2.7.13 there is no `wsl-user` at all and every
 distribution reads the same VM-wide counters. On 2.9.11 each has its own node
-and its own accounting. There is no 2.8 — Microsoft publishes 2.7.x as stable
-and 2.9.x as pre-release, with nothing in between — so the change landed
-somewhere in that gap. See `docs/research/2026-09-cgroups.md` for both sets of
-measurements.
+and its own accounting. The version it arrived in, 2.9.8, is from Microsoft's
+description of microsoft/WSL#41512 rather than measured. See
+`docs/research/2026-09-cgroups.md` for both sets of measurements.
 
-`wsl --update --pre-release` gets you there today.
+**From 2.9.13, and so on WSL 3.0, each distribution has a cgroup namespace of
+its own** (microsoft/WSL#41512). Inside it, `/sys/fs/cgroup` is the
+distribution's own cgroup, and the kernel refuses writes to it from inside:
+`printf max > /sys/fs/cgroup/memory.high` fails with an I/O error. wslkit
+writes through WSL's own init for the distribution, which is outside the
+namespace, with util-linux's `nsenter -C`. busybox's `nsenter` has no `-C`, so a
+distribution with only busybox needs util-linux first (`util-linux-misc` on
+Alpine). `limit show` works either way; `limit set` says what is missing. The
+report then names the cgroup `/`, because the distribution cannot see its real
+name without that `nsenter`.
+
+WSL 3.0.1 is the current stable release.

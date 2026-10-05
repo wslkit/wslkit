@@ -115,6 +115,9 @@ type fakeDistro struct {
 	current string
 	written []string
 	noNode  bool
+	// namespaced and writable are what the script printed for them.
+	namespaced string
+	writable   string
 }
 
 func (f *fakeDistro) Run(ctx context.Context, distro, script string, timeout time.Duration) (string, error) {
@@ -129,13 +132,14 @@ func (f *fakeDistro) Run(ctx context.Context, distro, script string, timeout tim
 			"swap_max=" + f.values["memory.swap.max"],
 			"cpu_max=" + f.values["cpu.max"],
 			"memory_current=" + f.current,
-			"systemd=no",
+			"namespaced=" + f.namespaced,
+			"writable=" + f.writable,
 			"",
 		}, "\n"), nil
 	}
 	// The write script: record each redirect in order.
 	for _, line := range strings.Split(script, "\n") {
-		if strings.HasPrefix(line, "printf ") {
+		if strings.HasPrefix(line, "w ") {
 			f.written = append(f.written, line)
 		}
 	}
@@ -166,7 +170,7 @@ func TestNoCgroupIsNamedAndExplained(t *testing.T) {
 	if !errors.As(err, &none) {
 		t.Fatalf("err = %v", err)
 	}
-	if !strings.Contains(err.Error(), "2.9.11") {
+	if !strings.Contains(err.Error(), "2.9.8") {
 		t.Errorf("the error should say where the feature arrived: %v", err)
 	}
 }
@@ -183,6 +187,59 @@ func TestWriteScriptResolvesTheNodeItself(t *testing.T) {
 	}
 	if strings.Contains(s, "distro-42") {
 		t.Error("no node may be baked into the script")
+	}
+}
+
+// From WSL 2.9.13 the distribution's cgroup is the root of a namespace of its
+// own, and the kernel refuses writes to it from inside (measured on 3.0.1: EIO).
+// Every write has to go through the command FindNode chose, never a bare
+// redirect, or limit set fails on every current runtime.
+func TestWritesGoThroughTheChosenEntry(t *testing.T) {
+	s := WriteScript(Plan(Limits{MemoryHigh: 1 << 30, CPUs: 2}))
+	if !strings.Contains(s, `w() { $enter sh -c`) {
+		t.Fatal("writes must run through $enter")
+	}
+	for _, line := range strings.Split(s, "\n") {
+		if strings.HasPrefix(line, "printf ") {
+			t.Errorf("a bare write from inside the namespace: %q", line)
+		}
+	}
+	if !strings.Contains(s, "w memory.high '1073741824' ||") || !strings.Contains(s, "w cpu.max '200000 100000' ||") {
+		t.Errorf("writes not rendered as checked calls to w:\n%s", s)
+	}
+	// The entry is the shell's own ancestor outside the namespace, found by
+	// walking PPid: a container inside the distribution is in another
+	// namespace too, and must not be the one picked.
+	if !strings.Contains(s, "PPid") || !strings.Contains(s, "nsenter -t $outside -C --") {
+		t.Error("the entry must be found through the parent chain and entered with nsenter -C")
+	}
+}
+
+// Namespaced and readable but no nsenter: say what to install, not "failed".
+func TestApplyWithoutNsenterSaysWhatIsMissing(t *testing.T) {
+	r := runnerFunc(func(ctx context.Context, distro, script string, timeout time.Duration) (string, error) {
+		return "no-nsenter\n", errors.New("exit status 3")
+	})
+	err := Apply(context.Background(), r, "Alpine", Plan(Limits{MemoryHigh: 1 << 30}), time.Second)
+	var missing ErrNoNsenter
+	if !errors.As(err, &missing) || !strings.Contains(err.Error(), "util-linux") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestReadReportsANamespacedCgroup(t *testing.T) {
+	f := &fakeDistro{node: "/wsl-user/distro-13799", current: "466296832", namespaced: "yes", writable: "yes",
+		values: map[string]string{"memory.max": "max", "memory.high": "max", "memory.swap.max": "max", "cpu.max": "max 100000"}}
+	c, err := Read(context.Background(), f, "Ubuntu", time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.Namespaced || !c.Writable || c.Node != "/wsl-user/distro-13799" {
+		t.Fatalf("current = %+v", c)
+	}
+	f.writable = "no"
+	if c, _ := Read(context.Background(), f, "Ubuntu", time.Second); c.Writable {
+		t.Error("writable=no must read as not writable")
 	}
 }
 

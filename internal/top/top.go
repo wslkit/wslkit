@@ -8,8 +8,10 @@
 // 2.8), mini_init creates /sys/fs/cgroup/wsl-user/distro-<pid> per
 // distribution when wsl2.isolateDistroCgroup is on, which it is by default.
 // That cgroup accounts for exactly one distribution, so reading memory.current
-// from it is true attribution. There is no cgroup namespace, so one
-// distribution can read every other one's node.
+// from it is true attribution. Up to 2.9.12 there is no cgroup namespace, so
+// one distribution can read every other one's node. From 2.9.13
+// (microsoft/WSL#41512) each distribution has a cgroup namespace rooted at its
+// node: it reads its own cgroup as /sys/fs/cgroup, and nothing else.
 //
 // Before that, every distribution's processes sit in the true root cgroup
 // together. Reading cgroup accounting there returns VM-wide numbers that look
@@ -32,7 +34,8 @@
 // Where the cgroup exists, so do cgroups that belong to no distribution: WSL's
 // own non-distro group, and anything created at the VM's root, which is where
 // Docker Engine without systemd puts its containers. Those are reported as
-// rows of their own, because otherwise that memory is in no row at all.
+// rows of their own, because otherwise that memory is in no row at all. From
+// 2.9.13 they are outside every distribution's namespace and are not reported.
 package top
 
 import (
@@ -42,6 +45,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/wslkit/wslkit/internal/limit"
 )
 
 // Method is how a distribution's memory was attributed.
@@ -466,29 +471,11 @@ group() {
 }
 `
 
-// distroScript measures the distribution it runs in.
-const distroScript = `# This shell's own cgroup, not pid 1's. Measured on WSL 2.9.11: a systemd
-# distribution puts pid 1 in /wsl-user/distro-N/systemd/init.scope, but a
-# distribution without systemd reports 0::/ for pid 1 and the distro node only
-# for its own processes. Reading pid 1 therefore finds nothing on exactly the
-# distributions that are cheapest to measure, and falls back to summing /proc
-# for no reason.
-node=$(awk -F: '{print $3}' /proc/self/cgroup 2>/dev/null | head -1)
-case "$node" in
-  /wsl-user/distro-*) ;;
-  *) node=$(awk -F: '{print $3}' /proc/1/cgroup 2>/dev/null | head -1) ;;
-esac
-case "$node" in
-  /wsl-user/distro-*) ;;
-  *) node="" ;;
-esac
-# The distribution's own node is the one directly under wsl-user; systemd puts
-# pid 1 in a child of it, so walk back up to the distro-N level.
-if [ -n "$node" ]; then
-  node=$(echo "$node" | sed -n 's,^\(/wsl-user/distro-[0-9]*\).*,\1,p')
-fi
-dir="/sys/fs/cgroup$node"
-hz=$(getconf CLK_TCK 2>/dev/null || echo 100)
+// distroScript measures the distribution it runs in. limit.FindNode finds its
+// cgroup in both layouts: the shared namespace of WSL 2.9.8 to 2.9.12, where
+// it is /sys/fs/cgroup/wsl-user/distro-N, and the namespace of its own from
+// 2.9.13, where it is /sys/fs/cgroup.
+const distroScript = limit.FindNode + `hz=$(getconf CLK_TCK 2>/dev/null || echo 100)
 echo "clock_hz=$hz"
 if [ -n "$node" ] && [ -r "$dir/memory.current" ]; then
   echo "method=cgroup"
@@ -519,8 +506,10 @@ echo "processes=$(ls -d /proc/[0-9]* 2>/dev/null | wc -l)"
 echo "init=$(cat /proc/1/comm 2>/dev/null)"
 # Cgroups that belong to no distribution. Only where wsl-user exists: without
 # it every distribution shares the root, and whatever sits in these groups is
-# already in some distribution's resident set.
-if [ -n "$node" ]; then
+# already in some distribution's resident set. Nor in a namespace of its own:
+# there /sys/fs/cgroup/*/ are the distribution's own children, already in its
+# row, and the VM's root is out of sight.
+if [ -n "$node" ] && [ "$namespaced" = no ]; then
   group "g.wsl." /sys/fs/cgroup/wsl-user/non-distro
   for d in /sys/fs/cgroup/*/; do
     n=$(basename "$d")
