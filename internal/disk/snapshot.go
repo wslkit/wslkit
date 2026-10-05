@@ -137,9 +137,7 @@ func TakeSnapshot(ctx context.Context, e Env, r Registration, root string, o Sna
 	if n, err := e.FS.FileSize(dest); err == nil {
 		m.FileSize = n
 	}
-	if n, err := e.FS.SizeOnDisk(dest); err == nil {
-		m.SizeOnDisk = n
-	}
+	m.SizeOnDisk = measuredSize(e, dest, m.FileSize)
 	if err := writeSnapshotManifest(e, entry.Dir, m); err != nil {
 		// A copy with no manifest cannot be restored by anything, so it is
 		// not left behind looking like a snapshot.
@@ -149,6 +147,16 @@ func TakeSnapshot(ctx context.Context, e Env, r Registration, root string, o Sna
 	}
 	entry.Manifest = m
 	return entry, nil
+}
+
+// measuredSize is what a fresh copy costs on the volume. Straight after a
+// sparse copy NTFS can answer 0 for a file with content; that is not a size,
+// so the logical length stands in until a listing measures it again.
+func measuredSize(e Env, path string, fileSize uint64) uint64 {
+	if n, err := e.FS.SizeOnDisk(path); err == nil && (n > 0 || fileSize == 0) {
+		return n
+	}
+	return fileSize
 }
 
 // stopForDisk stops the distribution, or all of WSL, and waits until the
@@ -218,6 +226,12 @@ func ListSnapshots(e Env, root string) []SnapshotEntry {
 				entry.Manifest.GUID = BaseOf(g.Path)
 			} else {
 				entry.Manifest = m
+				// Measured now, not trusted from the manifest: straight after
+				// a sparse copy NTFS can report 0 bytes allocated (measured
+				// on Windows 10 22H2: 0 at copy time, 74 MiB a minute later).
+				if n, err := e.FS.SizeOnDisk(entry.VhdPath()); err == nil && n > 0 {
+					entry.Manifest.SizeOnDisk = n
+				}
 			}
 			out = append(out, entry)
 		}
@@ -453,9 +467,7 @@ func fileAsSnapshot(e Env, r Registration, root, path, label string) (SnapshotEn
 	if n, err := e.FS.FileSize(dest); err == nil {
 		m.FileSize = n
 	}
-	if n, err := e.FS.SizeOnDisk(dest); err == nil {
-		m.SizeOnDisk = n
-	}
+	m.SizeOnDisk = measuredSize(e, dest, m.FileSize)
 	entry.Manifest = m
 	return entry, writeSnapshotManifest(e, entry.Dir, m)
 }

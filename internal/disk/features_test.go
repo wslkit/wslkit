@@ -217,6 +217,26 @@ func TestSnapshotThenRestoreKeepsWhatItReplaced(t *testing.T) {
 	}
 }
 
+// Measured live: straight after the sparse copy NTFS reported 0 bytes on disk
+// for a 74 MiB snapshot, and the listing then said "0 B". A fresh 0 for a file
+// with content is not a size, and the listing measures again.
+func TestSnapshotSizeIsNotAFreshZero(t *testing.T) {
+	e, fsys, _, _ := snapEnv()
+	fsys.files[`C:\wsl\Ubuntu\ext4.vhdx`] = fakeFile{size: 74 << 20, onDisk: 0}
+	entry, err := TakeSnapshot(context.Background(), e, reg("Ubuntu"), snapRoot, SnapshotOptions{}, false, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry.Manifest.SizeOnDisk != 74<<20 {
+		t.Errorf("recorded size on disk = %d, want the file size while the volume says 0", entry.Manifest.SizeOnDisk)
+	}
+	// Later the volume has caught up, with less than the logical length.
+	fsys.files[entry.VhdPath()] = fakeFile{size: 74 << 20, onDisk: 12 << 20}
+	if got := ListSnapshots(e, snapRoot)[0].Manifest.SizeOnDisk; got != 12<<20 {
+		t.Errorf("listed size on disk = %d, want it measured now", got)
+	}
+}
+
 // A restore that does not boot puts the disk it replaced back, and leaves no
 // half-restored file behind.
 func TestRestoreThatDoesNotBootIsPutBack(t *testing.T) {
