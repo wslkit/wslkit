@@ -14,7 +14,8 @@ go build -o wslkit.exe ./cmd/wslkit
 ```
 
 The first command builds the Linux guest agent that gets embedded in the
-binary. The build fails without it.
+binary. Without it the build still succeeds, but `wslkit agent install` says the
+agent is not embedded.
 
 ## Before you push
 
@@ -59,7 +60,8 @@ hugo server -s site              preview
 
 Every page must appear in a section of `site/data/nav.yaml`. A page nothing
 links to is a page nobody reads, so the generator fails on one rather than
-letting it become reachable only by URL.
+letting it become reachable only by URL. The one loose page kept off the site,
+the wsldisk parity record, is named in `tools/gen-docs`.
 
 The reference pages are generated from the data files and registries and must
 not be edited. Change the data, not the page.

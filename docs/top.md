@@ -21,17 +21,18 @@ wslkit top Ubuntu      only these distributions
 
 ```
 ── utility VM ────────────────────────────────────────────────────────────────
-1.2 GiB of 7.6 GiB in use, 6.3 GiB free, 4 CPUs, CPU 22.0%
-616.5 MiB page cache (reclaimable), 179.3 MiB anonymous (unreclaimable)
-stalled over the last 10 s: memory 0.0%, I/O 15.2%, CPU 3.4%
-network: 691 B/s in, 696 B/s out
+1.0 GiB of 7.6 GiB in use, 6.5 GiB free, 4 CPUs, CPU 8.5%, up 15 s
+574.2 MiB page cache (reclaimable), 81.7 MiB anonymous (unreclaimable), swap 0 B of 2.0 GiB
+stalled over the last 10 s: memory 0.0%, I/O 8.7%, CPU 1.6%
+network: 0 B/s in, 28 B/s out
+Windows charges it 1.2 GiB (vmmem pid 33532)
 
-NAME          KIND    MEMORY     ANON       CPU    READ       WRITE      PIDS  STALL MEM/IO  INIT
-Ubuntu        distro  469.6 MiB  105.4 MiB  15.3%  1.6 KiB/s  1.6 KiB/s  88    0.0% / 6.8%   systemd
-skrog-engine  distro  199.2 MiB  66.6 MiB   6.2%   0 B/s      0 B/s      90    0.0% / 4.5%   init(skrog-engi
-docker        cgroup  16.7 MiB   4.9 MiB    0.0%   0 B/s      0 B/s      6     0.0% / 0.0%
-WSL itself    wsl     696.0 KiB  116.0 KiB  0.6%   0 B/s      0 B/s      1     0.0% / 0.0%
+NAME    KIND    MEMORY     ANON      CPU   READ        WRITE  PIDS  STALL MEM/IO  DISK USED/FILE     INIT
+Ubuntu  distro  441.0 MiB  80.4 MiB  8.6%  38.8 KiB/s  0 B/s  60    0.0% / 6.0%   2.9 GiB / 4.0 GiB  systemd
 ```
+
+That is WSL 3.0.1. On 2.9.8 to 2.9.12 there can be two more kinds of row, a
+`cgroup` row such as `docker` and the `WSL itself` row; see below.
 
 The first line is what Task Manager shows against `vmmem`. The split underneath
 is the useful part: **page cache** is memory the VM is holding that Windows can
@@ -120,6 +121,9 @@ waiting.
 
 | Column | What it is |
 |---|---|
+| `KIND` | `distro`, `cgroup` or `wsl`; see the rows that are not distributions, below |
+| `INIT` | what runs as PID 1 in the distribution: `systemd`, or WSL's own init |
+| `PROCESSES` | on a WSL with no per-distribution cgroup (2.7 and older): how many processes it has, in place of `PIDS` and the other cgroup columns |
 | `IMAGE` | in the wslc tables, in place of `KIND`: the container's image, as `wslc list` names it. wslc names containers at random, so this is what says what is running. A long registry path is cut from the front |
 | `MEMORY` | everything charged to the row, including the page cache its reads and writes pulled in |
 | `ANON` | the part of that Windows can never reclaim |
@@ -237,11 +241,11 @@ report after another, or with `--json` one object per line.
 | `--wsl` | show the WSL section: the utility VM and its distributions |
 | `--wslc` | show the wslc section: the wslc session VMs that are running. Never starts one; with none running, the section is shown empty and says so |
 | `--raw` | print what the measurement printed inside each distribution, unparsed, labelled with the WSL version |
+| `--timeout D` | bound on each measurement inside a distribution |
 
 `--raw` is for when the numbers look wrong. Its output is exactly what top's
 parser reads, so a copy of it in a bug report can become a test fixture: the
-2.7 tests were made from it.
-| `--timeout D` | bound on each measurement inside a distribution |
+2.7 and 3.0.1 tests were made from it.
 
 ## Limits
 

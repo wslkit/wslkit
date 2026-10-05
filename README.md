@@ -26,8 +26,14 @@ prints its plan first and records a rollback.
 
 ## Install
 
-No releases yet, so build it. Needs Go 1.27 and nothing else: no cgo, no C
-compiler.
+```
+scoop bucket add wslkit https://github.com/wslkit/scoop-wslkit
+scoop install wslkit
+```
+
+Or take the zip from the
+[releases page](https://github.com/wslkit/wslkit/releases), or build it: Go 1.27
+and nothing else, no cgo, no C compiler.
 
 ```
 go run ./tools/build-agent -version dev
@@ -42,7 +48,7 @@ Windows 10 build 19041 or later, amd64 or arm64.
 | | |
 |---|---|
 | [`doctor`](https://wslkit.github.io/wslkit/doctor/) | why WSL is broken or slow, and fixes with journalled undo |
-| [`disk`](https://wslkit.github.io/wslkit/disk/) | inspect, compact, move and repair distribution disks |
+| [`disk`](https://wslkit.github.io/wslkit/disk/) | inspect, compact, move, rename, snapshot and repair distribution disks, and attach extra disks at logon |
 | [`top`](https://wslkit.github.io/wslkit/top/) | what the utility VM is using, and which distribution |
 | [`limit`](https://wslkit.github.io/wslkit/limit/) | cap the memory, CPUs and swap one distribution may use |
 | [`proxy`](https://wslkit.github.io/wslkit/proxy/) | get a Windows proxy, PAC script included, working inside a distribution |
@@ -54,6 +60,9 @@ Guides for the things people actually arrive with:
 [WSL will not start](https://wslkit.github.io/wslkit/wsl-will-not-start/),
 [reclaim disk space](https://wslkit.github.io/wslkit/reclaim-disk-space/),
 [use your Windows keys](https://wslkit.github.io/wslkit/windows-keys-in-wsl/),
+[systemd and the user session](https://wslkit.github.io/wslkit/systemd-session/),
+[file watchers](https://wslkit.github.io/wslkit/file-watchers/),
+[Zone.Identifier files](https://wslkit.github.io/wslkit/zone-identifier-files/),
 [report a bug well](https://wslkit.github.io/wslkit/report-a-bug/).
 
 ## Why it exists

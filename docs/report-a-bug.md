@@ -77,8 +77,10 @@ Registry values under the WSL keys, file and volume facts about your disks, the
 versions of the WSL components, which optional Windows features are on, service
 states, and the WSL entries from your event log.
 
-No file contents, no network requests, nothing from inside a distribution unless
-you asked for it with `--probe`.
+No file contents and no network requests. From inside a distribution, only
+facts about ones that are already running: what its `wsl.conf` says is wrong,
+how many Zone.Identifier files and file watchers it has, and the state of its
+systemd. A stopped distribution is never started to look.
 
 Redaction is on by default: your Windows username becomes `%USERPROFILE%`, your
 hostname becomes `<host>`, and account identifiers are truncated. `--no-redact`

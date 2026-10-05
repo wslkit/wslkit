@@ -36,12 +36,12 @@ for the design and what it deliberately rules out.
 | Command | What it does |
 |---|---|
 | `agent install -d <distro>` | put the agent in a distribution |
-| `agent uninstall -d <distro>` | take it out again |
+| `agent uninstall -d <distro> [--purge]` | take it out again; `--purge` also removes `/etc/wslkit` |
 | `agent start` | start the Windows daemon |
 | `agent stop` | stop it |
 | `agent status` | whether the daemon is up and the agent is connected |
 | `agent serve` | run the daemon in the foreground |
-| `agent autostart` | start the daemon when you log in |
+| `agent autostart on\|off` | start the daemon when you log in, or stop doing so |
 | `agent vm-id` | the id of the running utility VM |
 
 `--autostart` on `install` does the install and the login registration together.

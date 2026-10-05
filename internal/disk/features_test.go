@@ -199,7 +199,7 @@ func TestSnapshotThenRestoreKeepsWhatItReplaced(t *testing.T) {
 	if _, err := PlanRestore(e, r, s, false, true); err != nil {
 		t.Fatalf("plan restore: %v", err)
 	}
-	res, err := Restore(context.Background(), e, r, s, snapRoot, false, nil)
+	res, err := Restore(context.Background(), e, r, s, snapRoot, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +229,7 @@ func TestRestoreThatDoesNotBootIsPutBack(t *testing.T) {
 	live := `C:\wsl\Ubuntu\ext4.vhdx`
 	fsys.files[live] = fakeFile{size: 100 << 30, onDisk: 7 << 30} // the "current" disk, recognisable
 	host.runErr = errors.New("init failed")
-	if _, err := Restore(context.Background(), e, r, entry, snapRoot, false, nil); !errors.Is(err, ErrSmokeTest) {
+	if _, err := Restore(context.Background(), e, r, entry, snapRoot, false, false, nil); !errors.Is(err, ErrSmokeTest) {
 		t.Fatalf("err = %v", err)
 	}
 	if got := fsys.files[live]; got.onDisk != 7<<30 {

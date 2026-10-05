@@ -21,7 +21,7 @@
 | C# / .NET NativeAOT | `System.Management` makes WMI trivial. | `System.Management` is not AOT-compatible; without AOT the binary needs a runtime, and the wslkit rule is single-file native. | Reject. |
 | C++ (as `wsldisk`) | Zero-friction Win32. | No benefit for non-hot-path logic; testing and JSON are painful; slows contributors. | Reject; PLAN §4 already says so. |
 
-Toolchain: current stable Go (1.26 or newer), pinned in `go.mod`; `GOFLAGS=-trimpath`,
+Toolchain: current stable Go (1.27 or newer), pinned in `go.mod`; `GOFLAGS=-trimpath`,
 `-ldflags "-s -w -X main.version=..."`. Targets: `windows/amd64`, `windows/arm64`.
 No cgo anywhere; if a spike proves cgo unavoidable the decision comes back here.
 
@@ -54,34 +54,38 @@ milliseconds and have a dependency graph a reviewer can read in one sitting.
 
 ## 3. Code layout
 
+As built, 2026-10-05 (the 2026-09-12 plan had `cmd/wsldoctor`, a top-level
+`data/` and a `schema/` directory; none of those exist):
+
 ```
-cmd/wsldoctor/            main.go: version, subcommand router, exit codes
-internal/cli/             check.go, fix.go, explain.go, preflight.go, undo.go, flags.go
+cmd/wslkit/               main.go: version, subcommand router
+cmd/wslkit-agent/         the Linux guest agent, embedded by tools/build-agent
+internal/cli/             every subcommand's flags, help and output
 internal/env/             Env, Field[T], sub-structs (Runtime, Host, Distros, Config, Disk, Net, Events)
-internal/env/collect/     Collector interface + Windows collectors (//go:build windows)
-internal/probe/           Probe interface, Result, Status, registry, ranking, dependency skip
-internal/probe/wsl/       WSL001–WSL007
-internal/probe/host/      HST***, DEF***, PLG***, HIB/PWR***
-internal/probe/disk/      DSK***, ZON***
+internal/env/collect/     Windows collectors (//go:build windows)
+internal/probe/           Probe interface, Result, Status, ranking, dependency skip
+internal/probe/all/       the registry: one explicit slice
+internal/probe/wsl/       WSL001–WSL006, ZON001, MNT001, SYS001
+internal/probe/host/      HST***, DEF001, PLG001
+internal/probe/disk/      DSK***
 internal/probe/net/       NET***
 internal/probe/perf/      MEM***
 internal/probe/evt/       EVT***
+internal/probe/wslc/      WSC001
+internal/preflight/       PRE001–PRE006, checks on a .wsl archive before install
 internal/fix/             Fix interface, Plan, Executor (real, recording), undo journal
-internal/fix/actions/     update, defender, zone, oobe, shutdown, wslconfig
-internal/render/          human.go, json.go, report.go (markdown), width-aware wrapping
+internal/fix/actions/     update, shutdown, wslconfig, defender, zone
+internal/render/          human, JSON and report (markdown) output
 internal/redact/          path/SID/hostname/GUID scrubbing applied to a Result tree
-internal/data/            embed.go + loaders + schema validation for data/*.json
-internal/winapi/          thin, tested wrappers: registry, scm, wevtapi, wmi, virtdisk, iphlpapi, token
-internal/vhdx/            pure VHDX header/region/metadata/BAT parser (no Windows deps)
+internal/data/            embedded tables in files/*.json, and their loaders
+internal/winapi/          thin wrappers: WMI, event log, services, file info, virtdisk, hvsock, ...
+internal/vhdx/, ext4/     pure VHDX and ext4 superblock parsers (no Windows deps)
 internal/wslconfig/       pure INI parser + lint rules + key table lookup
 internal/wslerr/          parser for "Wsl/Service/…/E_FOO" paths and HRESULTs
-internal/wslver/          version parse/compare, channel (stable vs pre-release) detection
-data/                     compat.json, wslconfig-keys.json, errors.json, refs.json
-schema/                   env-v1.json, result-v1.json (JSON Schema, published with releases)
-testdata/snapshots/       <case>/env.json + expected.json + expected.txt
-testdata/vhdx/            tiny hand-built VHDX fixtures (headers only, a few KB)
-spikes/                   Phase 0 throwaway programs; deleted after docs/decisions/ records the answer
-docs/decisions/           ADR-000x-*.md
+internal/wslver/          version parse and compare
+internal/disk/, top/, limit/, guard/, proxy/, sock/, agent/, schtask/   the other subcommands
+testdata/snapshots/       <case>/env.json + expected.json
+docs/decisions/           ADR 0001–0011
 ```
 
 Packages under `internal/probe/*`, `internal/vhdx`, `internal/wslconfig`, `internal/wslerr`,
@@ -134,7 +138,7 @@ Ranking: `Fail` before `Warn` before `Unknown` before `Skipped` before `OK`; wit
 status by `Confidence` descending, then ID. `Needs()` lets `WSL002 = not installed`
 collapse forty probes into one line instead of forty red lines.
 
-The registry is an explicit slice in `internal/probe/all.go`, not `init()` side effects,
+The registry is an explicit slice in `internal/probe/all/all.go`, not `init()` side effects,
 so the set of probes is greppable and deterministic.
 
 ### 3.3 Fixes
@@ -150,7 +154,7 @@ type Executor interface { Run(Step) error }         // RealExecutor, RecordingEx
 ```
 
 `fix <id>` = `Plan` → print → if `--apply`: write undo journal entry → `RealExecutor`.
-`undo <journal-id>` replays `Rollback`. Journal lives in `%LOCALAPPDATA%\wsldoctor\undo\`.
+`undo <journal-id>` replays `Rollback`. Journal lives in `%LOCALAPPDATA%\wslkit\undo\`.
 
 ### 3.4 Elevation
 
@@ -200,7 +204,7 @@ section, key, type, default, `min_windows_build`, `min_wsl`, `deprecated_in`,
 
 - Human: 100-column wrap, no colour when not a TTY or `NO_COLOR` set, status words not
   glyphs (people paste this into issues; emoji breaks in some renderers).
-- `--json`: `{ schema: "wsldoctor/result/v1", env: <Env>, results: [...] }`. Additive
+- `--json`: `{ schema: "wslkit/result/v1", env: <Env>, results: [...] }`. Additive
   changes only within `v1`; a breaking change bumps to `v2` and both are emitted for one
   minor release.
 - `--report`: markdown block, redacted, with the tool version, `Env` summary, ranked
@@ -305,7 +309,7 @@ respected (a collector given a 1 ms context returns within 100 ms with
 `fix defender` plans exactly the exclusion paths present in `Env`, marks itself
 `Elevates() == true`, and that `Rollback` removes exactly what `Steps` added. A test
 also asserts that `fix` with no `--apply` never constructs a `RealExecutor`
-(a build-tag-guarded panic in `RealExecutor` when `WSLDOCTOR_TEST=1`).
+(a build-tag-guarded panic in `RealExecutor` when `WSLKIT_TEST=1`).
 
 ### 5.6 Property and differential checks
 

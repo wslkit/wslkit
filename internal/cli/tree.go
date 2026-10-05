@@ -54,7 +54,7 @@ func CommandTree() []cmdNode {
 			Subs: []cmdNode{
 				{Name: "check", Desc: "Read-only ranked diagnosis", Flags: runFlagNames},
 				{Name: "explain", Desc: "Decode a WSL error code and run the probes that explain it", Flags: runFlagNames, Positional: []argKind{argOther}},
-				{Name: "fix", Desc: "Plan or apply one remediation", Flags: []string{"--apply", "--json"}, Positional: []argKind{argOther}},
+				{Name: "fix", Desc: "Plan or apply one remediation", Flags: []string{"--apply", "--json", "--distro", "--path", "--pre-release"}, Positional: []argKind{argOther}},
 				{Name: "undo", Desc: "List journal entries, or replay one rollback", Flags: []string{"--dry-run", "-y", "--yes"}, Positional: []argKind{argOther}},
 			},
 		},
@@ -62,8 +62,8 @@ func CommandTree() []cmdNode {
 			Name: "agent",
 			Desc: "Guest agent: install it into a distribution, run the Windows daemon",
 			Subs: []cmdNode{
-				{Name: "install", Desc: "Install the agent into a distribution", Flags: []string{"-d", "--json"}},
-				{Name: "uninstall", Desc: "Remove the agent from a distribution", Flags: []string{"-d", "--json"}},
+				{Name: "install", Desc: "Install the agent into a distribution", Flags: []string{"-d", "--json", "--autostart"}},
+				{Name: "uninstall", Desc: "Remove the agent from a distribution", Flags: []string{"-d", "--json", "--purge"}},
 				{Name: "start", Desc: "Start the Windows daemon"},
 				{Name: "stop", Desc: "Stop the Windows daemon"},
 				{Name: "status", Desc: "Show whether the daemon and agent are connected", Flags: []string{"--json"}},
@@ -104,7 +104,7 @@ func CommandTree() []cmdNode {
 					{Name: "list", Desc: "The snapshots kept", Flags: withDiskFlags(), Positional: []argKind{argDistro}},
 					{Name: "rm", Desc: "Delete a snapshot", Flags: withDiskFlags(), Positional: []argKind{argDistro, argOther}},
 				}},
-				{Name: "restore", Desc: "Put a snapshot back", Flags: withDiskFlags(), Positional: []argKind{argDistro, argOther}},
+				{Name: "restore", Desc: "Put a snapshot back", Flags: withDiskFlags("--shutdown"), Positional: []argKind{argDistro, argOther}},
 				{Name: "automount", Desc: "Attach extra disks when WSL starts", Subs: []cmdNode{
 					{Name: "add", Desc: "Add a disk to the table", Flags: withDiskFlags("--name", "--bare", "--type", "--options", "--partition"), Positional: []argKind{argPath}},
 					{Name: "list", Desc: "The table, and what is attached", Flags: withDiskFlags()},

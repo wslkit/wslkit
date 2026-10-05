@@ -224,6 +224,7 @@ func (a *App) diskRestore(args []string) int {
 	fs.SetOutput(a.Stderr)
 	var f diskFlags
 	f.register(fs)
+	shutdown := fs.Bool("shutdown", false, "permit stopping every distribution to free the disk")
 	var positional []string
 	for len(args) > 0 && !strings.HasPrefix(args[0], "-") && len(positional) < 2 {
 		positional = append(positional, args[0])
@@ -279,7 +280,7 @@ func (a *App) diskRestore(args []string) int {
 	if !f.jsonOut {
 		progress = disk.ConsoleProgress{W: a.Stderr, Ctx: ctx}
 	}
-	res, err := disk.Restore(ctx, e, r, s, root, running, progress)
+	res, err := disk.Restore(ctx, e, r, s, root, running, *shutdown, progress)
 	if err != nil {
 		return a.diskFail(f, err)
 	}

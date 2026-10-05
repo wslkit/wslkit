@@ -43,7 +43,8 @@ go build -o wslkit.exe ./cmd/wslkit
 ```
 
 The first command builds the Linux guest agent that `wslkit agent` installs into
-a distribution. It is embedded in the binary, so the build fails without it.
+a distribution. It is embedded in the binary. Without it the build still
+succeeds, but `wslkit agent install` says the agent is not embedded.
 
 ## What it runs on
 
@@ -64,8 +65,8 @@ wslkit doctor
 `doctor` reads only. It touches no configuration, starts no distribution and
 asks for no administrator, so it is safe to run first and safe to run often.
 
-Exit code 0 means it found nothing worth reporting, and 1 means it did. See
-[exit codes](exit-codes.md) for the rest.
+Exit code 0 means no check failed, though warnings may still be shown, and 1
+means at least one did. See [exit codes](exit-codes.md) for the rest.
 
 ## Tab completion
 
