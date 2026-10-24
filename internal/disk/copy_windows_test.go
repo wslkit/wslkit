@@ -201,10 +201,11 @@ func TestCopySparseKeepsAProtectedAccessList(t *testing.T) {
 		windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, nil, nil, dacl, nil); err != nil {
 		t.Fatal(err)
 	}
-	// Windows adds its own flags when the list is written, so the source is
-	// read back rather than compared with the string that was set.
+	// Windows adds its own flags when the list is written, and prints some
+	// accounts by alias (LA for the built-in Administrator a CI runner uses),
+	// so the source is read back rather than compared with the string set.
 	srcDACL := daclString(t, src)
-	if !strings.HasPrefix(srcDACL, "D:P") || !strings.HasSuffix(srcDACL, "(A;;FA;;;"+user.User.Sid.String()+")") {
+	if !strings.HasPrefix(srcDACL, "D:P") || strings.Count(srcDACL, "(") != 1 {
 		t.Fatalf("the fixture did not take: %s", srcDACL)
 	}
 
