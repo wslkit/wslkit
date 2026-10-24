@@ -168,7 +168,11 @@ func (WindowsFS) CopySparse(from, to string, progress func(done, total uint64) b
 		total += uint64(r.Length)
 	}
 
-	dst, err := createNew(to)
+	sa, err := protectedDACL(from)
+	if err != nil {
+		return err
+	}
+	dst, err := createNew(to, sa)
 	if err != nil {
 		return err
 	}
@@ -258,13 +262,45 @@ func openRead(path string) (windows.Handle, error) {
 	return h, nil
 }
 
-func createNew(path string) (windows.Handle, error) {
+// protectedDACL returns the source's access list when it is one that ignores
+// its folder, so the copy can be created with it; nil means the copy should
+// inherit from its own folder, as the source does from its own.
+//
+// WSL 3.0.2 (microsoft/WSL#41678) creates each disk readable only by the user
+// and Administrators, with inheritance turned off. A copy created the ordinary
+// way takes its new folder's permissions instead, and on a folder such as
+// D:\WSL that usually lets every signed-in user read the distribution.
+//
+// A source with no access list at all is not copied: on a file that means
+// everyone has full access, which is never something to write out on purpose.
+func protectedDACL(path string) (*windows.SecurityAttributes, error) {
+	sd, err := windows.GetNamedSecurityInfo(path, windows.SE_FILE_OBJECT, windows.DACL_SECURITY_INFORMATION)
+	if err != nil {
+		return nil, fmt.Errorf("disk: reading the permissions of %s: %w", path, err)
+	}
+	control, _, err := sd.Control()
+	if err != nil {
+		return nil, fmt.Errorf("disk: reading the permissions of %s: %w", path, err)
+	}
+	if control&windows.SE_DACL_PROTECTED == 0 {
+		return nil, nil
+	}
+	if dacl, _, err := sd.DACL(); err != nil || dacl == nil {
+		return nil, nil
+	}
+	return &windows.SecurityAttributes{
+		Length:             uint32(unsafe.Sizeof(windows.SecurityAttributes{})),
+		SecurityDescriptor: sd,
+	}, nil
+}
+
+func createNew(path string, sa *windows.SecurityAttributes) (windows.Handle, error) {
 	p, err := widePath(path)
 	if err != nil {
 		return 0, err
 	}
 	h, err := windows.CreateFile(p, windows.GENERIC_READ|windows.GENERIC_WRITE, 0,
-		nil, windows.CREATE_NEW, windows.FILE_ATTRIBUTE_NORMAL, 0)
+		sa, windows.CREATE_NEW, windows.FILE_ATTRIBUTE_NORMAL, 0)
 	if err != nil {
 		return 0, fmt.Errorf("disk: creating %s: %w", path, err)
 	}

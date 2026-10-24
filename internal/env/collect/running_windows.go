@@ -57,15 +57,17 @@ func runningDistros(ctx context.Context, timeout time.Duration) (map[string]bool
 			names[t] = true
 		}
 	}
-	// Nothing running is reported as a non-zero exit with no output, which is a
-	// successful answer of "none" rather than a failure. Only treat the error
-	// as real when it came with nothing to read.
+	// With --quiet, nothing running is exit 0 and no output; measured on 3.0.3,
+	// and WslClient.cpp only returns -1 for it without --quiet. That means an
+	// empty answer cannot be told from output that never arrived, which is what
+	// microsoft/WSL#41937 was: security software ending wsl.exe before it
+	// flushed. Only treat an error as real when it came with nothing to read.
 	if runErr != nil && len(names) == 0 {
 		if cctx.Err() != nil {
 			return nil, cctx.Err()
 		}
-		// An exit code with empty output is the "none" case. Anything that
-		// wrote to stderr is a genuine problem worth reporting.
+		// A non-zero exit with nothing written anywhere is still read as
+		// "none", as it was before. Anything on stderr is a genuine problem.
 		if msg := strings.TrimSpace(decodeWSL(errb.Bytes())); msg != "" {
 			return nil, &wslError{msg: msg}
 		}
