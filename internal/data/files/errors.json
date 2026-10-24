@@ -1,6 +1,6 @@
 {
   "schema": "wslkit/errors/v1",
-  "updated": "2026-09-12",
+  "updated": "2026-10-24",
   "source_commit": "eaa69e7",
   "contexts": [
     {
@@ -633,6 +633,26 @@
         "https://github.com/microsoft/WSL/issues/13454"
       ]
     },
+    "ERROR_INVALID_DATA": {
+      "causes": [
+        {
+          "probes": [
+            "HST004",
+            "HST003"
+          ],
+          "refs": [
+            "https://github.com/microsoft/WSL/issues/41917",
+            "https://github.com/microsoft/WSL/pull/41942"
+          ],
+          "summary": "\"Failed to detect nested virtualization support, error: ERROR_INVALID_DATA\" at start (WSL 3.0.4 and later; earlier runtimes say nothing): the October 2026 cumulative update (KB5127648, builds ending .9711) breaks the processor capability query on AMD hosts, so WSL starts without nested virtualization and the guest has no /dev/kvm. The fix has to come from Windows; the distribution itself is fine"
+        }
+      ],
+      "desc": "The data is invalid.",
+      "hresult": "0x8007000D",
+      "probes": [
+        "HST004"
+      ]
+    },
     "ERROR_NOT_FOUND": {
       "desc": "Element not found; often a stale registration.",
       "hresult": "0x80070490",
@@ -743,6 +763,24 @@
       ]
     },
     "HCS_E_HYPERV_NOT_INSTALLED": {
+      "causes": [
+        {
+          "probes": [
+            "HST001",
+            "HST003"
+          ],
+          "summary": "no hypervisor running, or VirtualMachinePlatform is off"
+        },
+        {
+          "probes": [
+            "HST004"
+          ],
+          "refs": [
+            "https://github.com/microsoft/WSL/issues/41994"
+          ],
+          "summary": "the features are on and Windows reports a hypervisor, yet the error stays: damaged Windows components, in the reported case after a system cleaner ran. WSL's maintainers suggested DISM.exe /Online /Cleanup-Image /RestoreHealth then sfc /scannow, from an administrator prompt, and send what remains to Feedback Hub under Apps > Hyper-V"
+        }
+      ],
       "desc": "The virtual machine could not be started because a required feature is not installed: no hypervisor, or VirtualMachinePlatform is off.",
       "hresult": "0x80370102",
       "probes": [
@@ -779,6 +817,62 @@
       "desc": "A plugin or installer is not signed.",
       "probes": [
         "PLG001"
+      ]
+    },
+    "WSAENOBUFS": {
+      "causes": [
+        {
+          "probes": [
+            "EVT001"
+          ],
+          "refs": [
+            "https://github.com/microsoft/WSL/issues/41777"
+          ],
+          "summary": "after resuming from Modern Standby, new sessions fail while the VM is still up: the guest's VMBus handling deadlocked on the devices offered at resume. wsl --shutdown recovers it when it returns; wslkit guard run-once escalates further when it does not, and guard install runs that on every resume"
+        }
+      ],
+      "desc": "No buffer space available: WSL could not open a new socket to the utility VM.",
+      "hresult": "0x80072747",
+      "probes": [
+        "EVT001"
+      ]
+    },
+    "WSAETIMEDOUT": {
+      "causes": [
+        {
+          "probes": [
+            "WSL003"
+          ],
+          "refs": [
+            "https://github.com/microsoft/WSL/issues/42029",
+            "https://github.com/microsoft/WSL/issues/42006"
+          ],
+          "summary": "on WSL 3.0.3, after a while: new wsl.exe and VS Code sessions fail while terminals already open keep working. A WSL contributor reproduced a kernel VMBus deadlock that could cause it; no fix is released yet. wsl --shutdown recovers it, and collect-wsl-logs.ps1 -LogProfile hvsocket captures what the issue asks for"
+        },
+        {
+          "probes": [
+            "EVT001"
+          ],
+          "refs": [
+            "https://github.com/microsoft/WSL/issues/41830"
+          ],
+          "summary": "after sleep or Modern Standby: the same VMBus state as WSAENOBUFS, reported as a timeout. wsl --shutdown recovers it when it returns; wslkit guard run-once escalates further when it does not, and guard install runs that on every resume"
+        },
+        {
+          "probes": [
+            "NET004"
+          ],
+          "refs": [
+            "https://github.com/microsoft/WSL/issues/42034"
+          ],
+          "summary": "with networkingMode=mirrored, wsl.exe hangs about 30 seconds and then fails: the session leader's vsock bind() inside the VM was interrupted (EINTR)"
+        }
+      ],
+      "desc": "The utility VM did not answer a new session in time. Sessions already open usually keep working.",
+      "hresult": "0x8007274C",
+      "probes": [
+        "EVT001",
+        "WSL003"
       ]
     },
     "WSL_E_CUSTOM_KERNEL_NOT_FOUND": {

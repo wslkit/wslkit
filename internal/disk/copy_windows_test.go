@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"golang.org/x/sys/windows"
@@ -160,6 +161,78 @@ func TestCopySparseRemovesItsPartialFileOnFailure(t *testing.T) {
 	}
 	if _, statErr := os.Stat(dst); statErr == nil {
 		t.Error("the partial copy was left behind")
+	}
+}
+
+// daclString reads a file's access list as SDDL, protection flag included.
+func daclString(t *testing.T, path string) string {
+	t.Helper()
+	sd, err := windows.GetNamedSecurityInfo(path, windows.SE_FILE_OBJECT, windows.DACL_SECURITY_INFORMATION)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sd.String()
+}
+
+// WSL 3.0.2 creates disks that only the user can read. A copy must stay that
+// way rather than take on whatever its new folder allows.
+func TestCopySparseKeepsAProtectedAccessList(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.vhdx")
+	dst := filepath.Join(dir, "elsewhere", "dst.vhdx")
+	makeSparse(t, src, 1<<20)
+	if err := os.Mkdir(filepath.Dir(dst), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	user, err := windows.GetCurrentProcessToken().GetTokenUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := windows.SecurityDescriptorFromString("D:P(A;;FA;;;" + user.User.Sid.String() + ")")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dacl, _, err := want.DACL()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := windows.SetNamedSecurityInfo(src, windows.SE_FILE_OBJECT,
+		windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, nil, nil, dacl, nil); err != nil {
+		t.Fatal(err)
+	}
+	// Windows adds its own flags when the list is written, so the source is
+	// read back rather than compared with the string that was set.
+	srcDACL := daclString(t, src)
+	if !strings.HasPrefix(srcDACL, "D:P") || !strings.HasSuffix(srcDACL, "(A;;FA;;;"+user.User.Sid.String()+")") {
+		t.Fatalf("the fixture did not take: %s", srcDACL)
+	}
+
+	if err := (WindowsFS{}).CopySparse(src, dst, nil); err != nil {
+		t.Fatal(err)
+	}
+	// The AI flag only records how the list was written, so what is compared is
+	// the protection and the entries.
+	got := daclString(t, dst)
+	entries := func(s string) string { return s[strings.Index(s, "("):] }
+	if !strings.HasPrefix(got, "D:P") || entries(got) != entries(srcDACL) {
+		t.Errorf("the copy's access list is %s, want the source's %s", got, srcDACL)
+	}
+}
+
+// A disk from an older WSL inherits from its folder, and so should its copy:
+// pinning the old folder's permissions onto it would be just as wrong.
+func TestCopySparseLetsAnInheritedAccessListInherit(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.vhdx")
+	dst := filepath.Join(dir, "dst.vhdx")
+	makeSparse(t, src, 1<<20)
+
+	if err := (WindowsFS{}).CopySparse(src, dst, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := daclString(t, dst); strings.HasPrefix(got, "D:P") {
+		t.Errorf("the copy's access list is protected (%s); it should inherit", got)
 	}
 }
 
