@@ -67,6 +67,7 @@ func Run(ctx context.Context, o Options) (*env.Env, error) {
 		{"network_reg", collectNetworkReg},
 		{"adapters", collectAdapters},
 		{"firewall", collectFirewall},
+		{"ports", collectPorts},
 		{"hotfixes", collectHotfixes},
 		{"policy", collectPolicy},
 		{"agent", collectAgent},
@@ -369,6 +370,7 @@ func collectDistros(ctx context.Context, e *env.Env, o Options) error {
 	if err != nil {
 		if errors.Is(err, registry.ErrNotExist) {
 			e.Distros = env.Absent[[]env.Distro](src)
+			e.VM = env.Absent[env.VMFacts]("wsl.exe (VM facts script): no distribution is registered")
 			return nil
 		}
 		e.Distros = env.Fail[[]env.Distro](kindOf(err), src, err)
@@ -432,6 +434,7 @@ func collectDistros(ctx context.Context, e *env.Env, o Options) error {
 	}
 	if len(out) == 0 {
 		e.Distros = env.Ok([]env.Distro{}, src)
+		e.VM = env.Absent[env.VMFacts]("wsl.exe (VM facts script): no distribution is registered")
 		return nil
 	}
 	// Read after the loop, so every distribution already knows whether it is
@@ -441,10 +444,11 @@ func collectDistros(ctx context.Context, e *env.Env, o Options) error {
 	// is left of this collector's deadline, so they run together rather than
 	// one of them spending the budget the other needs.
 	var inside sync.WaitGroup
-	inside.Add(3)
+	inside.Add(4)
 	go func() { defer inside.Done(); scanZoneFilesFor(ctx, out, o.Timeout) }()
 	go func() { defer inside.Done(); readWatchersFor(ctx, out, o.Timeout) }()
 	go func() { defer inside.Done(); readSystemdFor(ctx, out, o.Timeout) }()
+	go func() { defer inside.Done(); readVM(ctx, e, out, o.Timeout) }()
 	inside.Wait()
 	e.Distros = env.Ok(out, src)
 	return nil

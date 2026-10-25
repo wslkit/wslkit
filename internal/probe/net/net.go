@@ -14,7 +14,7 @@ import (
 	"github.com/wslkit/wslkit/internal/wslver"
 )
 
-func All() []probe.Probe { return []probe.Probe{Mirrored{}, DNS{}} }
+func All() []probe.Probe { return []probe.Probe{Mirrored{}, MirroredPorts{}, DNS{}} }
 
 // Mode returns the configured networking mode (lower-case) and whether it was
 // set explicitly. Policy DefaultNetworkingMode wins over .wslconfig.

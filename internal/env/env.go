@@ -89,6 +89,11 @@ type Env struct {
 	// WSLC is what wslc's sessions look like. Only a session whose VM is
 	// already running is tested; wslkit never starts one.
 	WSLC Field[WSLCInfo] `json:"wslc"`
+	// VM is what every distribution sees alike, because it belongs to the
+	// utility VM rather than to any one of them: its devices, its processor
+	// and the kernel's binfmt_misc table. Read in one running distribution;
+	// never by starting one.
+	VM Field[VMFacts] `json:"vm,omitzero"`
 
 	// Collectors records how long each collector took and whether it errored,
 	// so a slow or broken machine is visible in the snapshot itself.
@@ -155,9 +160,29 @@ type FirewallSupport struct {
 	V2                 bool `json:"v2"`                   // MSFT_NetFirewallHyperVProfile instances (NAT too)
 }
 
+// PortSpan is a run of ports, both ends included.
+type PortSpan struct {
+	Start int `json:"start"`
+	End   int `json:"end"`
+}
+
+// PortPool is one protocol's dynamic port range and the exclusions inside
+// Windows' table, as `netsh int ipv4 show dynamicport` and `show
+// excludedportrange` print them. Mirrored networking reserves a contiguous run
+// of ports for the VM, and exclusions WinNAT and Hyper-V add at runtime are
+// what fragment the range (microsoft/WSL#41812).
+type PortPool struct {
+	Dynamic  PortSpan   `json:"dynamic"`
+	Excluded []PortSpan `json:"excluded,omitempty"`
+}
+
 type Net struct {
 	Adapters       Field[[]Adapter]       `json:"adapters"`
 	HyperVFirewall Field[FirewallSupport] `json:"hyperv_firewall"`
+	// TCPPorts and UDPPorts are what mirrored networking reserves its ports
+	// from. Read always: netsh answers in milliseconds and needs no elevation.
+	TCPPorts Field[PortPool] `json:"tcp_ports,omitzero"`
+	UDPPorts Field[PortPool] `json:"udp_ports,omitzero"`
 	// Hotfixes holds presence for the KBs wslkit cares about (only queried
 	// when the configuration makes them relevant). Key is "KB5068861".
 	Hotfixes Field[map[string]bool] `json:"hotfixes"`
@@ -466,6 +491,38 @@ type WSLCSession struct {
 type WSLCResolver struct {
 	Addr   string `json:"addr"`
 	Status string `json:"status"`
+}
+
+// VMFacts is what one running distribution says about the utility VM.
+type VMFacts struct {
+	// ReadFrom is the distribution the script ran in.
+	ReadFrom string `json:"read_from"`
+	// KVM says /dev/kvm exists: nested virtualization reached the guest.
+	KVM bool `json:"kvm"`
+	// VirtFlags says /proc/cpuinfo lists vmx or svm, the processor
+	// extensions the VM was given. Without them there can be no KVM.
+	VirtFlags bool `json:"virt_flags"`
+	// CPUVendor is /proc/cpuinfo's vendor_id: GenuineIntel, AuthenticAMD.
+	CPUVendor string `json:"cpu_vendor,omitempty"`
+	// BinfmtMounted says /proc/sys/fs/binfmt_misc is mounted at all.
+	BinfmtMounted bool `json:"binfmt_mounted"`
+	// Binfmt are the kernel's registered handlers. The table belongs to the
+	// kernel, not to a distribution, so it is the same from every one.
+	Binfmt []BinfmtEntry `json:"binfmt,omitempty"`
+}
+
+// BinfmtEntry is one file under /proc/sys/fs/binfmt_misc.
+type BinfmtEntry struct {
+	Name        string `json:"name"`
+	Enabled     bool   `json:"enabled"`
+	Interpreter string `json:"interpreter,omitempty"`
+	Flags       string `json:"flags,omitempty"`
+	Offset      int    `json:"offset,omitempty"`
+	// Magic is the hex the kernel prints; 4d5a is "MZ", the start of every
+	// Windows executable. Extension is set instead for a handler that
+	// matches by file name.
+	Magic     string `json:"magic,omitempty"`
+	Extension string `json:"extension,omitempty"`
 }
 
 // New returns an Env with schema and defaults set.
