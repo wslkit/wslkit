@@ -34,10 +34,10 @@ func TestLargestFree(t *testing.T) {
 		want env.PortSpan
 	}{
 		{"nothing excluded", nil, dynamic},
-		{"as measured here", []env.PortSpan{{50000, 50059}, {56198, 56297}, {60694, 60793}}, env.PortSpan{Start: 50060, End: 56197}},
-		{"unsorted and overlapping", []env.PortSpan{{60000, 65535}, {49152, 50000}, {49900, 52000}}, env.PortSpan{Start: 52001, End: 59999}},
-		{"outside the range is ignored", []env.PortSpan{{1000, 2000}}, dynamic},
-		{"all of it", []env.PortSpan{{40000, 65535}}, env.PortSpan{Start: 1, End: 0}},
+		{"as measured here", []env.PortSpan{span(50000, 50059), span(56198, 56297), span(60694, 60793)}, env.PortSpan{Start: 50060, End: 56197}},
+		{"unsorted and overlapping", []env.PortSpan{span(60000, 65535), span(49152, 50000), span(49900, 52000)}, env.PortSpan{Start: 52001, End: 59999}},
+		{"outside the range is ignored", []env.PortSpan{span(1000, 2000)}, dynamic},
+		{"all of it", []env.PortSpan{span(40000, 65535)}, env.PortSpan{Start: 1, End: 0}},
 	} {
 		got := largestFree(env.PortPool{Dynamic: dynamic, Excluded: tc.ex})
 		if got != tc.want {
@@ -55,7 +55,7 @@ func TestMirroredPorts(t *testing.T) {
 		want    probe.Status
 		summary string
 	}{
-		{"as measured here", "3.0.3.0", []env.PortSpan{{50000, 50059}, {56198, 56297}, {60694, 60793}}, []env.PortSpan{{49561, 49660}, {50000, 50059}, {56103, 56202}}, probe.OK, "free run of 6138 ports"},
+		{"as measured here", "3.0.3.0", []env.PortSpan{span(50000, 50059), span(56198, 56297), span(60694, 60793)}, []env.PortSpan{span(49561, 49660), span(50000, 50059), span(56103, 56202)}, probe.OK, "free run of 6138 ports"},
 		{"3.0.3 cannot shrink (microsoft/WSL#41812)", "3.0.3.0", fragment(3000), nil, probe.Fail, "short of the 4096"},
 		{"3.0.4 shrinks", "3.0.4.0", fragment(3000), nil, probe.Warn, "smaller range"},
 		{"UDP counts too", "3.0.4.0", nil, fragment(1000), probe.Warn, "999"},
@@ -80,3 +80,5 @@ func TestMirroredPortsOnlyForMirrored(t *testing.T) {
 		t.Errorf("an older snapshot: %s %q", r.Status, r.Summary)
 	}
 }
+
+func span(a, b int) env.PortSpan { return env.PortSpan{Start: a, End: b} }

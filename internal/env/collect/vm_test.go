@@ -94,7 +94,7 @@ func TestParseNetshMeasured(t *testing.T) {
 		t.Fatal(err)
 	}
 	ex := parseExcludedPorts(string(b))
-	want := []env.PortSpan{{50000, 50059}, {56198, 56297}, {60694, 60793}}
+	want := []env.PortSpan{span(50000, 50059), span(56198, 56297), span(60694, 60793)}
 	if len(ex) != len(want) {
 		t.Fatalf("%+v", ex)
 	}
@@ -115,3 +115,5 @@ func TestParseNetshIgnoresLabels(t *testing.T) {
 		t.Error("a range past 65535 is not a range")
 	}
 }
+
+func span(a, b int) env.PortSpan { return env.PortSpan{Start: a, End: b} }
