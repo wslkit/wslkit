@@ -65,7 +65,7 @@ internal/env/             Env, Field[T], sub-structs (Runtime, Host, Distros, Co
 internal/env/collect/     Windows collectors (//go:build windows)
 internal/probe/           Probe interface, Result, Status, ranking, dependency skip
 internal/probe/all/       the registry: one explicit slice
-internal/probe/wsl/       WSL001–WSL006, ZON001, MNT001, SYS001
+internal/probe/wsl/       WSL001–WSL006, ZON001, MNT001, SYS001, KVM001, BIN001
 internal/probe/host/      HST***, DEF001, PLG001
 internal/probe/disk/      DSK***
 internal/probe/net/       NET***

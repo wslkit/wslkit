@@ -40,6 +40,27 @@ registry the binary runs. For a distribution with systemd, `SYS001` reports on
 the system, the user session and `XDG_RUNTIME_DIR`; the
 [systemd guide](systemd-session.md) explains each finding.
 
+### The VM itself
+
+Two checks ask a distribution that is already running about the utility VM,
+which every distribution shares. `KVM001` says whether nested virtualization,
+when WSL is meant to give it, reached the VM: `/dev/kvm` and the processor's
+`vmx` or `svm`. In October 2026 a Windows update took it away on AMD hosts
+without a word ([microsoft/WSL#41917](https://github.com/microsoft/WSL/issues/41917)),
+and the check names that case. `BIN001` reads the kernel's binfmt_misc table:
+`WSLInterop` is what makes `notepad.exe` or `code` run from Linux, and another
+handler for the same bytes, such as mono's or wine's, can take it over
+([microsoft/WSL#41739](https://github.com/microsoft/WSL/issues/41739)). Neither
+starts a distribution to ask; with none running, both are reported as skipped.
+
+With `networkingMode=mirrored`, `NET005` checks that Windows' dynamic port range
+still has the contiguous run of ports mirrored networking reserves for the VM.
+Exclusions WinNAT adds at runtime can fragment it, and up to WSL 3.0.3 the VM
+then starts with no network at all
+([microsoft/WSL#41812](https://github.com/microsoft/WSL/issues/41812)). How
+Windows picks the run is not documented, so this finds the likely cause rather
+than proving it.
+
 ### wslc containers
 
 wslc, the container CLI that is generally available from WSL 3.0.1, runs its containers in a

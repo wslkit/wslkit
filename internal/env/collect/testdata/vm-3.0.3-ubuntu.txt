@@ -1,0 +1,14 @@
+vendor=GenuineIntel
+binfmt=mounted
+entry=WSLInterop
+e:enabled
+e:interpreter /init
+e:flags: PF
+e:offset 0
+e:magic 4d5a
+entry=python3.14
+e:enabled
+e:interpreter /usr/bin/python3.14
+e:flags: 
+e:offset 0
+e:magic 2b0e0d0a

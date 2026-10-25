@@ -13,7 +13,7 @@ import (
 
 // All returns the probes in this package in execution order.
 func All() []probe.Probe {
-	return []probe.Probe{Installed{}, Compat{}, UpdateAvailable{}, Inventory{}, ConfigLint{}, WslConf{}, ZoneFiles{}, Watchers{}, Systemd{}}
+	return []probe.Probe{Installed{}, Compat{}, UpdateAvailable{}, Inventory{}, ConfigLint{}, WslConf{}, ZoneFiles{}, Watchers{}, Systemd{}, Nested{}, Interop{}}
 }
 
 // ---------------------------------------------------------------- WSL002
