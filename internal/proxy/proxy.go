@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -207,7 +208,9 @@ func ParseWindowsProxy(s string) (httpProxy, httpsProxy string) {
 // the literal "<local>" to mean "any name with no dot in it"; Linux tools take
 // commas and have no equivalent, so <local> is expanded into the entries that
 // actually cover it. Windows wildcards ("*.corp.example") become the suffix
-// form that curl and Go both understand.
+// form that curl and Go both understand, and address wildcards ("10.*",
+// "192.168.*") become the CIDR block they mean: passed through as they are,
+// no Linux tool matches them (microsoft/WSL#41940).
 func ParseBypass(s string) []string {
 	seen := map[string]bool{}
 	var out []string
@@ -229,6 +232,10 @@ func ParseBypass(s string) []string {
 			// bare intranet hostname, cannot be expressed at all and
 			// saying so is better than pretending.
 			add("localhost")
+		case entry == "*":
+			add("*")
+		case ipv4Wildcard(entry) != "":
+			add(ipv4Wildcard(entry))
 		case strings.HasPrefix(entry, "*."):
 			add(strings.TrimPrefix(entry, "*"))
 		case strings.HasPrefix(entry, "*"):
@@ -238,6 +245,35 @@ func ParseBypass(s string) []string {
 		}
 	}
 	return out
+}
+
+// ipv4Wildcard turns "10.*", "172.16.*.*" or "192.168.1.*" into its CIDR
+// block, and returns "" for anything else. Only trailing wildcards have a CIDR
+// form; "10.*.0.1" has none and is left alone.
+func ipv4Wildcard(entry string) string {
+	parts := strings.Split(entry, ".")
+	if len(parts) < 2 || len(parts) > 4 {
+		return ""
+	}
+	fixed := 0
+	for fixed < len(parts) && parts[fixed] != "*" {
+		n, err := strconv.Atoi(parts[fixed])
+		if err != nil || n < 0 || n > 255 || strconv.Itoa(n) != parts[fixed] {
+			return ""
+		}
+		fixed++
+	}
+	if fixed == 0 || fixed == len(parts) {
+		return ""
+	}
+	for _, p := range parts[fixed:] {
+		if p != "*" {
+			return ""
+		}
+	}
+	octets := []string{"0", "0", "0", "0"}
+	copy(octets, parts[:fixed])
+	return strings.Join(octets, ".") + "/" + strconv.Itoa(8*fixed)
 }
 
 // MergeNoProxy combines the defaults with what Windows said, in a stable order.

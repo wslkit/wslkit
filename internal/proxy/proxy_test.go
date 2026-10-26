@@ -45,6 +45,16 @@ func TestParseBypass(t *testing.T) {
 	}
 }
 
+// Clash Verge's Windows defaults (microsoft/WSL#41940): WSL passes 10.* to
+// no_proxy unchanged, and nothing on Linux matches it.
+func TestParseBypassAddressWildcards(t *testing.T) {
+	got := ParseBypass("localhost;127.*;10.*;172.16.*.*;192.168.*;192.168.1.*;10.*.0.1;1.2.3.4.*;300.*;*")
+	want := []string{"localhost", "127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/16", "192.168.0.0/16", "192.168.1.0/24", "10.*.0.1", "1.2.3.4.*", "300.*", "*"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("ParseBypass =\n %v\nwant\n %v", got, want)
+	}
+}
+
 // Loopback in the bypass list is not optional. A distribution that sends its own
 // localhost traffic to a corporate proxy fails in ways that take an afternoon.
 func TestMergeNoProxyAlwaysCoversLoopback(t *testing.T) {
