@@ -116,8 +116,71 @@ func Lint(cfg *Config, table *data.ConfigKeys, host Host) []Finding {
 		}
 	}
 
+	lintSparseVhd(values, seen, host, add)
+	lintSwiotlb(values, seen, mode, host, add)
+
 	sort.SliceStable(out, func(i, j int) bool { return out[i].LineNo < out[j].LineNo })
 	return out
+}
+
+var (
+	// sparseDisabled and sparseBack bound the runtimes that refused sparse
+	// disks over a data-corruption bug: 2.5.6 put it behind --allow-unsafe,
+	// and 3.0.2 honours sparseVhd again (microsoft/WSL#41726).
+	sparseDisabled = wslver.MustParse("2.5.6")
+	sparseBack     = wslver.MustParse("3.0.2")
+	// swiotlbFixed is the first runtime that no longer puts swiotlb=force on
+	// the kernel command line (microsoft/WSL#41829).
+	swiotlbFixed = wslver.MustParse("3.0.4")
+)
+
+// lintSparseVhd says what sparseVhd=true does on the installed runtime.
+func lintSparseVhd(values map[string]string, seen map[string]int, host Host, add func(Severity, int, string, string, bool)) {
+	v, ok := values["experimental.sparsevhd"]
+	if on, valid := ParseBool(v); !ok || !valid || !on || host.Runtime.IsZero() {
+		return
+	}
+	line := seen["experimental.sparsevhd"]
+	switch {
+	case host.Runtime.Less(sparseDisabled):
+	case host.Runtime.Less(sparseBack):
+		add(Warn, line, "experimental.sparseVhd", fmt.Sprintf("ignored on WSL %s: 2.5.6 to 3.0.1 create every disk non-sparse while a data-corruption bug is investigated, and say so at each import. WSL 3.0.2 honours it again", host.Runtime), false)
+	default:
+		add(Info, line, "experimental.sparseVhd", "new disks are created sparse; WSL 3.0.2 and later call this experimental and print a warning each time", false)
+	}
+}
+
+// lintSwiotlb warns about the bounce-buffer setting that starves disk I/O
+// before 3.0.4. WSL reserves a swiotlb pool for virtiofs, consomme or an
+// explicit experimental.swiotlb, and up to 3.0.3 it also passed swiotlb=force,
+// which sends every other device's DMA, the disks included, through the
+// kernel's small default pool. Under load that runs dry and I/O fails with
+// "swiotlb buffer is full" (microsoft/WSL#41828).
+func lintSwiotlb(values map[string]string, seen map[string]int, mode string, host Host, add func(Severity, int, string, string, bool)) {
+	if host.Runtime.IsZero() || !host.Runtime.Less(swiotlbFixed) {
+		return
+	}
+	if v, ok := values["wsl2.virtio"]; ok {
+		if on, valid := ParseBool(v); valid && !on {
+			return
+		}
+	}
+	key, line := "", 0
+	if v, ok := values["wsl2.virtiofs"]; ok {
+		if on, valid := ParseBool(v); valid && on {
+			key, line = "wsl2.virtiofs", seen["wsl2.virtiofs"]
+		}
+	}
+	if key == "" && (mode == "consomme" || mode == "virtioproxy") {
+		key, line = "wsl2.networkingMode", seen[lineKey(values, "wsl2.networkingmode", "experimental.networkingmode")]
+	}
+	if _, ok := values["experimental.swiotlb"]; key == "" && ok {
+		key, line = "experimental.swiotlb", seen["experimental.swiotlb"]
+	}
+	if key == "" {
+		return
+	}
+	add(Warn, line, key, fmt.Sprintf("on WSL %s this also puts swiotlb=force on the kernel command line, so disk I/O shares a small bounce buffer and can fail under load with \"swiotlb buffer is full\" (microsoft/WSL#41828). Fixed in WSL 3.0.4", host.Runtime), false)
 }
 
 func lintValue(e Entry, id string, k data.ConfigKey, host Host, add func(Severity, int, string, string, bool)) {

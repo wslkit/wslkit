@@ -224,3 +224,14 @@ is how you check a PAC file before deploying it to a fleet. `--http` and
 Without `localhost` in it, a distribution sends its own loopback traffic to the
 corporate proxy and everything local breaks in a way that takes an afternoon to
 understand. The list wslkit writes always carries it.
+
+Windows' bypass list does not translate word for word, either. An address
+wildcard such as `10.*` or `192.168.*` means a network to Windows and nothing
+to Linux tools, which match it against no host at all; WSL's own `autoProxy`
+passes it through like that
+([microsoft/WSL#41940](https://github.com/microsoft/WSL/issues/41940)). wslkit
+writes the CIDR block instead, `10.0.0.0/8` and `192.168.0.0/16`, which Go,
+curl 7.86 and later, and Python's requests all match. Checked with curl 8.18:
+`127.0.0.0/8` bypasses the proxy, `127.*` does not. `*.corp.example` becomes
+`.corp.example`, and `<local>` becomes `localhost`, because Linux has no way to
+say "any name without a dot".
