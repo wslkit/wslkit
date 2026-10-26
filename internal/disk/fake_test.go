@@ -207,9 +207,21 @@ func (c *fakeClock) Sleep(d time.Duration) {
 // u64 is a helper for building the pointer-valued optional fields.
 func u64(v uint64) *uint64 { return &v }
 
+// held reports whether something still has the file open, without counting as
+// a look. Remove and Rename fail on a held file, as they do on Windows.
+func (f *fakeFS) held(path string) bool {
+	if n, ok := f.unlockAfter[path]; ok {
+		return f.lockCalls[path] <= n
+	}
+	return f.files[path].locked
+}
+
 func (f *fakeFS) Remove(path string) error {
 	if _, ok := f.files[path]; !ok {
 		return errors.New("no such file: " + path)
+	}
+	if f.held(path) {
+		return errors.New("the process cannot access the file because it is being used by another process: " + path)
 	}
 	delete(f.files, path)
 	delete(f.blobs, path)
@@ -280,6 +292,9 @@ func (f *fakeFS) Rename(from, to string) error {
 	}
 	if f.renameErr != nil {
 		return f.renameErr
+	}
+	if f.held(from) {
+		return errors.New("the process cannot access the file because it is being used by another process: " + from)
 	}
 	delete(f.files, from)
 	f.dropFromDir(from)

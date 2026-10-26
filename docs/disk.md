@@ -171,6 +171,15 @@ than becoming the terabyte it is nominally allowed to reach.
 The original is deleted last, and only after the distribution has been proved to
 start from its new location. If it does not start, everything is put back.
 
+Putting it back takes about a minute. A start that fails still attaches the
+disk, and WSL keeps hold of it for 60 to 75 seconds afterwards whether or not
+the distribution is stopped (measured on WSL 3.0.3), so the copy cannot be
+deleted, nor a renamed disk moved back, until then. `move` waits for it, up to
+90 seconds, and not at all while another distribution is running, as `compact`
+does. If WSL still holds the disk after that, `move` either leaves the copy and
+says where it is, or, when the disk was renamed, leaves the registration
+pointing at the new location, because that is where the disk is.
+
 ### rebuild
 
 ```

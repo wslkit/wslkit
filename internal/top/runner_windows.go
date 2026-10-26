@@ -9,9 +9,9 @@ import (
 	"os/exec"
 	"strings"
 	"time"
-	"unicode/utf16"
 
 	"github.com/wslkit/wslkit/internal/winapi/console"
+	"github.com/wslkit/wslkit/internal/wslout"
 )
 
 // WSLRunner is the production Runner.
@@ -65,29 +65,7 @@ func (r WSLRunner) run(ctx context.Context, timeout time.Duration, stdin []byte,
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	err := cmd.Run()
-	return decode(out.Bytes()), decode(errb.Bytes()), err
-}
-
-// decode turns whatever wsl.exe wrote into a Go string.
-//
-// The encoding is conditional: output produced inside the guest is UTF-8, but a
-// diagnostic wsl.exe prints before it reaches the guest is UTF-16LE. An
-// embedded NUL in an otherwise ASCII stream is the tell.
-func decode(b []byte) string {
-	if len(b) == 0 {
-		return ""
-	}
-	if !bytes.ContainsRune(b, 0) {
-		return string(b)
-	}
-	if len(b)%2 != 0 {
-		b = b[:len(b)-1]
-	}
-	u := make([]uint16, len(b)/2)
-	for i := range u {
-		u[i] = uint16(b[2*i]) | uint16(b[2*i+1])<<8
-	}
-	return strings.TrimRight(string(utf16.Decode(u)), "\x00")
+	return wslout.Decode(out.Bytes()), wslout.Decode(errb.Bytes()), err
 }
 
 func oneLine(s string) string {

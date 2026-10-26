@@ -11,9 +11,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf16"
 
 	"github.com/wslkit/wslkit/internal/winapi/console"
+	"github.com/wslkit/wslkit/internal/wslout"
 )
 
 // WSLRunner is the real machine.
@@ -36,14 +36,14 @@ func (WSLRunner) run(ctx context.Context, timeout time.Duration, args ...string)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	err := cmd.Run()
-	text := decodeWSL(out.Bytes())
+	text := wslout.Decode(out.Bytes())
 	if cctx.Err() != nil {
 		// The deadline is the finding. Whatever the process reported on its
 		// way out is noise beside it.
 		return text, fmt.Errorf("wsl %s: %w", strings.Join(args, " "), context.DeadlineExceeded)
 	}
 	if err != nil {
-		msg := strings.TrimSpace(decodeWSL(errb.Bytes()))
+		msg := strings.TrimSpace(wslout.Decode(errb.Bytes()))
 		if msg == "" {
 			msg = strings.TrimSpace(text)
 		}
@@ -117,7 +117,7 @@ func (WSLRunner) KillService(ctx context.Context, timeout time.Duration) error {
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
 	if err := cmd.Run(); err != nil {
-		text := strings.TrimSpace(decodeWSL(out.Bytes()))
+		text := strings.TrimSpace(wslout.Decode(out.Bytes()))
 		// "not found" means somebody else already stopped it, which is the
 		// state this was trying to reach.
 		if strings.Contains(strings.ToLower(text), "not found") {
@@ -140,7 +140,7 @@ func (WSLRunner) RestartService(ctx context.Context, timeout time.Duration) erro
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
 	if err := cmd.Run(); err != nil {
-		text := strings.TrimSpace(decodeWSL(out.Bytes()))
+		text := strings.TrimSpace(wslout.Decode(out.Bytes()))
 		// 1056 is "an instance of the service is already running", which is
 		// success by another name.
 		if strings.Contains(text, "1056") {
@@ -182,24 +182,4 @@ func (r WSLRunner) StepClock(ctx context.Context, distro string, timeout time.Du
 		return errors.Join(err, err2)
 	}
 	return nil
-}
-
-// decodeWSL turns whatever wsl.exe wrote into a string. Its own output is
-// UTF-16LE while anything from inside a distribution is UTF-8, and decoding the
-// wrong way truncates the text at its first character.
-func decodeWSL(b []byte) string {
-	if len(b) == 0 {
-		return ""
-	}
-	if !bytes.ContainsRune(b, 0) {
-		return string(b)
-	}
-	if len(b)%2 != 0 {
-		b = b[:len(b)-1]
-	}
-	u := make([]uint16, len(b)/2)
-	for i := range u {
-		u[i] = uint16(b[2*i]) | uint16(b[2*i+1])<<8
-	}
-	return strings.TrimRight(string(utf16.Decode(u)), "\x00")
 }

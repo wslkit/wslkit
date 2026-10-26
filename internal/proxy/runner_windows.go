@@ -9,9 +9,9 @@ import (
 	"os/exec"
 	"strings"
 	"time"
-	"unicode/utf16"
 
 	"github.com/wslkit/wslkit/internal/winapi/console"
+	"github.com/wslkit/wslkit/internal/wslout"
 )
 
 // WSLRunner runs a shell script inside a distribution through wsl.exe, as root.
@@ -38,29 +38,7 @@ func (WSLRunner) Run(ctx context.Context, distro, script string, timeout time.Du
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	err := cmd.Run()
 	if err != nil {
-		return decodeGuest(out.Bytes()), fmt.Errorf("%w: %s", err, strings.TrimSpace(decodeGuest(errb.Bytes())))
+		return wslout.Decode(out.Bytes()), fmt.Errorf("%w: %s", err, strings.TrimSpace(wslout.Decode(errb.Bytes())))
 	}
-	return decodeGuest(out.Bytes()), nil
-}
-
-// decodeGuest turns whatever came back into a string.
-//
-// Output produced inside the distribution is UTF-8, but wsl.exe writes its own
-// errors as UTF-16LE. An embedded NUL in otherwise ASCII text is the tell, and
-// decoding the wrong way truncates the message at its first character.
-func decodeGuest(b []byte) string {
-	if len(b) == 0 {
-		return ""
-	}
-	if !bytes.ContainsRune(b, 0) {
-		return string(b)
-	}
-	if len(b)%2 != 0 {
-		b = b[:len(b)-1]
-	}
-	u := make([]uint16, len(b)/2)
-	for i := range u {
-		u[i] = uint16(b[2*i]) | uint16(b[2*i+1])<<8
-	}
-	return strings.TrimRight(string(utf16.Decode(u)), "\x00")
+	return wslout.Decode(out.Bytes()), nil
 }
