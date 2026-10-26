@@ -148,6 +148,9 @@ func Move(ctx context.Context, e Env, r Registration, t MoveTarget, o MoveOption
 	res.Renamed = same && !o.KeepSource
 
 	var undo UndoStack
+	// held is set when a failed start left the disk attached to the utility
+	// VM past the wait, so the copy cannot be deleted yet.
+	var held bool
 	fail := func(err error) (MoveResult, error) {
 		if uerr := undo.Unwind(); uerr != nil {
 			return res, errors.Join(err, fmt.Errorf("and putting things back did not complete: %w", uerr))
@@ -172,7 +175,12 @@ func Move(ctx context.Context, e Env, r Registration, t MoveTarget, o MoveOption
 		if err := e.FS.CopySparse(source, t.Path, pr.Fraction); err != nil {
 			return res, err
 		}
-		undo.Push("remove the copy", func() error { return e.FS.Remove(t.Path) })
+		undo.Push("remove the copy", func() error {
+			if held {
+				return fmt.Errorf("%s is still held by WSL and was left in place; delete it once WSL lets go of it, which wsl --shutdown makes immediate", t.Path)
+			}
+			return e.FS.Remove(t.Path)
+		})
 	}
 
 	intendedBase := WithSamePrefixAs(r.BasePath, t.Dir)
@@ -184,7 +192,22 @@ func Move(ctx context.Context, e Env, r Registration, t MoveTarget, o MoveOption
 
 	pr.Step(fmt.Sprintf("start %s to check the new path works", r.Name))
 	if err := start(ctx, e, r.Name); err != nil {
-		return fail(fmt.Errorf("%w from %s: %v. Everything has been put back and the original disk is untouched", ErrSmokeTest, t.Path, err))
+		failed := fmt.Errorf("%w from %s: %v", ErrSmokeTest, t.Path, err)
+		// A start that fails still attaches the disk, and the utility VM
+		// holds it for about a minute afterwards, stopped or not. Until it
+		// lets go the disk can be neither moved back nor deleted.
+		_ = e.Host.Terminate(ctx, r.Name)
+		if WaitForDisk(ctx, e, r, t.Path, CompactOptions{}, pr) != nil {
+			if res.Renamed {
+				// Putting the registration back without the file would
+				// point the distribution at nothing. Leaving both at the
+				// new location is at least consistent.
+				return res, fmt.Errorf("%w. WSL still holds the disk, so it was not moved back: %s points at %s, which is where the disk is. Move it back with wslkit disk move %s %s once WSL lets go of it, which wsl --shutdown makes immediate",
+					failed, r.Name, t.Path, r.Name, DirOf(source))
+			}
+			held = true
+		}
+		return fail(fmt.Errorf("%w. The registration has been put back and the original disk is untouched", failed))
 	}
 
 	// Past this point nothing is undone: the distribution has started from

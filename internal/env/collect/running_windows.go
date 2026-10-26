@@ -8,9 +8,9 @@ import (
 	"os/exec"
 	"strings"
 	"time"
-	"unicode/utf16"
 
 	"github.com/wslkit/wslkit/internal/winapi/console"
+	"github.com/wslkit/wslkit/internal/wslout"
 )
 
 // Which distributions are running is one of the few facts the registry cannot
@@ -52,7 +52,7 @@ func runningDistros(ctx context.Context, timeout time.Duration) (map[string]bool
 	runErr := cmd.Run()
 
 	names := map[string]bool{}
-	for _, line := range strings.Split(strings.ReplaceAll(decodeWSL(out.Bytes()), "\r\n", "\n"), "\n") {
+	for _, line := range strings.Split(strings.ReplaceAll(wslout.Decode(out.Bytes()), "\r\n", "\n"), "\n") {
 		if t := strings.TrimSpace(line); t != "" {
 			names[t] = true
 		}
@@ -68,7 +68,7 @@ func runningDistros(ctx context.Context, timeout time.Duration) (map[string]bool
 		}
 		// A non-zero exit with nothing written anywhere is still read as
 		// "none", as it was before. Anything on stderr is a genuine problem.
-		if msg := strings.TrimSpace(decodeWSL(errb.Bytes())); msg != "" {
+		if msg := strings.TrimSpace(wslout.Decode(errb.Bytes())); msg != "" {
 			return nil, &wslError{msg: msg}
 		}
 	}
@@ -78,26 +78,3 @@ func runningDistros(ctx context.Context, timeout time.Duration) (map[string]bool
 type wslError struct{ msg string }
 
 func (e *wslError) Error() string { return "wsl --list --running: " + e.msg }
-
-// decodeWSL turns whatever wsl.exe wrote into a Go string.
-//
-// The encoding is conditional: output produced inside a distribution is UTF-8,
-// but wsl.exe writes its own output and its own diagnostics as UTF-16LE. An
-// embedded NUL in an otherwise ASCII stream is the tell, and decoding the wrong
-// way truncates the text at its first character.
-func decodeWSL(b []byte) string {
-	if len(b) == 0 {
-		return ""
-	}
-	if !bytes.ContainsRune(b, 0) {
-		return string(b)
-	}
-	if len(b)%2 != 0 {
-		b = b[:len(b)-1]
-	}
-	u := make([]uint16, len(b)/2)
-	for i := range u {
-		u[i] = uint16(b[2*i]) | uint16(b[2*i+1])<<8
-	}
-	return strings.TrimRight(string(utf16.Decode(u)), "\x00")
-}

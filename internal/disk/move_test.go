@@ -3,6 +3,7 @@ package disk
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -127,6 +128,87 @@ func TestMoveUndoesARenameByMovingItBack(t *testing.T) {
 	if len(fsys.renames) != 2 {
 		t.Errorf("expected a rename and its reverse: %v", fsys.renames)
 	}
+}
+
+// A start that fails still attaches the disk, and the utility VM holds it for
+// about a minute afterwards: measured on WSL 3.0.3, 61 to 75 seconds, with or
+// without wsl --terminate. The rollback has to wait for it, or the copy cannot
+// be deleted and a rename cannot be moved back.
+func TestMoveRollbackWaitsForTheDisk(t *testing.T) {
+	t.Run("copy", func(t *testing.T) {
+		e, fsys, _, _ := moveEnv(`D:\wsl`, "NTFS", 500<<30)
+		host := &scriptedHost{responses: []CommandResult{{ExitCode: 1}}}
+		e.Host = host
+		fsys.unlockAfter = map[string]int{`D:\wsl\ext4.vhdx`: 3}
+
+		_, err := Move(context.Background(), e, reg("Ubuntu"), NewMoveTarget(srcPath, `D:\wsl`), MoveOptions{}, nil)
+		if !errors.Is(err, ErrSmokeTest) || strings.Contains(err.Error(), "did not complete") {
+			t.Fatalf("want a clean rollback, got %v", err)
+		}
+		if _, ok := fsys.files[`D:\wsl\ext4.vhdx`]; ok {
+			t.Error("the copy should have been removed once WSL let go of it")
+		}
+		if !slices.Contains(host.calls, "terminate Ubuntu") {
+			t.Errorf("the distribution should have been stopped: %v", host.calls)
+		}
+		if len(e.Clock.(*fakeClock).slept) == 0 {
+			t.Error("it should have waited")
+		}
+	})
+	t.Run("rename", func(t *testing.T) {
+		e, fsys, registry, _ := moveEnv(`C:\dest`, "NTFS", 500<<30)
+		e.Host = &scriptedHost{responses: []CommandResult{{ExitCode: 1}}}
+		fsys.unlockAfter = map[string]int{`C:\dest\ext4.vhdx`: 3}
+
+		if _, err := Move(context.Background(), e, reg("Ubuntu"), NewMoveTarget(srcPath, `C:\dest`), MoveOptions{}, nil); !errors.Is(err, ErrSmokeTest) {
+			t.Fatalf("got %v", err)
+		}
+		if _, ok := fsys.files[srcPath]; !ok {
+			t.Fatal("the disk was not moved back")
+		}
+		if got := registry.values["{Ubuntu}\x00BasePath"]; got != srcDir {
+			t.Errorf("the registration was not restored: %q", got)
+		}
+	})
+}
+
+// When the disk is still held after the wait, the rollback stops short in a
+// state that is consistent and says what is left.
+func TestMoveRollbackWhenTheDiskStaysHeld(t *testing.T) {
+	t.Run("copy", func(t *testing.T) {
+		e, fsys, registry, _ := moveEnv(`D:\wsl`, "NTFS", 500<<30)
+		e.Host = &scriptedHost{responses: []CommandResult{{ExitCode: 1}}}
+		fsys.unlockAfter = map[string]int{`D:\wsl\ext4.vhdx`: 1 << 30}
+
+		_, err := Move(context.Background(), e, reg("Ubuntu"), NewMoveTarget(srcPath, `D:\wsl`), MoveOptions{}, nil)
+		if !errors.Is(err, ErrSmokeTest) || !strings.Contains(err.Error(), `D:\wsl\ext4.vhdx is still held by WSL and was left in place`) {
+			t.Fatalf("the leftover copy should be named: %v", err)
+		}
+		if got := registry.values["{Ubuntu}\x00BasePath"]; got != srcDir {
+			t.Errorf("the registration was not restored: %q", got)
+		}
+		if _, ok := fsys.files[srcPath]; !ok {
+			t.Error("the original must still be there")
+		}
+	})
+	t.Run("rename", func(t *testing.T) {
+		e, fsys, registry, _ := moveEnv(`C:\dest`, "NTFS", 500<<30)
+		e.Host = &scriptedHost{responses: []CommandResult{{ExitCode: 1}}}
+		fsys.unlockAfter = map[string]int{`C:\dest\ext4.vhdx`: 1 << 30}
+
+		_, err := Move(context.Background(), e, reg("Ubuntu"), NewMoveTarget(srcPath, `C:\dest`), MoveOptions{}, nil)
+		if !errors.Is(err, ErrSmokeTest) || !strings.Contains(err.Error(), "was not moved back") {
+			t.Fatalf("got %v", err)
+		}
+		// The registration follows the disk: putting it back alone would
+		// point the distribution at a file that is not there.
+		if _, ok := fsys.files[`C:\dest\ext4.vhdx`]; !ok {
+			t.Fatal("the disk should still be at the new location")
+		}
+		if got := registry.values["{Ubuntu}\x00BasePath"]; got != `C:\dest` {
+			t.Errorf("BasePath = %q, want it to point where the disk is", got)
+		}
+	})
 }
 
 // The move worked; the leftover did not go away. That is worth reporting and
