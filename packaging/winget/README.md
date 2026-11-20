@@ -13,22 +13,24 @@ this project does not own. That is deliberately not automated here: it needs a
 fork under a real account and a token with rights to push to it, and neither
 belongs to a workflow that anybody can trigger.
 
-To do it by hand:
+`winget validate` and `winget install --manifest` take a directory holding
+only manifests, and this one also holds this README, so copy them out first.
+From the repository root, in PowerShell:
 
 ```powershell
-winget install wingetcreate
-wingetcreate submit --token <your-token> packaging\winget
+$v = "0.4.0"; $d = "$env:TEMP\wslkit-winget\$v"
+New-Item -ItemType Directory -Force $d | Out-Null
+Copy-Item packaging\winget\*.yaml $d
+winget validate --manifest $d
+winget install --manifest $d     # needs: winget settings --enable LocalManifestFiles (admin)
 ```
 
-or, to check them first without submitting anything:
-
-```powershell
-winget validate --manifest packaging\winget
-wingetcreate submit --prtitle "New package: wslkit.wslkit version 0.1.0" packaging\winget
-```
-
-`winget validate` needs the manifests in a directory of their own, which is what
-this is.
+Then open the pull request: the three files go to
+`manifests/w/wslkit/wslkit/<version>/` in a fork of `microsoft/winget-pkgs`,
+titled "New package: wslkit.wslkit version <version>" the first time and
+"Update: wslkit.wslkit to <version>" after that, with the repository's pull
+request template filled in. `wingetcreate submit --token <your-token> <dir>`
+does the same in one step.
 
 ## Keeping them current
 
@@ -45,8 +47,10 @@ has to remember. It cannot run before the tag: the manifests carry the release's
 URLs and hashes, and inventing those for archives nobody has built yet is not a
 thing a generator can do.
 
-## The two aliases
+## No `wsldoctor` alias
 
-`NestedInstallerFiles` lists `wslkit.exe` twice, under `wslkit` and
-`wsldoctor`. It is one binary: invoked as `wsldoctor` it runs `wslkit doctor`,
-so anything written against the older name keeps working.
+The binary also answers to `wsldoctor`, its older name: invoked under that name
+it runs `wslkit doctor`. winget cannot offer both, because a portable package
+may alias each file only once ("Duplicate relative file path found"), so the
+manifests alias `wslkit` only. Anyone who wants the old name can copy or link
+`wslkit.exe` to `wsldoctor.exe`.
