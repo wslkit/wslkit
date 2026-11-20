@@ -1,7 +1,7 @@
 {
   "schema": "wslkit/wslconfig-keys/v1",
-  "updated": "2026-10-26",
-  "source_commit": "ce88638",
+  "updated": "2026-11-20",
+  "source_commit": "e7ef9a88",
   "keys": [
     {
       "section": "wsl2",

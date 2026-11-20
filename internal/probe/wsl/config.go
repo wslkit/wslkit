@@ -46,6 +46,13 @@ func LintHost(e *env.Env) wslconfig.Host {
 			return !ok || v // unknown paths are not reported as missing
 		}
 	}
+	if e.Config.PathsReadable != nil {
+		readable := e.Config.PathsReadable
+		h.PathReadable = func(p string) bool {
+			v, ok := readable[strings.ToLower(p)]
+			return !ok || v // unchecked paths are not reported as unreadable
+		}
+	}
 	return h
 }
 

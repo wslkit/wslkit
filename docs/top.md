@@ -159,7 +159,9 @@ is in `wslkit top help`.
 Both rows exist only on WSL 2.9.8 to 2.9.12. From 2.9.13 each distribution has
 a cgroup namespace of its own, rooted at its own cgroup, so the VM's root and
 WSL's own group are out of sight from inside every distribution, and top leaves
-the rows out rather than guessing at them.
+the rows out rather than guessing at them. (WSL 3.0.5 also renamed its own group
+to `wsl-user/internal` and gives each plugin a `wsl-user/plugin-N` of its own;
+both are out of sight in the same way.)
 
 Docker Engine using the systemd cgroup driver should put its containers under
 the distribution's own systemd slice instead, so they would count towards the

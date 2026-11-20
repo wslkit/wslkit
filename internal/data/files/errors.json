@@ -1,7 +1,7 @@
 {
   "schema": "wslkit/errors/v1",
-  "updated": "2026-10-24",
-  "source_commit": "eaa69e7",
+  "updated": "2026-11-20",
+  "source_commit": "e7ef9a88",
   "contexts": [
     {
       "name": "Wsl",
@@ -213,6 +213,7 @@
     "WSLC_E_CONTAINER_DISABLED",
     "WSLC_E_REGISTRY_BLOCKED_BY_POLICY",
     "WSLC_E_CONTAINER_PREFIX_AMBIGUOUS",
+    "WSLC_E_CAPABILITY_ADDITIONS_DISABLED",
     "E_ACCESSDENIED",
     "ERROR_NOT_FOUND",
     "ERROR_VERSION_PARSE_ERROR",
@@ -280,6 +281,7 @@
     "WSLC_E_SESSION_RESERVED",
     "WSLC_E_INVALID_SESSION_NAME",
     "WSLC_E_NETWORK_NOT_FOUND",
+    "WSLC_E_NETWORK_PREFIX_AMBIGUOUS",
     "WSLC_E_SESSION_NOT_FOUND",
     "WSLC_E_VM_NOT_RUNNING",
     "WSLC_E_CONTAINER_DELETED",
@@ -343,7 +345,8 @@
     "WSAECONNABORTED",
     "WSAECONNRESET",
     "WSAENOBUFS",
-    "WSAEOPNOTSUPP"
+    "WSAEOPNOTSUPP",
+    "ERROR_INTERNAL_ERROR"
   ],
   "segments": {
     "AttachDisk": {
@@ -691,6 +694,18 @@
       ]
     },
     "E_ACCESSDENIED": {
+      "causes": [
+        {
+          "probes": [
+            "DSK006",
+            "WSL005"
+          ],
+          "refs": [
+            "https://github.com/microsoft/WSL/pull/42048"
+          ],
+          "summary": "from WSL 3.0.5: \"Failed to attach disk '<path>' to WSL2: Access is denied.\" WSL now opens a distribution's disk, a custom kernel and a custom kernel-modules disk as you, for reading, and you cannot read that file. 3.0.4 and older started the same disk. Grant yourself access to the file (icacls \"<path>\" /grant \"%USERNAME%:F\" from an elevated prompt)"
+        }
+      ],
       "desc": "Access denied: file ACLs on the VHDX, or a policy.",
       "hresult": "0x80070005",
       "probes": [
@@ -828,7 +843,7 @@
           "refs": [
             "https://github.com/microsoft/WSL/issues/41777"
           ],
-          "summary": "after resuming from Modern Standby, new sessions fail while the VM is still up: the guest's VMBus handling deadlocked on the devices offered at resume. wsl --shutdown recovers it when it returns; wslkit guard run-once escalates further when it does not, and guard install runs that on every resume"
+          "summary": "after resuming from Modern Standby, new sessions fail while the VM is still up: the guest's VMBus handling deadlocked on the devices offered at resume. WSL 3.0.5's kernel (6.18.58.1) includes a fix for the race between a device offer and its rescind, and a WSL maintainer expects it to cure this: wsl --update. Until then wsl --shutdown recovers it when it returns; wslkit guard run-once escalates further when it does not, and guard install runs that on every resume"
         }
       ],
       "desc": "No buffer space available: WSL could not open a new socket to the utility VM.",
@@ -847,7 +862,7 @@
             "https://github.com/microsoft/WSL/issues/42029",
             "https://github.com/microsoft/WSL/issues/42006"
           ],
-          "summary": "on WSL 3.0.3, after a while: new wsl.exe and VS Code sessions fail while terminals already open keep working. A WSL contributor reproduced a kernel VMBus deadlock that could cause it; no fix is released yet. wsl --shutdown recovers it, and collect-wsl-logs.ps1 -LogProfile hvsocket captures what the issue asks for"
+          "summary": "on WSL 3.0.3, after a while: new wsl.exe and VS Code sessions fail while terminals already open keep working. A WSL contributor reproduced a kernel VMBus deadlock that could cause it. WSL 3.0.5 ships a kernel with a VMBus offer/rescind fix and a fix for init deadlocking while it starts an instance (microsoft/WSL#42099); the issues are still open, so update first (wsl --update) and report it there if it recurs. wsl --shutdown recovers it, and collect-wsl-logs.ps1 -LogProfile hvsocket captures what the issue asks for"
         },
         {
           "probes": [
@@ -865,7 +880,7 @@
           "refs": [
             "https://github.com/microsoft/WSL/issues/42034"
           ],
-          "summary": "with networkingMode=mirrored, wsl.exe hangs about 30 seconds and then fails: the session leader's vsock bind() inside the VM was interrupted (EINTR)"
+          "summary": "with networkingMode=mirrored, wsl.exe hangs about 30 seconds and then fails: the session leader's vsock bind() inside the VM was interrupted (EINTR). Fixed in WSL 3.0.5, which retries the bind (microsoft/WSL#42035): wsl --update"
         }
       ],
       "desc": "The utility VM did not answer a new session in time. Sessions already open usually keep working.",

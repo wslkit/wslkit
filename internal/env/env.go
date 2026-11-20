@@ -370,8 +370,12 @@ type VhdInfo struct {
 	OwnerSID       string `json:"owner_sid,omitempty"`
 	// Owner classifies OwnerSID relative to the collecting user:
 	// "current_user", "administrators", "system", "other", or "" when unknown.
-	Owner    string `json:"owner,omitempty"`
-	ParseErr string `json:"parse_err,omitempty"`
+	Owner string `json:"owner,omitempty"`
+	// UserReadable says whether the signed-in user, unelevated, may read the
+	// file; nil when it could not be checked. WSL 3.0.5 and later open the
+	// disk as that user and fail to attach it when they cannot.
+	UserReadable *bool  `json:"user_readable,omitempty"`
+	ParseErr     string `json:"parse_err,omitempty"`
 }
 
 // Well-known owner classifications for VhdInfo.Owner.
@@ -389,6 +393,10 @@ type Config struct {
 	// kernelModules, swapFile, ...), whether the file exists. Keys are the
 	// unescaped path, lower-cased.
 	PathsExist map[string]bool `json:"paths_exist,omitempty"`
+	// PathsReadable records, for the paths in PathsExist that exist, whether
+	// the signed-in user, unelevated, may read them. Same keys. WSL 3.0.5 and
+	// later open a custom kernel and kernel-modules disk as that user.
+	PathsReadable map[string]bool `json:"paths_readable,omitempty"`
 }
 
 type Exclusions struct {

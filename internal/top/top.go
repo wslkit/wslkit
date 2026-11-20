@@ -36,6 +36,9 @@
 // Docker Engine without systemd puts its containers. Those are reported as
 // rows of their own, because otherwise that memory is in no row at all. From
 // 2.9.13 they are outside every distribution's namespace and are not reported.
+// So the script reads wsl-user/non-distro, the name 2.9.8 to 2.9.12 use; 3.0.5
+// renamed it wsl-user/internal and added wsl-user/plugin-N (microsoft/WSL#41993),
+// both only visible from outside the namespaces.
 package top
 
 import (

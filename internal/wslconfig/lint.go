@@ -37,7 +37,14 @@ type Host struct {
 	TotalRAM     uint64
 	// PathExists answers for path-typed values; nil disables path checks.
 	PathExists func(string) bool
+	// PathReadable says whether the signed-in user may read an existing
+	// path-typed value; nil disables the check.
+	PathReadable func(string) bool
 }
+
+// userOpensFrom is the first runtime that opens a custom kernel and a custom
+// kernel-modules disk as the user, for reading (microsoft/WSL#42048).
+var userOpensFrom = wslver.MustParse("3.0.5")
 
 // Lint checks a parsed .wslconfig against the key table and host facts.
 func Lint(cfg *Config, table *data.ConfigKeys, host Host) []Finding {
@@ -180,7 +187,7 @@ func lintSwiotlb(values map[string]string, seen map[string]int, mode string, hos
 	if key == "" {
 		return
 	}
-	add(Warn, line, key, fmt.Sprintf("on WSL %s this also puts swiotlb=force on the kernel command line, so disk I/O shares a small bounce buffer and can fail under load with \"swiotlb buffer is full\" (microsoft/WSL#41828). Fixed in WSL 3.0.4", host.Runtime), false)
+	add(Warn, line, key, fmt.Sprintf("on WSL %s this also puts swiotlb=force on the kernel command line, so disk I/O shares a small bounce buffer and can fail under load with \"swiotlb buffer is full\" (microsoft/WSL#41828). Fixed in WSL 3.0.4; 3.0.5 is the first stable release with the fix (wsl --update)", host.Runtime), false)
 }
 
 func lintValue(e Entry, id string, k data.ConfigKey, host Host, add func(Severity, int, string, string, bool)) {
@@ -210,6 +217,14 @@ func lintValue(e Entry, id string, k data.ConfigKey, host Host, add func(Severit
 				sev, msg = Fail, "custom kernel path does not exist; the VM cannot start (WSL_E_CUSTOM_KERNEL_NOT_FOUND)"
 			}
 			add(sev, e.Line, id, fmt.Sprintf("%s: %s", msg, e.Value), false)
+			return
+		}
+		if host.PathReadable != nil && e.Value != "" && (id == "wsl2.kernel" || id == "wsl2.kernelmodules") && !host.PathReadable(unescape(e.Value)) {
+			if !host.Runtime.IsZero() && host.Runtime.Less(userOpensFrom) {
+				add(Warn, e.Line, id, fmt.Sprintf("you cannot read %s: WSL %s opens it anyway, but 3.0.5 and later open it as you and the VM will not start (microsoft/WSL#42048)", e.Value, host.Runtime), false)
+				return
+			}
+			add(Fail, e.Line, id, fmt.Sprintf("you cannot read %s, and WSL 3.0.5 and later open it as you: the VM cannot start (microsoft/WSL#42048). Grant yourself read access to the file", e.Value), false)
 		}
 	case strings.HasPrefix(k.Type, "enum:"):
 		allowed := k.EnumValues()

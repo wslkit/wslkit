@@ -126,7 +126,27 @@ const (
 	OpenFlagCustomDiffChain = 0x00000010
 	OpenFlagParentCachedIO  = 0x00000020
 	OpenFlagVHDSetFileOnly  = 0x00000040
+	// OpenFlagSupportEncryptedFiles lets the open succeed on an EFS-encrypted
+	// file. Without it the open of an encrypted VHDX fails with
+	// ERROR_FILE_ENCRYPTED (0x80071772).
+	OpenFlagSupportEncryptedFiles = 0x00000800
 )
+
+// encryptedFilesMinBuild is the first Windows build that accepts
+// OpenFlagSupportEncryptedFiles. Older builds reject the open outright: WSL
+// added the flag in 3.0.5 (microsoft/WSL#42008), broke every disk operation
+// on older Windows with it, and gated it on this build before the release
+// (microsoft/WSL#42041).
+const encryptedFilesMinBuild = 22631
+
+// metadataOpenFlags is what OpenForCompact and OpenForInfo pass: support for
+// encrypted files where Windows understands it, and nothing otherwise.
+func metadataOpenFlags() uint32 {
+	if windows.RtlGetVersion().BuildNumber >= encryptedFilesMinBuild {
+		return OpenFlagSupportEncryptedFiles
+	}
+	return OpenFlagNone
+}
 
 // openParametersV1 is OPEN_VIRTUAL_DISK_PARAMETERS with Version = 1. The V1
 // union arm holds only RWDepth.
@@ -196,15 +216,18 @@ type Handle windows.Handle
 // A metadata operation needs the file to itself: while the distribution runs,
 // the host compute service holds the disk and the open fails with a sharing
 // violation, reported as ErrInUse.
+//
+// An EFS-encrypted disk needs OpenFlagSupportEncryptedFiles, which only
+// Windows 11 23H2 (build 22631) and later accept; see metadataOpenFlags.
 func OpenForCompact(path string) (Handle, error) {
 	params := openParametersV2{Version: 2}
-	return open(path, AccessNone, OpenFlagNone, unsafe.Pointer(&params))
+	return open(path, AccessNone, metadataOpenFlags(), unsafe.Pointer(&params))
 }
 
 // OpenForInfo opens a disk to read its metadata and nothing else.
 func OpenForInfo(path string) (Handle, error) {
 	params := openParametersV2{Version: 2, GetInfoOnly: 1, ReadOnly: 1}
-	return open(path, AccessNone, OpenFlagNone, unsafe.Pointer(&params))
+	return open(path, AccessNone, metadataOpenFlags(), unsafe.Pointer(&params))
 }
 
 // OpenForAttachReadOnly opens a disk so it can be surfaced read-only. This

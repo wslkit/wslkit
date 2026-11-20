@@ -190,3 +190,36 @@ func TestLintSwiotlbBefore304(t *testing.T) {
 		}
 	}
 }
+
+// From 3.0.5 WSL opens a custom kernel and kernel-modules disk as the user
+// (microsoft/WSL#42048).
+func TestLintUnreadableKernel(t *testing.T) {
+	cfg := Parse("[wsl2]\nkernel=C:\\k\\bzImage\nkernelModules=C:\\k\\modules.vhdx\nswapFile=C:\\k\\swap.vhdx\n")
+	unreadable := func(string) bool { return false }
+	for _, tc := range []struct {
+		runtime string
+		want    Severity
+		frag    string
+	}{
+		{"3.0.3", Warn, "3.0.5 and later"},
+		{"3.0.5", Fail, "cannot start"},
+		{"", Fail, "cannot start"},
+	} {
+		h := Host{PathReadable: unreadable}
+		if tc.runtime != "" {
+			h.Runtime = wslver.MustParse(tc.runtime)
+		}
+		fs := Lint(cfg, table(t), h)
+		for _, key := range []string{"wsl2.kernel", "wsl2.kernelModules"} {
+			if f := find(fs, key, tc.frag); f == nil || f.Severity != tc.want {
+				t.Errorf("%s %s: %+v, want %v containing %q\n%+v", tc.runtime, key, f, tc.want, tc.frag, fs)
+			}
+		}
+		if f := find(fs, "wsl2.swapFile", "cannot read"); f != nil {
+			t.Errorf("%s: swapFile is not opened as the user: %+v", tc.runtime, f)
+		}
+	}
+	if f := find(Lint(cfg, table(t), Host{Runtime: wslver.MustParse("3.0.5"), PathReadable: func(string) bool { return true }}), "wsl2.kernel", "cannot read"); f != nil {
+		t.Errorf("readable: %+v", f)
+	}
+}

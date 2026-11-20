@@ -497,6 +497,9 @@ func inspectVhd(path string) (env.Field[env.VhdInfo], env.Field[ext4.Super]) {
 		info.OwnerSID = sid
 		info.Owner = classifyOwner(sid)
 	}
+	if can, err := fileinfo.UserCanRead(path); err == nil {
+		info.UserReadable = &can
+	}
 	h, err := fileinfo.OpenShared(path)
 	if err != nil {
 		info.ParseErr = "open: " + err.Error()
@@ -572,6 +575,15 @@ func collectConfig(ctx context.Context, e *env.Env, o Options) error {
 				}
 				_, serr := os.Stat(real)
 				e.Config.PathsExist[strings.ToLower(real)] = serr == nil
+				if serr != nil {
+					continue
+				}
+				if can, aerr := fileinfo.UserCanRead(real); aerr == nil {
+					if e.Config.PathsReadable == nil {
+						e.Config.PathsReadable = map[string]bool{}
+					}
+					e.Config.PathsReadable[strings.ToLower(real)] = can
+				}
 			}
 		}
 	case errors.Is(err, os.ErrNotExist):

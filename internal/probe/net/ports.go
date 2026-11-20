@@ -89,6 +89,9 @@ func (p MirroredPorts) Run(e *env.Env) probe.Result {
 		need := portsWanted
 		if retries {
 			need = portsMinimum
+		} else if free >= portsMinimum {
+			// Enough for the fallback, which this runtime does not have.
+			hint += "; or update WSL (wsl --update): 3.0.5 is the first stable release that falls back to a smaller range, and this host has room for it"
 		}
 		r := b.Res(probe.Fail, 0.65, fmt.Sprintf("The longest free run of ports is %d, short of the %d mirrored networking needs: it is likely to fail and leave the VM without network", free, need))
 		what := "Up to WSL 3.0.3 the reservation is all or nothing: it fails with CreateInstance/CreateVm/ConfigureNetworking/0x8007054f and the VM starts with networkingMode=None."
