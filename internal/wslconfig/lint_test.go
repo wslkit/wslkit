@@ -223,3 +223,17 @@ func TestLintUnreadableKernel(t *testing.T) {
 		t.Errorf("readable: %+v", f)
 	}
 }
+
+func TestLintBridged(t *testing.T) {
+	ok := Parse("[wsl2]\nnetworkingMode=bridged\nvmSwitch=External\n")
+	if f := find(Lint(ok, table(t), Host{Runtime: wslver.MustParse("3.0.5")}), "wsl2.networkingMode", ""); f != nil {
+		t.Errorf("bridged with a switch on 3.0.5: %+v", *f)
+	}
+	if f := find(Lint(ok, table(t), Host{Runtime: wslver.MustParse("2.5.4")}), "wsl2.networkingMode", "2.5.6"); f == nil || f.Severity != Info {
+		t.Errorf("bridged on 2.5.4: %+v", f)
+	}
+	no := Parse("[wsl2]\nnetworkingMode=bridged\n")
+	if f := find(Lint(no, table(t), Host{Runtime: wslver.MustParse("3.0.5")}), "wsl2.networkingMode", "vmSwitch"); f == nil || f.Severity != Warn {
+		t.Errorf("bridged without a switch: %+v", f)
+	}
+}

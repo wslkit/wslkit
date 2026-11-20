@@ -201,7 +201,7 @@ Microsoft's side; wsldoctor can ship the dictionary they have not. Phase 3.
 
 From the current `wsl-config.md`: `[wsl2]` has 20 keys, `[experimental]` 8, and two
 footnote classes (Windows 11 only; Windows 11 22H2+). `networkingMode` accepts
-`none|nat|bridged(deprecated)|mirrored|virtioproxy`; NAT silently falls back to
+`none|nat|bridged|mirrored|virtioproxy`; NAT silently falls back to
 `virtioproxy` since 2.3.25. `sparseVhd` makes new VHDs sparse on purpose, so `DSK003`
 must distinguish "sparse because WSL made it so" (fine) from "sparse/compressed/encrypted
 by the user or by NTFS compression on the folder" (fails).

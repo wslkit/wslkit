@@ -127,3 +127,25 @@ func TestDNSVpnNat(t *testing.T) {
 		t.Fatalf("uncollected -> %s", r.Status)
 	}
 }
+
+// 2.4.5 announced bridged networking would be deprecated and 2.5.6 brought it
+// back (#125); what WSL refuses is bridged without a vmSwitch.
+func TestBridged(t *testing.T) {
+	for _, tc := range []struct {
+		runtime, cfg string
+		want         probe.Status
+		frag         string
+	}{
+		{"2.7.13.0", "[wsl2]\nnetworkingMode=bridged\nvmSwitch=External\n", probe.OK, ""},
+		{"3.0.5.0", "[wsl2]\nnetworkingMode=bridged\nvmSwitch=External\n", probe.OK, ""},
+		{"2.4.5.0", "[wsl2]\nnetworkingMode=bridged\nvmSwitch=External\n", probe.Warn, "2.5.6"},
+		{"3.0.5.0", "[wsl2]\nnetworkingMode=bridged\n", probe.Fail, "vmSwitch"},
+	} {
+		e := netEnv(26100, tc.cfg)
+		e.Runtime.Version = env.Ok(tc.runtime, "t")
+		r := (Mirrored{}).Run(e)
+		if r.Status != tc.want || !strings.Contains(r.Summary, tc.frag) || strings.Contains(r.Detail, "is deprecated since") {
+			t.Errorf("%s %q -> %s %q", tc.runtime, tc.cfg, r.Status, r.Summary)
+		}
+	}
+}

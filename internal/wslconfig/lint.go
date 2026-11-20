@@ -46,6 +46,13 @@ type Host struct {
 // kernel-modules disk as the user, for reading (microsoft/WSL#42048).
 var userOpensFrom = wslver.MustParse("3.0.5")
 
+// bridgedWarned is the first runtime that warned bridged networking would be
+// deprecated, bridgedBack the one that brought it back (microsoft/WSL 2.5.6).
+var (
+	bridgedWarned = wslver.MustParse("2.4.5")
+	bridgedBack   = wslver.MustParse("2.5.6")
+)
+
 // Lint checks a parsed .wslconfig against the key table and host facts.
 func Lint(cfg *Config, table *data.ConfigKeys, host Host) []Finding {
 	var out []Finding
@@ -100,7 +107,14 @@ func Lint(cfg *Config, table *data.ConfigKeys, host Host) []Finding {
 	// Cross-key rules.
 	mode := strings.ToLower(firstOf(values, "wsl2.networkingmode", "experimental.networkingmode"))
 	if mode == "bridged" {
-		add(Warn, seen[lineKey(values, "wsl2.networkingmode", "experimental.networkingmode")], "wsl2.networkingMode", "bridged networking is deprecated since WSL 2.4.5 and will be removed; use mirrored", false)
+		// 2.4.5 announced bridged would be deprecated; 2.5.6 brought it back.
+		line := seen[lineKey(values, "wsl2.networkingmode", "experimental.networkingmode")]
+		if sw := values["wsl2.vmswitch"]; strings.TrimSpace(sw) == "" {
+			add(Warn, line, "wsl2.networkingMode", "bridged needs wsl2.vmSwitch: without it WSL refuses to set up the network (\"Bridged networking requires wsl2.vmSwitch to be set.\")", false)
+		}
+		if !host.Runtime.IsZero() && !host.Runtime.Less(bridgedWarned) && host.Runtime.Less(bridgedBack) {
+			add(Info, line, "wsl2.networkingMode", fmt.Sprintf("WSL %s warns that bridged will be deprecated; 2.5.6 reversed that and supports it", host.Runtime), false)
+		}
 	}
 	for _, k := range []string{"wsl2.vmswitch", "wsl2.macaddress"} {
 		if _, ok := values[k]; ok && mode != "bridged" {

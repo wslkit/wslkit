@@ -60,6 +60,26 @@ func configBool(e *env.Env, key string) (val bool, set bool) {
 	return false, false
 }
 
+func configString(e *env.Env, key string) (val string, set bool) {
+	if !e.Config.WslConfig.OK() {
+		return "", false
+	}
+	cfg := wslconfig.Parse(e.Config.WslConfig.Value)
+	for _, sec := range []string{"wsl2", "experimental"} {
+		if v, ok := cfg.Get(sec, key); ok {
+			return v, true
+		}
+	}
+	return "", false
+}
+
+// bridgedWarned is the first runtime that warned bridged networking would be
+// deprecated, bridgedBack the one that brought it back.
+var (
+	bridgedWarned = wslver.MustParse("2.4.5")
+	bridgedBack   = wslver.MustParse("2.5.6")
+)
+
 // ---------------------------------------------------------------- NET004
 
 type Mirrored struct{}
@@ -118,7 +138,14 @@ func (p Mirrored) Run(e *env.Env) probe.Result {
 			}
 		}
 	case "bridged":
-		warns = append(warns, "bridged networking is deprecated since WSL 2.4.5; use mirrored (Windows 11 22H2+) or NAT")
+		// 2.4.5 announced bridged would be deprecated and 2.5.6 brought it
+		// back (microsoft/WSL#12743); 3.0.5 prints no warning for it.
+		if sw, _ := configString(e, "vmSwitch"); strings.TrimSpace(sw) == "" {
+			fails = append(fails, "networkingMode=bridged without wsl2.vmSwitch: WSL refuses to set up the network with \"Bridged networking requires wsl2.vmSwitch to be set.\" (WSL_E_VMSWITCH_NOT_SET)")
+		}
+		if rt, ok := runtimeVersion(e); ok && !rt.Less(bridgedWarned) && rt.Less(bridgedBack) {
+			warns = append(warns, fmt.Sprintf("WSL %s warns that bridged networking will be deprecated; 2.5.6 reversed that and supports it (wsl --update)", rt))
+		}
 	case "none":
 		warns = append(warns, "networkingMode=none: the VM has no network at all (this is a deliberate setting, or a leftover from a failed mirrored configuration)")
 	case "nat", "consomme", "virtioproxy":
@@ -150,6 +177,10 @@ func (p Mirrored) Run(e *env.Env) probe.Result {
 		r.Detail = detail + "\n" + strings.Join(append(fails, warns...), "\n")
 		r.FixID, r.FixHint = "wslconfig", "set networkingMode=nat (or remove the key) in .wslconfig, then wsl --shutdown; or fix the listed precondition"
 		r.Refs = []string{"https://github.com/microsoft/WSL/issues/10495", "https://learn.microsoft.com/en-us/windows/wsl/networking#mirrored-mode-networking"}
+		if mode == "bridged" {
+			r.FixID, r.FixHint = "", "set [wsl2] vmSwitch=<an external Hyper-V switch> in .wslconfig (Get-VMSwitch lists them), then wsl --shutdown; or use networkingMode=mirrored or nat"
+			r.Refs = []string{"https://github.com/microsoft/WSL/releases/tag/2.5.6"}
+		}
 		return r
 	case len(warns) > 0:
 		r := b.Res(probe.Warn, 0.5, warns[0])

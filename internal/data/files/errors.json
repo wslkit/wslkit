@@ -959,14 +959,14 @@
       ]
     },
     "WSL_E_VMSWITCH_NOT_FOUND": {
-      "desc": "networkingMode=bridged names a vmSwitch that does not exist (bridged is deprecated since 2.4.5).",
+      "desc": "networkingMode=bridged names a vmSwitch that does not exist.",
       "probes": [
         "NET004",
         "WSL005"
       ]
     },
     "WSL_E_VMSWITCH_NOT_SET": {
-      "desc": "networkingMode=bridged without a vmSwitch (bridged is deprecated since 2.4.5).",
+      "desc": "networkingMode=bridged without a vmSwitch.",
       "probes": [
         "NET004",
         "WSL005"
