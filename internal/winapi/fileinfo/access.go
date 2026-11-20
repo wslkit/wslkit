@@ -47,7 +47,7 @@ func UserCanRead(path string) (bool, error) {
 	if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY|windows.TOKEN_DUPLICATE, &proc); err != nil {
 		return false, fmt.Errorf("OpenProcessToken: %w", err)
 	}
-	defer proc.Close()
+	defer func() { _ = proc.Close() }()
 	base := proc
 	if proc.IsElevated() {
 		// The linked token of an elevated one is the filtered token of the
@@ -55,7 +55,7 @@ func UserCanRead(path string) (bool, error) {
 		// prompt. Without it, Administrators membership would hide exactly
 		// the disks that fail for the user.
 		if linked, err := proc.GetLinkedToken(); err == nil {
-			defer linked.Close()
+			defer func() { _ = linked.Close() }()
 			base = linked
 		}
 	}
@@ -63,7 +63,7 @@ func UserCanRead(path string) (bool, error) {
 	if err := windows.DuplicateTokenEx(base, windows.TOKEN_QUERY, nil, windows.SecurityIdentification, windows.TokenImpersonation, &imp); err != nil {
 		return false, fmt.Errorf("DuplicateTokenEx: %w", err)
 	}
-	defer imp.Close()
+	defer func() { _ = imp.Close() }()
 
 	// PRIVILEGE_SET with room for a few entries; AccessCheck fills it with
 	// the privileges it used, and none are expected for a read.

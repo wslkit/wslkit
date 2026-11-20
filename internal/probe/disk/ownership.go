@@ -48,7 +48,7 @@ func (p Ownership) Run(e *env.Env) probe.Result {
 	for _, d := range e.DistroList() {
 		v := d.Vhd
 		// A refused open still carries the owner and the read check.
-		if !(v.OK() || v.NeedsElevation()) || (v.Value.Owner == "" && v.Value.UserReadable == nil) {
+		if !v.OK() && !v.NeedsElevation() || (v.Value.Owner == "" && v.Value.UserReadable == nil) {
 			continue
 		}
 		seen++
