@@ -504,7 +504,11 @@ func inspectVhd(path string) (env.Field[env.VhdInfo], env.Field[ext4.Super]) {
 	if err != nil {
 		info.ParseErr = "open: " + err.Error()
 		if kindOf(err) == env.ErrNeedsElevation {
-			return env.Fail[env.VhdInfo](env.ErrNeedsElevation, path, err), fs
+			// Keep what was read without opening the file: DSK006 needs
+			// the owner and the read check most when the open is refused.
+			f := env.Fail[env.VhdInfo](env.ErrNeedsElevation, path, err)
+			f.Value = info
+			return f, fs
 		}
 		return env.Ok(info, path), fs // stat worked; parse did not
 	}

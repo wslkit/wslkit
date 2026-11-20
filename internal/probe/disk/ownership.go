@@ -47,7 +47,8 @@ func (p Ownership) Run(e *env.Env) probe.Result {
 	seen := 0
 	for _, d := range e.DistroList() {
 		v := d.Vhd
-		if !v.OK() || (v.Value.Owner == "" && v.Value.UserReadable == nil) {
+		// A refused open still carries the owner and the read check.
+		if !(v.OK() || v.NeedsElevation()) || (v.Value.Owner == "" && v.Value.UserReadable == nil) {
 			continue
 		}
 		seen++
@@ -77,7 +78,7 @@ func (p Ownership) Run(e *env.Env) probe.Result {
 
 	if len(unreadable) > 0 {
 		names := strings.Join(unreadable, ", ")
-		why := "WSL 3.0.5 and later open a distribution's disk as you, asking for read access, and refuse to attach a disk you cannot read: the start fails with \"Failed to attach disk '<path>' to WSL2: Access is denied.\" (microsoft/WSL#42048). Up to 3.0.4 that open asked for no access, and WSL granted the VM access itself, so the same disk started."
+		why := "WSL 3.0.5 and later open a distribution's disk as you, asking for read access, and refuse to attach a disk you cannot read: the start fails with \"Failed to attach disk '<path>' to WSL2: Access is denied.\" (microsoft/WSL#42048). Up to 3.0.4 that open asked for no access, and WSL granted the VM access itself, so the same disk started. A disk already attached to a running VM keeps working, even after wsl --terminate; the failure comes on the first start after the VM stops (wsl --shutdown, or idle timeout)."
 		var r probe.Result
 		if haveRT && rt.AtLeast(userReadRequired) {
 			r = b.Res(probe.Fail, 0.8, fmt.Sprintf("You cannot read the VHDX of %s, and WSL %s will not attach it", names, e.Runtime.Version.Value))
