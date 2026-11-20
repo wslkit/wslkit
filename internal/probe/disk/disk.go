@@ -171,7 +171,10 @@ func (p Attributes) Run(e *env.Env) probe.Result {
 		}
 		seen++
 		if v.Value.Compressed {
-			bad = append(bad, fmt.Sprintf("%s: VHDX has the NTFS compressed attribute", d.Name))
+			// Measured on 3.0.5: a compressed disk attaches and stays
+			// compressed. WSL has asked HCS for SupportCompressedVolumes
+			// since at least 2.5.8.
+			notes = append(notes, fmt.Sprintf("%s: VHDX is NTFS-compressed; WSL attaches it, at some cost in disk speed", d.Name))
 		}
 		if v.Value.Encrypted {
 			bad = append(bad, fmt.Sprintf("%s: VHDX has the EFS encrypted attribute", d.Name))
@@ -185,13 +188,13 @@ func (p Attributes) Run(e *env.Env) probe.Result {
 	}
 	if len(bad) > 0 {
 		r := b.Res(probe.Fail, 0.8, bad[0])
-		r.Detail = strings.Join(append(bad, notes...), "\n") + "\nWSL refuses compressed or encrypted VHDX files. This presents as: 'The virtual hard disk file must be uncompressed and unencrypted and must not be sparse' (0x80070570 / HCS_E_...)."
-		r.FixHint = "compact /u <path>\\ext4.vhdx   and   cipher /d <path>\\ext4.vhdx   (then check the folder's attributes too)"
+		r.Detail = strings.Join(append(bad, notes...), "\n") + "\nThe VM cannot read a disk encrypted with your EFS key. On WSL 3.0.5 the start fails with \"Failed to attach disk '<path>' to WSL2: Access is denied.\" and Wsl/Service/CreateInstance/MountDisk/HCS/E_ACCESSDENIED (measured)."
+		r.FixHint = "with WSL stopped (wsl --shutdown): cipher /d <path>\\ext4.vhdx, and cipher /d <folder> so new disks there are not encrypted"
 		r.Refs = []string{"https://github.com/microsoft/WSL/issues/4103"}
 		return r
 	}
 	if len(notes) > 0 {
-		r := b.Res(probe.OK, 0.4, "No compressed or encrypted VHDX")
+		r := b.Res(probe.OK, 0.4, "No encrypted VHDX")
 		r.Detail = strings.Join(notes, "\n")
 		return r
 	}

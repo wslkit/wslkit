@@ -705,13 +705,20 @@
             "https://github.com/microsoft/WSL/pull/42048"
           ],
           "summary": "from WSL 3.0.5: \"Failed to attach disk '<path>' to WSL2: Access is denied.\" WSL now opens a distribution's disk, a custom kernel and a custom kernel-modules disk as you, for reading, and you cannot read that file. 3.0.4 and older started the same disk. Grant yourself access to the file (icacls \"<path>\" /grant \"%USERNAME%:F\", from an elevated prompt if you do not own it)"
+        },
+        {
+          "probes": [
+            "DSK003"
+          ],
+          "summary": "with HCS in the code (MountDisk/HCS/E_ACCESSDENIED): the disk is EFS-encrypted, and the VM cannot read a file encrypted with your key. Measured on 3.0.5. Decrypt it with cipher /d \"<path>\" while WSL is stopped"
         }
       ],
-      "desc": "Access denied: file ACLs on the VHDX, or a policy.",
+      "desc": "Access denied: file ACLs on the VHDX, an EFS-encrypted VHDX, or a policy.",
       "hresult": "0x80070005",
       "probes": [
         "DSK006",
-        "DSK002"
+        "DSK002",
+        "DSK003"
       ]
     },
     "E_FAIL": {
