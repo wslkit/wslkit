@@ -496,9 +496,10 @@
       ]
     },
     "MountDisk": {
-      "desc": "wsl --mount",
+      "desc": "attaching a disk to the VM: a distribution's own disk at start, or wsl --mount",
       "probes": [
-        "DSK002"
+        "DSK002",
+        "DSK006"
       ]
     },
     "MoveDistro": {
@@ -703,7 +704,7 @@
           "refs": [
             "https://github.com/microsoft/WSL/pull/42048"
           ],
-          "summary": "from WSL 3.0.5: \"Failed to attach disk '<path>' to WSL2: Access is denied.\" WSL now opens a distribution's disk, a custom kernel and a custom kernel-modules disk as you, for reading, and you cannot read that file. 3.0.4 and older started the same disk. Grant yourself access to the file (icacls \"<path>\" /grant \"%USERNAME%:F\" from an elevated prompt)"
+          "summary": "from WSL 3.0.5: \"Failed to attach disk '<path>' to WSL2: Access is denied.\" WSL now opens a distribution's disk, a custom kernel and a custom kernel-modules disk as you, for reading, and you cannot read that file. 3.0.4 and older started the same disk. Grant yourself access to the file (icacls \"<path>\" /grant \"%USERNAME%:F\", from an elevated prompt if you do not own it)"
         }
       ],
       "desc": "Access denied: file ACLs on the VHDX, or a policy.",

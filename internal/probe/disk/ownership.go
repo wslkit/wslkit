@@ -39,7 +39,7 @@ var (
 	userReadRequired = wslver.MustParse("3.0.5")
 )
 
-const unreadableHint = `from an elevated prompt, give yourself access to each disk listed: icacls "<path>\ext4.vhdx" /grant "%USERNAME%:F"`
+const unreadableHint = `give yourself access to each disk listed: icacls "<path>\ext4.vhdx" /grant "%USERNAME%:F" (from an elevated prompt if you do not own the file)`
 
 func (p Ownership) Run(e *env.Env) probe.Result {
 	b := p.base()
