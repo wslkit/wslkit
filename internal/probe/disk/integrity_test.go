@@ -1,6 +1,7 @@
 package disk
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -29,5 +30,32 @@ func TestIntegrityWarnsAboutADiskMovedOutOfItsPackage(t *testing.T) {
 	inPlace := (Integrity{}).Run(storeEnv(`C:\Users\u\AppData\Local\Packages\` + family + `\LocalState`))
 	if inPlace.Status != probe.OK {
 		t.Fatalf("in its package directory -> %s %q", inPlace.Status, inPlace.Summary)
+	}
+}
+
+func TestIntegrityNamesDeniedReadAccessRatherThanElevation(t *testing.T) {
+	// #136: a refused open can be an ACL deny rather than a missing privilege.
+	// The collector keeps UserReadable on that Field, so DSK002 must say so and
+	// point at DSK006 instead of telling the user to elevate.
+	denied := false
+	vhd := env.Fail[env.VhdInfo](env.ErrNeedsElevation, "t", errors.New("Access is denied."))
+	vhd.Value = env.VhdInfo{Path: `C:\wsl\ext4.vhdx`, UserReadable: &denied}
+	e := env.New("t")
+	e.Distros = env.Ok([]env.Distro{{Name: "Ubuntu", Version: 2, Vhd: vhd}}, "t")
+
+	r := (Integrity{}).Run(e)
+	if !strings.Contains(r.Detail, "cannot read the VHDX (its access list, not elevation)") || !strings.Contains(r.Detail, "DSK006") {
+		t.Fatalf("denied read -> %q", r.Detail)
+	}
+	if strings.Contains(r.Detail, "not readable without elevation") {
+		t.Fatalf("still suggests elevation for an ACL deny: %q", r.Detail)
+	}
+
+	// Without the read check the conservative elevation wording stays.
+	unknown := env.Fail[env.VhdInfo](env.ErrNeedsElevation, "t", errors.New("Access is denied."))
+	e.Distros = env.Ok([]env.Distro{{Name: "Ubuntu", Version: 2, Vhd: unknown}}, "t")
+	r = (Integrity{}).Run(e)
+	if !strings.Contains(r.Detail, "not readable without elevation") {
+		t.Fatalf("unknown read check -> %q", r.Detail)
 	}
 }

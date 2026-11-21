@@ -56,7 +56,14 @@ func (p Integrity) Run(e *env.Env) probe.Result {
 		case v.Absent():
 			bad = append(bad, fmt.Sprintf("%s: %s does not exist", d.Name, v.Source))
 		case v.NeedsElevation():
-			lines = append(lines, d.Name+": VHDX not readable without elevation")
+			// The collector keeps the read check on a refused open. When it says the
+			// user is denied, elevation will not help (the deny applies to the
+			// elevated token too); DSK006 is the probe that owns this case.
+			if r := v.Value.UserReadable; r != nil && !*r {
+				lines = append(lines, d.Name+": your account cannot read the VHDX (its access list, not elevation); see DSK006")
+			} else {
+				lines = append(lines, d.Name+": VHDX not readable without elevation")
+			}
 		case !v.OK():
 			bad = append(bad, fmt.Sprintf("%s: cannot open VHDX: %s", d.Name, v.Err))
 		case v.Value.FileSize == 0:
